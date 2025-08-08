@@ -6,19 +6,42 @@
 resource_name = "Multiplayer"
 script/source = "extends Node
 
-const port=4443
+const PORT=4443
 
 func _ready() -> void:
-	var peer = ENetMultiplayerPeer.new()
-	peer.create_server(port)
-	multiplayer.multiplayer_peer = peer
+	if \"--server\" in OS.get_cmdline_args():
+		print(\"Creating server\")
+		var peer = ENetMultiplayerPeer.new()
+		peer.create_server(PORT)
+		multiplayer.multiplayer_peer = peer
+		
+		var player = load(\"res://entity_scene.tscn\").instantiate()
+		player.name = str(1)
+		
+		multiplayer.peer_connected.connect(_on_player_connected)
+		multiplayer.peer_disconnected.connect(_on_player_disconnected)
+	else:
+		print(\"Creating Client\")
+		var peer2 = ENetMultiplayerPeer.new()
+		peer2.create_client(\"127.0.0.1\", PORT)
+		multiplayer.multiplayer_peer = peer2
+		
+	print(multiplayer.is_server())
+
+
+
+func _on_player_connected(id):
+	print(\"Player connected: \", id)
 	if multiplayer.is_server():
-		load(\"res://entity_scene.tscn\").instantiate()
-	pass 
-
-
-func _process(delta: float) -> void:
-	pass
+		var player = load(\"res://entity_scene.tscn\").instantiate()
+		player.name = str(1)
+		
+func _on_player_disconnected(id):
+	print(\"Player disconnected: \", id)
+	if multiplayer.is_server():
+		var player = get_node_or_null(str(id))
+		if player:
+			player.queue_free()
 "
 
 [sub_resource type="GDScript" id="GDScript_0f027"]
@@ -30,7 +53,7 @@ script/source = "extends MultiplayerSpawner
 func _ready() -> void:
 	
 	for i in range(get_spawnable_scene_count()):
-		load(get_spawnable_scene(i)).instantiate()
+		#load(get_spawnable_scene(i)).instantiate()
 		print(get_spawnable_scene(i))
 
 	pass # Replace with function body.
