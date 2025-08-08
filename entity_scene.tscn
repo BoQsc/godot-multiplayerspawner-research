@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://dub7iv64uw2iq"]
+[gd_scene load_steps=4 format=3 uid="uid://dub7iv64uw2iq"]
 
 [sub_resource type="GDScript" id="GDScript_qggms"]
 resource_name = "entity_Scene"
 script/source = "# Method 1: Simple position-based movement
+#entity_scene node
 extends Node2D
 
 
@@ -30,9 +31,6 @@ func _process(delta):
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_qsx0g"]
 size = Vector2(50, 50)
 
-[sub_resource type="GDScript" id="GDScript_qsx0g"]
-resource_name = "Sprite2D"
-
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_qsx0g"]
 properties/0/path = NodePath(".:position")
 properties/0/spawn = true
@@ -43,7 +41,6 @@ script = SubResource("GDScript_qggms")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture = SubResource("PlaceholderTexture2D_qsx0g")
-script = SubResource("GDScript_qsx0g")
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 replication_config = SubResource("SceneReplicationConfig_qsx0g")
