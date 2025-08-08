@@ -1,9 +1,17 @@
-[gd_scene load_steps=2 format=3 uid="uid://dub7iv64uw2iq"]
+[gd_scene load_steps=3 format=3 uid="uid://dub7iv64uw2iq"]
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_qsx0g"]
 size = Vector2(50, 50)
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_qsx0g"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
 
 [node name="entity_scene" type="Node2D"]
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture = SubResource("PlaceholderTexture2D_qsx0g")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_qsx0g")

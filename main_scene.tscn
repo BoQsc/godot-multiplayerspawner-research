@@ -32,6 +32,7 @@ func _spawn_server_player():
 	if multiplayer.is_server():
 		var player = load(\"res://entity_scene.tscn\").instantiate()
 		player.name = str(1)
+		player.position = Vector2(100, 100)
 		$\"../SpawnContainer\".add_child(player)
 
 func _on_player_connected(id):
