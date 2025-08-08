@@ -15,9 +15,7 @@ func _ready() -> void:
 		peer.create_server(PORT)
 		multiplayer.multiplayer_peer = peer
 		
-		var player = load(\"res://entity_scene.tscn\").instantiate()
-		player.name = str(1)
-		$\"../SpawnContainer\".add_child(player)
+		call_deferred(\"_spawn_server_player\")
 		
 		multiplayer.peer_connected.connect(_on_player_connected)
 		multiplayer.peer_disconnected.connect(_on_player_disconnected)
@@ -29,7 +27,12 @@ func _ready() -> void:
 		
 	print(multiplayer.is_server())
 
-
+func _spawn_server_player():
+	# Spawn the server player using the spawner system
+	if multiplayer.is_server():
+		var player = load(\"res://entity_scene.tscn\").instantiate()
+		player.name = str(1)
+		$\"../SpawnContainer\".add_child(player)
 
 func _on_player_connected(id):
 	print(\"Player connected: \", id)
