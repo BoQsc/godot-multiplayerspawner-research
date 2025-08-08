@@ -34,7 +34,7 @@ func _on_player_connected(id):
 	print(\"Player connected: \", id)
 	if multiplayer.is_server():
 		var player = load(\"res://entity_scene.tscn\").instantiate()
-		player.name = str(1)
+		player.name = str(id)
 		
 func _on_player_disconnected(id):
 	print(\"Player disconnected: \", id)
