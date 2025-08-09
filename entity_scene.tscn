@@ -22,22 +22,8 @@ func _enter_tree():
 
 func _physics_process(delta: float) -> void:
 	if is_multiplayer_authority():
-		var velocity = Vector2.ZERO
-		
-		# Check for input
-		if Input.is_action_pressed(\"ui_right\"):
-			velocity.x += 1
-		if Input.is_action_pressed(\"ui_left\"):
-			velocity.x -= 1
-		if Input.is_action_pressed(\"ui_down\"):
-			velocity.y += 1
-		if Input.is_action_pressed(\"ui_up\"):
-			velocity.y -= 1
-	
-		# Normalize diagonal movement
-		if velocity.length() > 0:
-			velocity = velocity.normalized() * speed
-			position += velocity * delta
+		var velocity = Input.get_vector(\"ui_left\", \"ui_right\", \"ui_up\", \"ui_down\") * speed
+		position += velocity * delta
 "
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_qsx0g"]
