@@ -46,7 +46,7 @@ func _on_player_connected(id):
 func _on_player_disconnected(id):
 	print(\"Player disconnected: \", id)
 	if multiplayer.is_server():
-		var player = get_node_or_null(str(id))
+		var player = $\"../SpawnContainer\".get_node_or_null(str(id))  # ✅ Correct path
 		if player:
 			player.queue_free()
 "
