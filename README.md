@@ -40,3 +40,6 @@ And client instance appears with testdot  in the middle of container.
 
 This is what MultplayerSynchronizer is used: to synchronize.
 Add property to replicate: `.:position`
+
+
+--------------- Godot "Low processor mode" might help with debugging more than 2 intances on low
