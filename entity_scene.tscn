@@ -33,6 +33,7 @@ script = SubResource("GDScript_qggms")
 [node name="ColorRect" type="ColorRect" parent="."]
 offset_right = 40.0
 offset_bottom = 40.0
+color = Color(1, 0, 1, 1)
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 replication_config = SubResource("SceneReplicationConfig_qsx0g")
