@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://dslh1c7rihy52"]
+[gd_scene load_steps=5 format=3 uid="uid://dslh1c7rihy52"]
 
 [ext_resource type="Texture2D" uid="uid://bxoyje2pq7nna" path="res://icon.svg" id="1_0f027"]
 
@@ -18,7 +18,7 @@ func _ready() -> void:
 		await get_tree().process_frame 
 		var player = load(\"res://entity_scene.tscn\").instantiate()
 		player.name = str(1)
-		player.position = Vector2(100, 100)
+		player.position = Vector2(0, 0)
 		player.get_node(\"ColorRect\").color = Color.GREEN
 		$\"../SpawnContainer\".add_child(player)
 			
@@ -60,6 +60,11 @@ script/source = "extends MultiplayerSpawner
 #	pass # Replace with function body.
 "
 
+[sub_resource type="LabelSettings" id="LabelSettings_0f027"]
+font_size = 14
+font_color = Color(0, 1, 1, 1)
+shadow_color = Color(0, 0, 0, 1)
+
 [node name="Node2D" type="Node2D"]
 
 [node name="Multiplayer" type="Node" parent="."]
@@ -75,3 +80,11 @@ position = Vector2(171, 173)
 
 [node name="Sprite2D" type="Sprite2D" parent="SpawnContainer"]
 texture = ExtResource("1_0f027")
+
+[node name="Label" type="Label" parent="SpawnContainer"]
+offset_left = -55.0
+offset_top = -64.0
+offset_right = 73.0
+offset_bottom = -41.0
+text = "SpawnContainer"
+label_settings = SubResource("LabelSettings_0f027")
