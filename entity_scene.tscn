@@ -6,10 +6,17 @@ script/source = "# Method 1: Simple position-based movement
 #entity_scene node
 extends Node2D
 
-func _ready():
-	# Set the multiplayer authority to the player who owns this entity
+func _enter_tree():
+	# Set authority BEFORE _ready() - this is critical for MultiplayerSynchronizer
 	var player_id = int(name)
 	set_multiplayer_authority(player_id)
+	
+	# Also set the MultiplayerSynchronizer authority
+	var sync = $MultiplayerSynchronizer
+	if sync:
+		sync.set_multiplayer_authority(player_id)
+
+
 
 @export var speed = 300.0
 
