@@ -15,7 +15,7 @@ func _ready() -> void:
 		peer.create_server(PORT)
 		multiplayer.multiplayer_peer = peer
 		
-		await get_tree().process_frame # This might be needed for client spawning too. In case of problems better to go back to implementing as separate function. : #call_deferred(\"_spawn_server_player\")
+		await get_tree().process_frame 
 		var player = load(\"res://entity_scene.tscn\").instantiate()
 		player.name = str(1)
 		player.position = Vector2(100, 100)
