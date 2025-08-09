@@ -13,7 +13,7 @@ func _ready():
 
 @export var speed = 300.0
 
-func _process(delta):
+func _physics_process(delta: float) -> void:
 	if is_multiplayer_authority():
 		var velocity = Vector2.ZERO
 		
@@ -48,4 +48,6 @@ script = SubResource("GDScript_qggms")
 texture = SubResource("PlaceholderTexture2D_qsx0g")
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_interval = 0.223
+delta_interval = 0.223
 replication_config = SubResource("SceneReplicationConfig_qsx0g")
