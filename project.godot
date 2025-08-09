@@ -15,8 +15,3 @@ run/main_scene="uid://dslh1c7rihy52"
 config/features=PackedStringArray("4.4", "GL Compatibility")
 run/low_processor_mode=true
 config/icon="res://icon.svg"
-
-[rendering]
-
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
