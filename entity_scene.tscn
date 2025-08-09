@@ -55,6 +55,6 @@ script = SubResource("GDScript_qggms")
 texture = SubResource("PlaceholderTexture2D_qsx0g")
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
-replication_interval = 0.223
-delta_interval = 0.223
+replication_interval = 0.1
+delta_interval = 0.1
 replication_config = SubResource("SceneReplicationConfig_qsx0g")
