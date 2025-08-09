@@ -10,9 +10,6 @@ func _enter_tree():
 	# Set authority BEFORE _ready() - this is critical for MultiplayerSynchronizer
 	var player_id = int(name)
 	set_multiplayer_authority(player_id)
-	
-
-
 
 @export var speed = 300.0
 
