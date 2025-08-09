@@ -6,26 +6,31 @@ script/source = "# Method 1: Simple position-based movement
 #entity_scene node
 extends Node2D
 
+func _ready():
+	# Set the multiplayer authority to the player who owns this entity
+	var player_id = int(name)
+	set_multiplayer_authority(player_id)
 
 @export var speed = 300.0
 
 func _process(delta):
-	var velocity = Vector2.ZERO
+	if is_multiplayer_authority():
+		var velocity = Vector2.ZERO
+		
+		# Check for input
+		if Input.is_action_pressed(\"ui_right\"):
+			velocity.x += 1
+		if Input.is_action_pressed(\"ui_left\"):
+			velocity.x -= 1
+		if Input.is_action_pressed(\"ui_down\"):
+			velocity.y += 1
+		if Input.is_action_pressed(\"ui_up\"):
+			velocity.y -= 1
 	
-	# Check for input
-	if Input.is_action_pressed(\"ui_right\"):
-		velocity.x += 1
-	if Input.is_action_pressed(\"ui_left\"):
-		velocity.x -= 1
-	if Input.is_action_pressed(\"ui_down\"):
-		velocity.y += 1
-	if Input.is_action_pressed(\"ui_up\"):
-		velocity.y -= 1
-	
-	# Normalize diagonal movement
-	if velocity.length() > 0:
-		velocity = velocity.normalized() * speed
-		position += velocity * delta
+		# Normalize diagonal movement
+		if velocity.length() > 0:
+			velocity = velocity.normalized() * speed
+			position += velocity * delta
 "
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_qsx0g"]
