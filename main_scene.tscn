@@ -77,7 +77,7 @@ spawn_path = NodePath("../SpawnContainer")
 script = SubResource("GDScript_0f027")
 
 [node name="SpawnContainer" type="Node2D" parent="."]
-position = Vector2(71, 73)
+position = Vector2(171, 173)
 
 [node name="Sprite2D" type="Sprite2D" parent="SpawnContainer"]
 texture = ExtResource("1_0f027")
