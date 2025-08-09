@@ -11,10 +11,6 @@ func _enter_tree():
 	var player_id = int(name)
 	set_multiplayer_authority(player_id)
 	
-	# Also set the MultiplayerSynchronizer authority
-	var sync = $MultiplayerSynchronizer
-	if sync:
-		sync.set_multiplayer_authority(player_id)
 
 
 
