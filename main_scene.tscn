@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://dslh1c7rihy52"]
+[gd_scene load_steps=3 format=3 uid="uid://dslh1c7rihy52"]
 
 [ext_resource type="Texture2D" uid="uid://bxoyje2pq7nna" path="res://icon.svg" id="1_0f027"]
 
@@ -44,21 +44,6 @@ func _on_player_disconnected(id):
 			player.queue_free()
 "
 
-[sub_resource type="GDScript" id="GDScript_0f027"]
-resource_name = "MultiplayerSpawner"
-script/source = "extends MultiplayerSpawner
-
-
-# Called when the node enters the scene tree for the first time.
-#func _ready() -> void:
-#	
-#	for i in range(get_spawnable_scene_count()):
-#		#load(get_spawnable_scene(i)).instantiate()
-#		print(get_spawnable_scene(i))
-#
-#	pass # Replace with function body.
-"
-
 [node name="Node2D" type="Node2D"]
 
 [node name="Multiplayer" type="Node" parent="."]
@@ -67,7 +52,6 @@ script = SubResource("GDScript_2c62f")
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
 _spawnable_scenes = PackedStringArray("uid://dub7iv64uw2iq")
 spawn_path = NodePath("../SpawnContainer")
-script = SubResource("GDScript_0f027")
 
 [node name="SpawnContainer" type="Node2D" parent="."]
 position = Vector2(171, 173)
