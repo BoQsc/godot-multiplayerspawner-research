@@ -1,14 +1,21 @@
-[gd_scene load_steps=3 format=3 uid="uid://dslh1c7rihy52"]
+[gd_scene load_steps=4 format=3 uid="uid://dslh1c7rihy52"]
 
 [ext_resource type="Texture2D" uid="uid://bxoyje2pq7nna" path="res://icon.svg" id="1_0f027"]
+[ext_resource type="PackedScene" uid="uid://dub7iv64uw2iq" path="res://entity_scene.tscn" id="2_2c62f"]
 
 [sub_resource type="GDScript" id="GDScript_2c62f"]
 resource_name = "Multiplayer"
 script/source = "extends Node 
 
-const PORT=4443
+const PORT = 4443
 
 func _ready() -> void:
+	# Remove existing nodes - they have sync issues
+	for i in range(1, 5):
+		var node = $\"../SpawnContainer\".get_node_or_null(str(i))
+		if node:
+			node.queue_free()
+	
 	if \"--server\" in OS.get_cmdline_args():
 		print(\"Creating server\")
 		var peer = ENetMultiplayerPeer.new()
@@ -58,3 +65,11 @@ position = Vector2(171, 173)
 
 [node name="Sprite2D" type="Sprite2D" parent="SpawnContainer"]
 texture = ExtResource("1_0f027")
+
+[node name="1" parent="SpawnContainer" instance=ExtResource("2_2c62f")]
+
+[node name="2" parent="SpawnContainer" instance=ExtResource("2_2c62f")]
+
+[node name="3" parent="SpawnContainer" instance=ExtResource("2_2c62f")]
+
+[node name="4" parent="SpawnContainer" instance=ExtResource("2_2c62f")]
