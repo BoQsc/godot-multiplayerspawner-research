@@ -8,13 +8,17 @@ resource_name = "Multiplayer"
 script/source = "extends Node 
 
 const PORT = 4443
+var available_players = []  # Track which player nodes are available
+var player_assignments = {}  # Track which peer ID is using which player node
 
 func _ready() -> void:
-	# Remove existing nodes - they have sync issues
+	# Initialize available players (assuming nodes are named \"1\", \"2\", \"3\", \"4\")
 	for i in range(1, 5):
 		var node = $\"../SpawnContainer\".get_node_or_null(str(i))
 		if node:
-			node.queue_free()
+			available_players.append(node)
+			node.set_multiplayer_authority(1)  # Server has authority initially
+			node.visible = false  # Hide until assigned
 	
 	if \"--server\" in OS.get_cmdline_args():
 		print(\"Creating server\")
@@ -22,11 +26,17 @@ func _ready() -> void:
 		peer.create_server(PORT)
 		multiplayer.multiplayer_peer = peer
 		
-		await get_tree().process_frame 
-		var player = load(\"res://entity_scene.tscn\").instantiate()
-		player.name = str(1)
-		player.position = Vector2(100, 100)
-		$\"../SpawnContainer\".add_child(player)
+		await get_tree().process_frame
+		
+		# Assign first player node to server
+		if available_players.size() > 0:
+			var server_player = available_players.pop_front()
+			server_player.name = str(1)
+			server_player.position = Vector2(100, 100)
+			server_player.visible = true
+			server_player.set_multiplayer_authority(1)
+			player_assignments[1] = server_player
+			print(\"Server assigned to player node: \", server_player.name)
 			
 		multiplayer.peer_connected.connect(_on_player_connected)
 		multiplayer.peer_disconnected.connect(_on_player_disconnected)
@@ -39,16 +49,26 @@ func _ready() -> void:
 func _on_player_connected(id):
 	print(\"Player connected: \", id)
 	if multiplayer.is_server():
-		var player = load(\"res://entity_scene.tscn\").instantiate()
-		player.name = str(id)
-		$\"../SpawnContainer\".add_child(player)
+		if available_players.size() > 0:
+			var player = available_players.pop_front()
+			player.name = str(id)
+			player.visible = true
+			player.set_multiplayer_authority(id)
+			player_assignments[id] = player
+			print(\"Assigned player node to peer \", id, \": \", player.name)
+		else:
+			print(\"No available player nodes for peer \", id)
 		
 func _on_player_disconnected(id):
 	print(\"Player disconnected: \", id)
 	if multiplayer.is_server():
-		var player = $\"../SpawnContainer\".get_node_or_null(str(id))  
-		if player:
-			player.queue_free()
+		if id in player_assignments:
+			var player = player_assignments[id]
+			player.visible = false
+			player.set_multiplayer_authority(1)  # Return authority to server
+			available_players.append(player)  # Make available again
+			player_assignments.erase(id)
+			print(\"Released player node from peer \", id)
 "
 
 [node name="Node2D" type="Node2D"]
