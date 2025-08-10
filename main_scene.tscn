@@ -14,49 +14,42 @@ func _ready() -> void:
 		var peer = ENetMultiplayerPeer.new()
 		peer.create_server(PORT)
 		multiplayer.multiplayer_peer = peer
-		
-		await get_tree().process_frame 
-		var player = load(\"res://entity_scene.tscn\").instantiate()
-		player.name = str(1)
-		player.position = Vector2(100, 100)
-		$\"../SpawnContainer\".add_child(player)
 			
-		multiplayer.peer_connected.connect(_on_player_connected)
-		multiplayer.peer_disconnected.connect(_on_player_disconnected)
+		multiplayer.peer_connected.connect($\"../MultiplayerSpawner\"._on_player_connected)
+		multiplayer.peer_disconnected.connect($\"../MultiplayerSpawner\"._on_player_disconnected)
 	else:
 		print(\"Creating Client\")
 		var peer = ENetMultiplayerPeer.new()
 		peer.create_client(\"127.0.0.1\", PORT)
 		multiplayer.multiplayer_peer = peer
-
-func _on_player_connected(id):
-	print(\"Player connected: \", id)
-	if multiplayer.is_server():
-		var player = load(\"res://entity_scene.tscn\").instantiate()
-		player.name = str(id)
-		$\"../SpawnContainer\".add_child(player)
-		
-func _on_player_disconnected(id):
-	print(\"Player disconnected: \", id)
-	if multiplayer.is_server():
-		var player = $\"../SpawnContainer\".get_node_or_null(str(id))  
-		if player:
-			player.queue_free()
 "
 
 [sub_resource type="GDScript" id="GDScript_0f027"]
 resource_name = "MultiplayerSpawner"
 script/source = "extends MultiplayerSpawner
 
+func _ready() -> void:
+	if multiplayer.is_server():
+		print(\"Spawning first Server PLayer\")
+		await get_tree().process_frame 
+		var player = load(\"res://entity_scene.tscn\").instantiate()
+		player.name = str(1)
+		player.position = Vector2(100, 100)
+		get_node(spawn_path).add_child(player)
 
-# Called when the node enters the scene tree for the first time.
-#func _ready() -> void:
-#	
-#	for i in range(get_spawnable_scene_count()):
-#		#load(get_spawnable_scene(i)).instantiate()
-#		print(get_spawnable_scene(i))
-#
-#	pass # Replace with function body.
+func _on_player_connected(id):
+	print(\"Player connected: \", id)
+	if multiplayer.is_server():
+		var player = load(\"res://entity_scene.tscn\").instantiate()
+		player.name = str(id)
+		get_node(spawn_path).add_child(player)
+		
+func _on_player_disconnected(id):
+	print(\"Player disconnected: \", id)
+	if multiplayer.is_server():
+		var player = get_node(spawn_path).get_node_or_null(str(id))  
+		if player:
+			player.queue_free()
 "
 
 [node name="Node2D" type="Node2D"]
