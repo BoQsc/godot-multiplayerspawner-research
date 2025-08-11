@@ -68,6 +68,7 @@ func _on_player_disconnected(id):
 			available_players.append(player)
 			player_assignments.erase(id)
 			print(\"Released player node from peer \", id)
+
 "
 
 [node name="Node2D" type="Node2D"]
@@ -86,11 +87,6 @@ position = Vector2(171, 173)
 texture = ExtResource("1_0f027")
 
 [node name="1" parent="SpawnContainer" instance=ExtResource("2_2c62f")]
-
-[node name="Label" type="Label" parent="SpawnContainer/1"]
-offset_right = 40.0
-offset_bottom = 23.0
-text = "First player"
 
 [node name="2" parent="SpawnContainer" instance=ExtResource("2_2c62f")]
 

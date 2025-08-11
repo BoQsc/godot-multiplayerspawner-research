@@ -2,19 +2,24 @@
 
 [sub_resource type="GDScript" id="GDScript_qggms"]
 resource_name = "entity_Scene"
-script/source = "# Method 1: Simple position-based movement
-#entity_scene node
+script/source = "# ENTITY SCENE SCRIPT (entity_scene.tscn script)
 extends Node2D
 
-func _enter_tree():
-	# Set authority BEFORE _ready() - this is critical for MultiplayerSynchronizer
-	var player_id = int(name)
-	set_multiplayer_authority(player_id)
-
 @export var speed = 300.0
+var assigned_peer_id = -1
+
+func assign_to_peer(peer_id: int):
+	assigned_peer_id = peer_id
+	name = str(peer_id)  # Optional: rename for debugging
+	set_multiplayer_authority(peer_id)
+	print(\"Entity assigned to peer: \", peer_id)
+
+func reset_peer():
+	assigned_peer_id = -1
+	set_multiplayer_authority(1)  # Return to server authority
 
 func _physics_process(delta: float) -> void:
-	if is_multiplayer_authority():
+	if is_multiplayer_authority() and assigned_peer_id != -1:
 		var velocity = Input.get_vector(\"ui_left\", \"ui_right\", \"ui_up\", \"ui_down\") * speed
 		position += velocity * delta
 "
