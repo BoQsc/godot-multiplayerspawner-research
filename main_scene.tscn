@@ -1,23 +1,15 @@
-<<<<<<< Updated upstream
-[gd_scene load_steps=5 format=3 uid="uid://dslh1c7rihy52"]
-=======
 [gd_scene load_steps=4 format=3 uid="uid://dslh1c7rihy52"]
->>>>>>> Stashed changes
 
 [ext_resource type="Texture2D" uid="uid://bxoyje2pq7nna" path="res://icon.svg" id="1_0f027"]
 [ext_resource type="Script" uid="uid://dyanuw3ckhq8o" path="res://network_manager.gd" id="1_2c62f"]
 
 [sub_resource type="GDScript" id="GDScript_2c62f"]
-resource_name = "Multiplayer"
+resource_name = "GameManager"
 script/source = "extends Node 
 
-<<<<<<< Updated upstream
-const PORT=4443
-=======
 const PORT = 4443
 var players = {}
 var network_manager: NetworkManager
->>>>>>> Stashed changes
 
 func _ready() -> void:
 	# Find NetworkManager
@@ -29,15 +21,12 @@ func _ready() -> void:
 		peer.create_server(PORT)
 		multiplayer.multiplayer_peer = peer
 		
-		await get_tree().process_frame 
-		var player = load(\"res://entity_scene.tscn\").instantiate()
-		player.name = str(1)
-		player.position = Vector2(0, 0)
-		player.get_node(\"ColorRect\").color = Color.GREEN
-		$\"../SpawnContainer\".add_child(player)
-			
 		multiplayer.peer_connected.connect(_on_player_connected)
 		multiplayer.peer_disconnected.connect(_on_player_disconnected)
+		
+		# Spawn server player (ID 1)
+		await get_tree().process_frame
+		_spawn_player(1, Vector2(100, 100))
 	else:
 		print(\"Creating Client\")
 		var peer = ENetMultiplayerPeer.new()
@@ -47,19 +36,18 @@ func _ready() -> void:
 func _on_player_connected(id):
 	print(\"Player connected: \", id)
 	if multiplayer.is_server():
-		var player = load(\"res://entity_scene.tscn\").instantiate()
-		player.name = str(id)
-		player.get_node(\"ColorRect\").color = Color(randf(),randf(),randf())
-		$\"../SpawnContainer\".add_child(player)
+		# Send existing players to new player
+		for player_id in players.keys():
+			rpc_id(id, \"spawn_player\", player_id, players[player_id].position)
+		
+		# Spawn new player and notify all clients
+		var spawn_pos = Vector2(randf_range(50, 500), randf_range(50, 400))
+		_spawn_player(id, spawn_pos)
+		rpc(\"spawn_player\", id, spawn_pos)
 		
 func _on_player_disconnected(id):
 	print(\"Player disconnected: \", id)
 	if multiplayer.is_server():
-<<<<<<< Updated upstream
-		var player = $\"../SpawnContainer\".get_node_or_null(str(id))  
-		if player:
-			player.queue_free()
-=======
 		_despawn_player(id)
 		rpc(\"despawn_player\", id)
 
@@ -95,56 +83,18 @@ func update_player_position(id: int, pos: Vector2):
 		# Fallback: direct position update if no NetworkManager
 		if id in players:
 			players[id].position = pos
->>>>>>> Stashed changes
 "
-
-[sub_resource type="GDScript" id="GDScript_0f027"]
-resource_name = "MultiplayerSpawner"
-script/source = "extends MultiplayerSpawner
-
-
-# Called when the node enters the scene tree for the first time.
-#func _ready() -> void:
-#	
-#	for i in range(get_spawnable_scene_count()):
-#		#load(get_spawnable_scene(i)).instantiate()
-#		print(get_spawnable_scene(i))
-#
-#	pass # Replace with function body.
-"
-
-[sub_resource type="LabelSettings" id="LabelSettings_0f027"]
-font_size = 14
-font_color = Color(0, 1, 1, 1)
-shadow_color = Color(0, 0, 0, 1)
 
 [node name="Node2D" type="Node2D"]
 
-<<<<<<< Updated upstream
-[node name="Multiplayer" type="Node" parent="."]
-=======
 [node name="NetworkManager" type="Node" parent="."]
 script = ExtResource("1_2c62f")
 
 [node name="GameManager" type="Node" parent="."]
->>>>>>> Stashed changes
 script = SubResource("GDScript_2c62f")
-
-[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
-_spawnable_scenes = PackedStringArray("uid://dub7iv64uw2iq")
-spawn_path = NodePath("../SpawnContainer")
-script = SubResource("GDScript_0f027")
 
 [node name="SpawnContainer" type="Node2D" parent="."]
 position = Vector2(171, 173)
 
 [node name="Sprite2D" type="Sprite2D" parent="SpawnContainer"]
 texture = ExtResource("1_0f027")
-
-[node name="Label" type="Label" parent="SpawnContainer"]
-offset_left = -55.0
-offset_top = -64.0
-offset_right = 73.0
-offset_bottom = -41.0
-text = "SpawnContainer"
-label_settings = SubResource("LabelSettings_0f027")
