@@ -1,37 +1,40 @@
-[gd_scene load_steps=4 format=3 uid="uid://dub7iv64uw2iq"]
+[gd_scene load_steps=3 format=3 uid="uid://dub7iv64uw2iq"]
 
 [sub_resource type="GDScript" id="GDScript_qggms"]
 resource_name = "entity_Scene"
-script/source = "# Method 1: Simple position-based movement
-#entity_scene node
-extends Node2D
-
-func _enter_tree():
-	# Set authority BEFORE _ready() - this is critical for MultiplayerSynchronizer
-	var player_id = int(name)
-	set_multiplayer_authority(player_id)
+script/source = "extends Node2D
 
 @export var speed = 300.0
+var player_id: int
+var is_local_player: bool = false
+var game_manager: Node
+
+func _ready():
+	player_id = int(name)
+	is_local_player = (player_id == multiplayer.get_unique_id())
+	# Cache reference to game manager
+	game_manager = get_tree().get_first_node_in_group(\"game_manager\")
+	if not game_manager:
+		game_manager = get_parent().get_parent().get_node(\"GameManager\")
 
 func _physics_process(delta: float) -> void:
-	if is_multiplayer_authority():
-		var velocity = Input.get_vector(\"ui_left\", \"ui_right\", \"ui_up\", \"ui_down\") * speed
-		position += velocity * delta
+	# Only handle input for local player
+	if is_local_player:
+		var input_vector = Input.get_vector(\"ui_left\", \"ui_right\", \"ui_up\", \"ui_down\")
+		
+		if input_vector != Vector2.ZERO:
+			var velocity = input_vector * speed
+			position += velocity * delta
+			
+			# Send position update to all other peers
+			game_manager.rpc(\"update_player_position\", player_id, position)
 "
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_qsx0g"]
 size = Vector2(50, 50)
-
-[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_qsx0g"]
-properties/0/path = NodePath(".:position")
-properties/0/spawn = true
-properties/0/replication_mode = 1
 
 [node name="entity_scene" type="Node2D"]
 script = SubResource("GDScript_qggms")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture = SubResource("PlaceholderTexture2D_qsx0g")
-
-[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
-replication_config = SubResource("SceneReplicationConfig_qsx0g")

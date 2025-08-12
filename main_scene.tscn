@@ -1,12 +1,13 @@
-[gd_scene load_steps=4 format=3 uid="uid://dslh1c7rihy52"]
+[gd_scene load_steps=3 format=3 uid="uid://dslh1c7rihy52"]
 
 [ext_resource type="Texture2D" uid="uid://bxoyje2pq7nna" path="res://icon.svg" id="1_0f027"]
 
 [sub_resource type="GDScript" id="GDScript_2c62f"]
-resource_name = "Multiplayer"
+resource_name = "GameManager"
 script/source = "extends Node 
 
-const PORT=4443
+const PORT = 4443
+var players = {}
 
 func _ready() -> void:
 	if \"--server\" in OS.get_cmdline_args():
@@ -14,53 +15,71 @@ func _ready() -> void:
 		var peer = ENetMultiplayerPeer.new()
 		peer.create_server(PORT)
 		multiplayer.multiplayer_peer = peer
-			
-		multiplayer.peer_connected.connect($\"../MultiplayerSpawner\"._on_player_connected)
-		multiplayer.peer_disconnected.connect($\"../MultiplayerSpawner\"._on_player_disconnected)
+		
+		multiplayer.peer_connected.connect(_on_player_connected)
+		multiplayer.peer_disconnected.connect(_on_player_disconnected)
+		
+		# Spawn server player (ID 1)
+		await get_tree().process_frame
+		_spawn_player(1, Vector2(100, 100))
 	else:
 		print(\"Creating Client\")
 		var peer = ENetMultiplayerPeer.new()
 		peer.create_client(\"127.0.0.1\", PORT)
 		multiplayer.multiplayer_peer = peer
-"
-
-[sub_resource type="GDScript" id="GDScript_0f027"]
-resource_name = "MultiplayerSpawner"
-script/source = "extends MultiplayerSpawner
-
-func _ready() -> void:
-	if multiplayer.is_server():
-		print(\"Spawning first Server PLayer\")
-		await get_tree().process_frame 
-		var player = load(\"res://entity_scene.tscn\").instantiate()
-		player.name = str(1)
-		player.position = Vector2(100, 100)
-		get_node(spawn_path).add_child(player)
 
 func _on_player_connected(id):
 	print(\"Player connected: \", id)
 	if multiplayer.is_server():
-		var player = load(\"res://entity_scene.tscn\").instantiate()
-		player.name = str(id)
-		get_node(spawn_path).add_child(player)
+		# Send existing players to new player
+		for player_id in players.keys():
+			rpc_id(id, \"spawn_player\", player_id, players[player_id].position)
+		
+		# Spawn new player and notify all clients
+		var spawn_pos = Vector2(randf_range(50, 500), randf_range(50, 400))
+		_spawn_player(id, spawn_pos)
+		rpc(\"spawn_player\", id, spawn_pos)
 		
 func _on_player_disconnected(id):
 	print(\"Player disconnected: \", id)
 	if multiplayer.is_server():
-		var player = get_node(spawn_path).get_node_or_null(str(id))  
-		if player:
-			player.queue_free()
+		_despawn_player(id)
+		rpc(\"despawn_player\", id)
+
+func _spawn_player(id: int, pos: Vector2):
+	var player = load(\"res://entity_scene.tscn\").instantiate()
+	player.name = str(id)
+	player.position = pos
+	player.player_id = id
+	get_parent().get_node(\"SpawnContainer\").add_child(player)
+	players[id] = player
+
+func _despawn_player(id: int):
+	if id in players:
+		players[id].queue_free()
+		players.erase(id)
+
+@rpc(\"any_peer\", \"call_local\", \"reliable\")
+func spawn_player(id: int, pos: Vector2):
+	if not multiplayer.is_server():
+		_spawn_player(id, pos)
+
+@rpc(\"any_peer\", \"call_local\", \"reliable\") 
+func despawn_player(id: int):
+	if not multiplayer.is_server():
+		_despawn_player(id)
+
+@rpc(\"any_peer\", \"call_remote\", \"unreliable\")
+func update_player_position(id: int, pos: Vector2):
+	# Update position for the specified player
+	if id in players:
+		players[id].position = pos
 "
 
 [node name="Node2D" type="Node2D"]
 
-[node name="Multiplayer" type="Node" parent="."]
+[node name="GameManager" type="Node" parent="."]
 script = SubResource("GDScript_2c62f")
-
-[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
-_spawnable_scenes = PackedStringArray("uid://dub7iv64uw2iq")
-spawn_path = NodePath("../SpawnContainer")
-script = SubResource("GDScript_0f027")
 
 [node name="SpawnContainer" type="Node2D" parent="."]
 position = Vector2(171, 173)
