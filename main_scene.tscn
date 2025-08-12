@@ -1,14 +1,28 @@
+<<<<<<< Updated upstream
 [gd_scene load_steps=5 format=3 uid="uid://dslh1c7rihy52"]
+=======
+[gd_scene load_steps=4 format=3 uid="uid://dslh1c7rihy52"]
+>>>>>>> Stashed changes
 
 [ext_resource type="Texture2D" uid="uid://bxoyje2pq7nna" path="res://icon.svg" id="1_0f027"]
+[ext_resource type="Script" uid="uid://dyanuw3ckhq8o" path="res://network_manager.gd" id="1_2c62f"]
 
 [sub_resource type="GDScript" id="GDScript_2c62f"]
 resource_name = "Multiplayer"
 script/source = "extends Node 
 
+<<<<<<< Updated upstream
 const PORT=4443
+=======
+const PORT = 4443
+var players = {}
+var network_manager: NetworkManager
+>>>>>>> Stashed changes
 
 func _ready() -> void:
+	# Find NetworkManager
+	network_manager = get_tree().get_first_node_in_group(\"network_manager\")
+	
 	if \"--server\" in OS.get_cmdline_args():
 		print(\"Creating server\")
 		var peer = ENetMultiplayerPeer.new()
@@ -41,9 +55,47 @@ func _on_player_connected(id):
 func _on_player_disconnected(id):
 	print(\"Player disconnected: \", id)
 	if multiplayer.is_server():
+<<<<<<< Updated upstream
 		var player = $\"../SpawnContainer\".get_node_or_null(str(id))  
 		if player:
 			player.queue_free()
+=======
+		_despawn_player(id)
+		rpc(\"despawn_player\", id)
+
+func _spawn_player(id: int, pos: Vector2):
+	var player = load(\"res://entity_scene.tscn\").instantiate()
+	player.name = str(id)
+	player.position = pos
+	player.player_id = id
+	get_parent().get_node(\"SpawnContainer\").add_child(player)
+	players[id] = player
+
+func _despawn_player(id: int):
+	if id in players:
+		players[id].queue_free()
+		players.erase(id)
+
+@rpc(\"any_peer\", \"call_local\", \"reliable\")
+func spawn_player(id: int, pos: Vector2):
+	if not multiplayer.is_server():
+		_spawn_player(id, pos)
+
+@rpc(\"any_peer\", \"call_local\", \"reliable\") 
+func despawn_player(id: int):
+	if not multiplayer.is_server():
+		_despawn_player(id)
+
+@rpc(\"any_peer\", \"call_remote\", \"unreliable\")
+func update_player_position(id: int, pos: Vector2):
+	# Forward position update to NetworkManager for handling
+	if network_manager:
+		network_manager.receive_remote_position(id, pos)
+	else:
+		# Fallback: direct position update if no NetworkManager
+		if id in players:
+			players[id].position = pos
+>>>>>>> Stashed changes
 "
 
 [sub_resource type="GDScript" id="GDScript_0f027"]
@@ -68,7 +120,14 @@ shadow_color = Color(0, 0, 0, 1)
 
 [node name="Node2D" type="Node2D"]
 
+<<<<<<< Updated upstream
 [node name="Multiplayer" type="Node" parent="."]
+=======
+[node name="NetworkManager" type="Node" parent="."]
+script = ExtResource("1_2c62f")
+
+[node name="GameManager" type="Node" parent="."]
+>>>>>>> Stashed changes
 script = SubResource("GDScript_2c62f")
 
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
