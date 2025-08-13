@@ -1,7 +1,8 @@
-[gd_scene load_steps=8 format=4 uid="uid://dslh1c7rihy52"]
+[gd_scene load_steps=9 format=3 uid="uid://dslh1c7rihy52"]
 
 [ext_resource type="Texture2D" uid="uid://bxoyje2pq7nna" path="res://icon.svg" id="1_0f027"]
 [ext_resource type="Script" uid="uid://dyanuw3ckhq8o" path="res://network_manager.gd" id="1_2c62f"]
+[ext_resource type="Resource" path="user://world_data.tres" id="3_8mm7a"]
 [ext_resource type="Texture2D" uid="uid://bbkxfau70a8fc" path="res://kenney_voxel-pack/Spritesheets/spritesheet_tiles.png" id="3_d5x1h"]
 [ext_resource type="Script" uid="uid://plwytekgsub" path="res://world_manager.gd" id="3_world"]
 
@@ -278,11 +279,12 @@ script = ExtResource("1_2c62f")
 [node name="GameManager" type="Node" parent="." groups=["game_manager"]]
 script = SubResource("GDScript_2c62f")
 
-[node name="WorldManager" type="Node2D" parent="." groups=["world_manager"]]
+[node name="WorldManager" type="Node2D" parent="." node_paths=PackedStringArray("world_tile_map_layer") groups=["world_manager"]]
 script = ExtResource("3_world")
+world_tile_map_layer = NodePath("WorldTileMapLayer")
+world_data = ExtResource("3_8mm7a")
 
 [node name="WorldTileMapLayer" type="TileMapLayer" parent="WorldManager"]
-tile_map_data = PackedByteArray("AAAKABYAAQAHAAQAAAAbAB8AAQAHAAQAAAAyAB4AAQAHAAQAAAABAAQAAQAHAAQAAAACAAQAAQAHAAQAAAADAAQAAQAHAAQAAAAEAAQAAQAHAAQAAAAFAAQAAQAHAAQAAAAGAAQAAQAHAAQAAAAHAAQAAQAHAAQAAAAIAAQAAQAHAAQAAAA=")
 tile_set = SubResource("TileSet_hq1ik")
 rendering_quadrant_size = 128
 
