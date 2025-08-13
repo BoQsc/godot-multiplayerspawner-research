@@ -1,7 +1,9 @@
-[gd_scene load_steps=4 format=3 uid="uid://dslh1c7rihy52"]
+[gd_scene load_steps=8 format=3 uid="uid://dslh1c7rihy52"]
 
 [ext_resource type="Texture2D" uid="uid://bxoyje2pq7nna" path="res://icon.svg" id="1_0f027"]
 [ext_resource type="Script" uid="uid://dyanuw3ckhq8o" path="res://network_manager.gd" id="1_2c62f"]
+[ext_resource type="Texture2D" uid="uid://bbkxfau70a8fc" path="res://kenney_voxel-pack/Spritesheets/spritesheet_tiles.png" id="3_d5x1h"]
+[ext_resource type="Script" uid="uid://plwytekgsub" path="res://world_manager.gd" id="3_world"]
 
 [sub_resource type="GDScript" id="GDScript_2c62f"]
 resource_name = "GameManager"
@@ -83,15 +85,123 @@ func update_player_position(id: int, pos: Vector2):
 		# Fallback: direct position update if no NetworkManager
 		if id in players:
 			players[id].position = pos
+
+@rpc(\"any_peer\", \"call_remote\", \"reliable\")
+func request_terrain_modification(coords: Vector2i, source_id: int, atlas_coords: Vector2i, alternative_tile: int):
+	# Server receives terrain modification request from client
+	if multiplayer.is_server():
+		var world_manager = get_tree().get_first_node_in_group(\"world_manager\")
+		if world_manager:
+			world_manager.modify_terrain(coords, source_id, atlas_coords, alternative_tile)
+
+@rpc(\"authority\", \"call_local\", \"reliable\")
+func sync_terrain_modification(coords: Vector2i, source_id: int, atlas_coords: Vector2i, alternative_tile: int):
+	var world_manager = get_tree().get_first_node_in_group(\"world_manager\")
+	if world_manager:
+		world_manager.sync_terrain_modification(coords, source_id, atlas_coords, alternative_tile)
 "
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_8mm7a"]
+texture = ExtResource("3_d5x1h")
+texture_region_size = Vector2i(128, 128)
+0:0/0 = 0
+0:1/0 = 0
+0:2/0 = 0
+0:3/0 = 0
+0:4/0 = 0
+0:5/0 = 0
+0:6/0 = 0
+0:7/0 = 0
+0:8/0 = 0
+0:9/0 = 0
+1:9/0 = 0
+1:8/0 = 0
+2:8/0 = 0
+1:7/0 = 0
+1:6/0 = 0
+1:5/0 = 0
+1:4/0 = 0
+1:3/0 = 0
+1:2/0 = 0
+2:2/0 = 0
+2:1/0 = 0
+2:0/0 = 0
+1:0/0 = 0
+3:0/0 = 0
+3:1/0 = 0
+2:3/0 = 0
+3:3/0 = 0
+3:4/0 = 0
+4:4/0 = 0
+4:5/0 = 0
+5:6/0 = 0
+4:6/0 = 0
+4:7/0 = 0
+3:7/0 = 0
+3:8/0 = 0
+2:7/0 = 0
+2:6/0 = 0
+2:9/0 = 0
+2:5/0 = 0
+2:4/0 = 0
+3:6/0 = 0
+4:8/0 = 0
+4:9/0 = 0
+3:9/0 = 0
+4:3/0 = 0
+4:2/0 = 0
+4:1/0 = 0
+5:1/0 = 0
+4:0/0 = 0
+5:0/0 = 0
+6:0/0 = 0
+7:0/0 = 0
+7:1/0 = 0
+6:1/0 = 0
+6:2/0 = 0
+6:3/0 = 0
+6:4/0 = 0
+6:5/0 = 0
+6:6/0 = 0
+6:7/0 = 0
+6:8/0 = 0
+6:9/0 = 0
+7:9/0 = 0
+7:8/0 = 0
+7:7/0 = 0
+7:6/0 = 0
+7:5/0 = 0
+7:4/0 = 0
+7:3/0 = 0
+7:2/0 = 0
+8:0/0 = 0
+8:1/0 = 0
+8:2/0 = 0
+8:3/0 = 0
+8:4/0 = 0
+8:5/0 = 0
+8:6/0 = 0
+8:7/0 = 0
+8:8/0 = 0
+8:9/0 = 0
+
+[sub_resource type="TileSet" id="TileSet_hq1ik"]
+sources/1 = SubResource("TileSetAtlasSource_8mm7a")
 
 [node name="Node2D" type="Node2D"]
 
 [node name="NetworkManager" type="Node" parent="."]
 script = ExtResource("1_2c62f")
 
-[node name="GameManager" type="Node" parent="."]
+[node name="GameManager" type="Node" parent="." groups=["game_manager"]]
 script = SubResource("GDScript_2c62f")
+
+[node name="WorldManager" type="Node2D" parent="." groups=["world_manager"]]
+script = ExtResource("3_world")
+
+[node name="WorldTileMapLayer" type="TileMapLayer" parent="WorldManager"]
+tile_map_data = PackedByteArray(0, 0, 10, 0, 22, 0, 1, 0, 7, 0, 4, 0, 0, 0, 27, 0, 31, 0, 1, 0, 7, 0, 4, 0, 0, 0, 50, 0, 30, 0, 1, 0, 7, 0, 4, 0, 0, 0)
+tile_set = SubResource("TileSet_hq1ik")
 
 [node name="SpawnContainer" type="Node2D" parent="."]
 position = Vector2(171, 173)

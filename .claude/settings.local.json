@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(rm:*)",
+      "Bash(del \"C:\\Users\\Windows10_new\\Documents\\godot-multiplayerspawner-research\\world_test.gd\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
