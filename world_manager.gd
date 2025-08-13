@@ -12,6 +12,7 @@ class_name WorldManager
 
 var game_manager: Node
 var is_loading: bool = false
+var last_file_modified_time: int = 0
 
 signal terrain_modified(coords: Vector2i, source_id: int, atlas_coords: Vector2i)
 signal world_data_changed()
@@ -135,9 +136,8 @@ func modify_terrain(coords: Vector2i, source_id: int = -1, atlas_coords: Vector2
 		terrain_modified.emit(coords, source_id, atlas_coords)
 		if game_manager:
 			game_manager.rpc("sync_terrain_modification", coords, source_id, atlas_coords, alternative_tile)
-		# Save world data periodically (not every single change)
-		if randf() < 0.1:  # 10% chance to save on each change
-			save_world_data()
+		# Save world data EVERY change for reliability
+		save_world_data()
 	else:
 		# Client: Send request to server
 		if game_manager:
@@ -214,11 +214,31 @@ var auto_save_timer: float = 0.0
 var auto_save_interval: float = 300.0  # 5 minutes
 
 func _process(delta):
-	if not Engine.is_editor_hint() and multiplayer.is_server():
+	if Engine.is_editor_hint():
+		# Check if world data file was modified externally (by runtime)
+		_check_for_external_changes()
+	elif multiplayer.is_server():
 		auto_save_timer += delta
 		if auto_save_timer >= auto_save_interval:
 			save_world_data()
 			auto_save_timer = 0.0
+
+func _check_for_external_changes():
+	if not FileAccess.file_exists(world_save_path):
+		return
+	
+	var file_time = FileAccess.get_modified_time(world_save_path)
+	if last_file_modified_time == 0:
+		last_file_modified_time = file_time
+		return
+	
+	if file_time > last_file_modified_time:
+		print("WorldManager: Detected external changes to world data, auto-refreshing editor...")
+		last_file_modified_time = file_time
+		load_world_data()
+		if world_data and world_tile_map_layer:
+			apply_world_data_to_tilemap()
+			print("WorldManager: Editor auto-refreshed with ", world_data.get_tile_count(), " tiles")
 
 func _on_refresh_editor(value: bool):
 	if Engine.is_editor_hint() and value:
