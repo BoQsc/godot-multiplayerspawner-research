@@ -8,7 +8,10 @@ class_name WorldManager
 @export var default_tile_coords: Vector2i = Vector2i(0, 0)
 @export var world_data: WorldData : set = set_world_data
 @export var world_save_path: String = "user://world_data.tres"
-@export var refresh_editor: bool = false : set = _on_refresh_editor
+@export_group("Editor Tools")
+@export var refresh_from_file: bool = false : set = _on_refresh_from_file
+@export var export_to_scene: bool = false : set = _on_export_to_scene
+@export var show_world_info: bool = false : set = _on_show_world_info
 
 var game_manager: Node
 var is_loading: bool = false
@@ -95,6 +98,9 @@ func apply_world_data_to_tilemap():
 			tile_info.atlas_coords,
 			tile_info.alternative_tile
 		)
+	
+	# Note: Editor visual refresh from @tool scripts has known limitations
+	# Use the "Refresh From File" button in the inspector for manual refresh
 	
 	print("WorldManager: Applied ", world_data.get_tile_count(), " tiles")
 
@@ -240,15 +246,58 @@ func _check_for_external_changes():
 			apply_world_data_to_tilemap()
 			print("WorldManager: Editor auto-refreshed with ", world_data.get_tile_count(), " tiles")
 
-func _on_refresh_editor(value: bool):
+func _on_refresh_from_file(value: bool):
 	if Engine.is_editor_hint() and value:
-		print("WorldManager: Manual editor refresh triggered")
+		print("🔄 WorldManager: Refreshing editor from persistent file...")
 		load_world_data()
 		if world_data and world_tile_map_layer:
 			apply_world_data_to_tilemap()
-			print("WorldManager: Editor refreshed with ", world_data.get_tile_count(), " tiles")
+			print("✅ Editor refreshed with ", world_data.get_tile_count(), " tiles from ", world_save_path)
+			if world_data.get_tile_count() > 0:
+				print("💡 NOTE: If tiles aren't visible, try closing and reopening the scene")
 		# Reset the button
-		refresh_editor = false
+		refresh_from_file = false
+
+func _on_export_to_scene(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("📝 WorldManager: Exporting persistent data to scene file...")
+		
+		# First load latest data
+		load_world_data()
+		
+		if world_data and world_tile_map_layer:
+			# Clear and apply data to tilemap
+			world_tile_map_layer.clear()
+			
+			for coords in world_data.get_all_tiles().keys():
+				var tile_info = world_data.get_tile(coords)
+				world_tile_map_layer.set_cell(
+					coords,
+					tile_info.source_id,
+					tile_info.atlas_coords,
+					tile_info.alternative_tile
+				)
+			
+			print("✅ Exported ", world_data.get_tile_count(), " tiles to scene")
+			print("💾 Now save the scene (Ctrl+S) to make changes permanent")
+			
+			# Mark the scene as modified so it needs saving
+			if get_tree():
+				get_tree().set_edited_scene_root(get_tree().edited_scene_root)
+		else:
+			print("❌ No world data or tilemap available")
+		
+		# Reset the button
+		export_to_scene = false
+
+func _on_show_world_info(value: bool):
+	if Engine.is_editor_hint() and value:
+		if world_data:
+			world_data.print_world_info()
+		else:
+			print("❌ No world data available")
+		# Reset the button
+		show_world_info = false
 
 func _input(event):
 	if not enable_terrain_modification:

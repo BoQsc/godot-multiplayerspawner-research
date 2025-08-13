@@ -1,0 +1,98 @@
+[gd_scene load_steps=2 format=3 uid="uid://bhnuoohvnphc2"]
+
+[sub_resource type="GDScript" id="GDScript_dock"]
+script/source = "@tool
+extends Control
+
+signal refresh_viewport
+
+func _ready():
+	print(\"World Persistence Dock loaded\")
+
+func _on_refresh_button_pressed():
+	print(\"Dock: Refresh button pressed\")
+	var world_manager = get_world_manager()
+	if world_manager:
+		# Load latest world data
+		world_manager.load_world_data()
+		
+		# Apply to tilemap
+		if world_manager.world_data and world_manager.world_tile_map_layer:
+			world_manager.apply_world_data_to_tilemap()
+			print(\"Dock: Applied \", world_manager.world_data.get_tile_count(), \" tiles\")
+			
+			# Request viewport refresh from plugin
+			refresh_viewport.emit()
+		else:
+			print(\"Dock: No world data or tilemap available\")
+	else:
+		print(\"Dock: No WorldManager found in scene\")
+
+func _on_export_button_pressed():
+	print(\"Dock: Export to scene button pressed\")
+	var world_manager = get_world_manager()
+	if world_manager:
+		world_manager._on_export_to_scene(true)
+		# Request viewport refresh
+		refresh_viewport.emit()
+	else:
+		print(\"Dock: No WorldManager found\")
+
+func _on_info_button_pressed():
+	var world_manager = get_world_manager()
+	if world_manager:
+		world_manager._on_show_world_info(true)
+	else:
+		print(\"Dock: No WorldManager found\")
+
+func get_world_manager():
+	# Find WorldManager in the current scene
+	var edited_scene = EditorInterface.get_edited_scene_root()
+	if edited_scene:
+		var world_manager = edited_scene.get_node_or_null(\"WorldManager\")
+		if not world_manager:
+			# Try to find it in groups
+			var managers = edited_scene.get_tree().get_nodes_in_group(\"world_manager\")
+			if managers.size() > 0:
+				world_manager = managers[0]
+		return world_manager
+	return null
+"
+
+[node name="WorldDock" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = SubResource("GDScript_dock")
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 2
+text = "World Persistence"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="."]
+layout_mode = 2
+
+[node name="RefreshButton" type="Button" parent="."]
+layout_mode = 2
+text = "🔄 Refresh From File"
+
+[node name="ExportButton" type="Button" parent="."]
+layout_mode = 2
+text = "📝 Export to Scene"
+
+[node name="InfoButton" type="Button" parent="."]
+layout_mode = 2
+text = "ℹ️ Show World Info"
+
+[node name="HSeparator2" type="HSeparator" parent="."]
+layout_mode = 2
+
+[node name="HelpLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Use after stopping game to see runtime changes in editor"
+autowrap_mode = 2
+
+[connection signal="pressed" from="RefreshButton" to="." method="_on_refresh_button_pressed"]
+[connection signal="pressed" from="ExportButton" to="." method="_on_export_button_pressed"]
+[connection signal="pressed" from="InfoButton" to="." method="_on_info_button_pressed"]
