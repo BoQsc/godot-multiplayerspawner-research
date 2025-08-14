@@ -114,6 +114,44 @@ func find_godot_executable() -> String:
 	
 	return ""
 
+# Create shortcut for a specific UUID-based player
+func create_uuid_shortcut(uuid_player_id: String):
+	"""Create desktop shortcut for UUID-based player (e.g., player_1d78ff11-8aa9-4f37-a4e1-c2e93a200b0f)"""
+	var exe_path = OS.get_executable_path()
+	var work_dir = exe_path.get_base_dir()
+	var project_name = ProjectSettings.get_setting("application/config/name", "GameProject")
+	
+	# Extract just the UUID part for display
+	var uuid_part = uuid_player_id.replace("player_", "")
+	var shortcut_name = project_name + " - " + uuid_part.substr(0, 8) + "..."  # Show first 8 chars
+	
+	var ps_script = SHORTCUT_TEMPLATE.format({
+		"shortcut_name": shortcut_name,
+		"exe_path": exe_path,
+		"player_num": uuid_part,  # Use full UUID as player identifier
+		"work_dir": work_dir
+	})
+	
+	var temp_script = "user://create_uuid_shortcut.ps1"
+	var file = FileAccess.open(temp_script, FileAccess.WRITE)
+	if file:
+		file.store_string(ps_script)
+		file.close()
+		
+		var temp_script_path = ProjectSettings.globalize_path(temp_script)
+		var output = []
+		var exit_code = OS.execute("powershell", ["-ExecutionPolicy", "Bypass", "-File", temp_script_path], output)
+		
+		if exit_code == 0:
+			print("✓ Created UUID shortcut: ", shortcut_name)
+			return true
+		else:
+			print("✗ Failed to create UUID shortcut: ", output)
+			return false
+		
+		DirAccess.remove_absolute(temp_script_path)
+	return false
+
 # Call this function from another script or the command line
 func _ready():
 	if "--create-shortcuts" in OS.get_cmdline_args():
@@ -130,4 +168,15 @@ func _ready():
 		get_tree().quit()
 	elif "--create-dev-shortcuts" in OS.get_cmdline_args():
 		create_dev_shortcuts()
+		get_tree().quit()
+	elif "--create-uuid-shortcut" in OS.get_cmdline_args():
+		# Create shortcut for specific UUID player
+		var args = OS.get_cmdline_args()
+		for i in range(args.size()):
+			if args[i] == "--uuid-player" and i + 1 < args.size():
+				var uuid_player = args[i + 1]
+				create_uuid_shortcut(uuid_player)
+				get_tree().quit()
+				return
+		print("ERROR: --create-uuid-shortcut requires --uuid-player parameter")
 		get_tree().quit()

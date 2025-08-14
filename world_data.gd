@@ -161,14 +161,11 @@ func register_client(client_id: String, peer_id: int, chosen_player_num: int = -
 		persistent_id = "player_" + str(chosen_player_num)
 		print("Using chosen player number: ", chosen_player_num)
 	else:
-		# Fallback to sequential numbering
-		persistent_id = "player_" + str(next_player_id)
-		# Ensure the persistent_id doesn't already exist (safety check)
-		while persistent_id in player_data:
-			next_player_id += 1
-			persistent_id = "player_" + str(next_player_id)
-			print("WARNING: Player ID collision detected, using ", persistent_id, " instead")
-		next_player_id += 1
+		# Use UUID-based player ID for collision-free identification
+		# Extract UUID from client_id (remove "client_" or "server_" prefix)
+		var uuid_part = client_id.replace("client_", "").replace("server_", "")
+		persistent_id = "player_" + uuid_part
+		print("Using UUID-based player ID: ", persistent_id)
 	client_to_player_mapping[client_id] = persistent_id
 	
 	print("Registered new client: ", client_id, " (peer ", peer_id, ") -> persistent ID ", persistent_id, " (NEW)")
