@@ -12,25 +12,25 @@
 ```gdscript
 # Simple registration - just username/password (no device binding needed)
 func register_simple_account(username: String, password: String) -> bool:
-    if username in accounts:
-        return false  # Username taken
-    
-    accounts[username] = {
-        "password_hash": password.sha256_text(),
-        "uuid_player": current_player_uuid,
-        "created_at": Time.get_datetime_string_from_system()
-    }
-    save_accounts()
-    return true
+	if username in accounts:
+		return false  # Username taken
+	
+	accounts[username] = {
+		"password_hash": password.sha256_text(),
+		"uuid_player": current_player_uuid,
+		"created_at": Time.get_datetime_string_from_system()
+	}
+	save_accounts()
+	return true
 
 func login_simple_account(username: String, password: String) -> String:
-    if username in accounts:
-        var account = accounts[username]
-        var stored_hash = account["password_hash"]
-        
-        if stored_hash == password.sha256_text():
-            return account["uuid_player"]  # Success - no device checks needed
-    return ""  # Failed login
+	if username in accounts:
+		var account = accounts[username]
+		var stored_hash = account["password_hash"]
+		
+		if stored_hash == password.sha256_text():
+			return account["uuid_player"]  # Success - no device checks needed
+	return ""  # Failed login
 ```
 
 ### Registration Options
@@ -64,21 +64,21 @@ Password: [••••••••••••••••]
 var anonymous_device_binding: Dictionary = {}  # uuid -> device_fingerprint
 
 func enable_anonymous_device_binding(uuid_player: String, enabled: bool):
-    var device_fp = get_device_fingerprint()
-    if enabled:
-        anonymous_device_binding[uuid_player] = device_fp
-    else:
-        anonymous_device_binding.erase(uuid_player)
-    save_anonymous_bindings()
+	var device_fp = get_device_fingerprint()
+	if enabled:
+		anonymous_device_binding[uuid_player] = device_fp
+	else:
+		anonymous_device_binding.erase(uuid_player)
+	save_anonymous_bindings()
 
 func can_access_anonymous_uuid(uuid_player: String) -> bool:
-    if uuid_player in anonymous_device_binding:
-        return anonymous_device_binding[uuid_player] == get_device_fingerprint()
-    return true  # No binding = open access
+	if uuid_player in anonymous_device_binding:
+		return anonymous_device_binding[uuid_player] == get_device_fingerprint()
+	return true  # No binding = open access
 
 func get_device_fingerprint() -> String:
-    var factors = [OS.get_unique_id(), OS.get_processor_name()]
-    return factors.join("|").sha256_text()
+	var factors = [OS.get_unique_id(), OS.get_processor_name()]
+	return factors.join("|").sha256_text()
 ```
 
 ### Anonymous Use Cases
@@ -99,17 +99,17 @@ When anonymous player registers with username/password:
 ```gdscript
 # Steam integration for verified accounts
 func verify_steam_account() -> SteamVerification:
-    var steam_id = Steam.get_steam_id()
-    var steam_name = Steam.get_persona_name() 
-    var steam_level = Steam.get_steam_level()
-    
-    return {
-        "steam_id": steam_id,
-        "display_name": steam_name,
-        "level": steam_level,
-        "verified": true,
-        "linked_uuid": current_player_uuid
-    }
+	var steam_id = Steam.get_steam_id()
+	var steam_name = Steam.get_persona_name() 
+	var steam_level = Steam.get_steam_level()
+	
+	return {
+		"steam_id": steam_id,
+		"display_name": steam_name,
+		"level": steam_level,
+		"verified": true,
+		"linked_uuid": current_player_uuid
+	}
 ```
 
 ### Visual Verification Indicators
@@ -138,12 +138,12 @@ func verify_steam_account() -> SteamVerification:
 ```gdscript
 # Multi-factor account recovery
 func recover_account(username: String) -> RecoveryOptions:
-    return {
-        "steam_recovery": verify_steam_ownership(),
-        "email_recovery": send_recovery_email(),
-        "backup_codes": verify_recovery_codes(),
-        "trusted_device": verify_device_history()
-    }
+	return {
+		"steam_recovery": verify_steam_ownership(),
+		"email_recovery": send_recovery_email(),
+		"backup_codes": verify_recovery_codes(),
+		"trusted_device": verify_device_history()
+	}
 ```
 
 ### Enhanced Security

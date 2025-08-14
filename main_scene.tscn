@@ -41,6 +41,13 @@ func _ready() -> void:
 		await get_tree().process_frame
 		# Wait for client identity to be ready
 		if client_identity:
+			# Check device binding access for anonymous players
+			if not client_identity.can_access_current_uuid():
+				print(\"ERROR: Cannot access UUID player - bound to different device\")
+				print(\"Use F1 to open device binding settings and transfer if needed\")
+				_show_access_denied_message()
+				return
+			
 			var server_client_id = client_identity.get_client_id()
 			var server_chosen_num = client_identity.get_chosen_player_number()
 			var server_persistent_id = _register_player_with_client_id(1, server_client_id, server_chosen_num)
@@ -50,6 +57,14 @@ func _ready() -> void:
 			print(\"Warning: ClientIdentity not found, using fallback spawn\")
 	else:
 		print(\"Creating Client\")
+		
+		# Check device binding access for client too
+		if client_identity and not client_identity.can_access_current_uuid():
+			print(\"ERROR: Cannot access UUID player - bound to different device\")
+			print(\"Use F1 to open device binding settings and transfer if needed\")
+			_show_access_denied_message()
+			return
+		
 		var peer = ENetMultiplayerPeer.new()
 		peer.create_client(\"127.0.0.1\", PORT)
 		multiplayer.multiplayer_peer = peer
@@ -60,6 +75,34 @@ func _process(delta):
 	if save_timer >= save_interval:
 		_auto_save_all_player_positions()
 		save_timer = 0.0
+
+func _unhandled_key_input(event):
+	# Handle device binding UI toggle
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_F1:  # F1 to open device binding settings
+			_show_device_binding_ui()
+
+func _show_device_binding_ui():
+	# Show device binding UI for anonymous players
+	if client_identity and client_identity.can_access_current_uuid():
+		var ui_scene = preload(\"res://device_binding_ui.gd\")
+		var ui = ui_scene.show_device_binding_ui(get_parent(), client_identity)
+		ui.ui_closed.connect(_on_device_binding_ui_closed)
+		print(\"GameManager: Showing device binding UI (F1)\")
+	else:
+		print(\"GameManager: Cannot access UUID or client identity not available\")
+
+func _on_device_binding_ui_closed():
+	print(\"GameManager: Device binding UI closed\")
+
+func _show_access_denied_message():
+	# Simple access denied message
+	print(\"=== ACCESS DENIED ===\")
+	print(\"This UUID player is bound to a different device.\")
+	print(\"Press F1 to open device binding settings.\")
+	print(\"You can transfer the player to this device if you own it.\")
+	print(\"Or disable device binding to allow cross-device access.\")
+	print(\"========================\")
 
 func _notification(what):
 	# Save positions when the application is about to quit

@@ -1,16 +1,24 @@
 extends Node
 class_name ClientIdentity
 
-# FIXED: Each instance gets unique identity file based on process ID
-# This ensures each client gets a different player
+# Client identity management with device binding support for anonymous players
 
 const CLIENT_ID_FILE_SERVER = "user://server_identity.dat"
 var client_identity_file: String
 
 var client_id: String = ""
 var is_server_role: bool = false
+var device_binding: DeviceBinding
+
+# Device binding settings for anonymous players
+var device_binding_enabled: bool = false
+var uuid_player_id: String = ""
 
 func _ready():
+	# Initialize device binding system
+	device_binding = DeviceBinding.new()
+	add_child(device_binding)
+	
 	# Detect if we're running as server or client
 	is_server_role = "--server" in OS.get_cmdline_args()
 	
@@ -33,6 +41,7 @@ func _ready():
 			print("ClientIdentity: Auto-assigned client slot ", client_slot)
 	
 	load_or_create_client_id()
+	setup_device_binding_for_uuid()
 
 func get_chosen_player_from_args() -> int:
 	# Check command line for --player=X (supports any positive integer)
@@ -121,3 +130,52 @@ func get_display_name() -> String:
 func get_chosen_player_number() -> int:
 	# Return the chosen player number if one was specified
 	return get_chosen_player_from_args()
+
+# Device binding functions for anonymous players
+func setup_device_binding_for_uuid():
+	"""Setup device binding for the current UUID player"""
+	# Extract UUID from client_id for device binding
+	if client_id.begins_with("client_") or client_id.begins_with("server_"):
+		uuid_player_id = "player_" + client_id.split("_", false, 1)[1]
+	else:
+		uuid_player_id = "player_" + client_id
+	
+	# Check if device binding is enabled for this UUID
+	device_binding_enabled = device_binding.is_device_binding_enabled(uuid_player_id)
+	
+	print("ClientIdentity: UUID player ID: ", uuid_player_id)
+	print("ClientIdentity: Device binding enabled: ", device_binding_enabled)
+
+func can_access_current_uuid() -> bool:
+	"""Check if current device can access this UUID player"""
+	if not device_binding:
+		return true
+	return device_binding.can_access_uuid_on_this_device(uuid_player_id)
+
+func enable_uuid_device_binding(enabled: bool):
+	"""Enable or disable device binding for current UUID player"""
+	if device_binding:
+		device_binding_enabled = enabled
+		device_binding.enable_device_binding(uuid_player_id, enabled)
+		print("ClientIdentity: Device binding ", "enabled" if enabled else "disabled", " for ", uuid_player_id)
+
+func is_uuid_device_binding_enabled() -> bool:
+	"""Check if device binding is enabled for current UUID"""
+	return device_binding_enabled
+
+func get_device_binding_info() -> Dictionary:
+	"""Get device binding information for current UUID"""
+	if device_binding:
+		return device_binding.get_bound_device_info(uuid_player_id)
+	return {"bound": false, "device_fingerprint": "", "is_current_device": true}
+
+func transfer_uuid_to_this_device():
+	"""Transfer UUID player to current device (for device migration)"""
+	if device_binding:
+		device_binding.transfer_uuid_to_this_device(uuid_player_id)
+		device_binding_enabled = true
+		print("ClientIdentity: Transferred ", uuid_player_id, " to current device")
+
+func get_uuid_player_id() -> String:
+	"""Get the UUID player ID for this client"""
+	return uuid_player_id
