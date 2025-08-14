@@ -1,9 +1,9 @@
-[gd_scene load_steps=10 format=4 uid="uid://dslh1c7rihy52"]
+[gd_scene load_steps=11 format=4 uid="uid://dslh1c7rihy52"]
 
 [ext_resource type="Texture2D" uid="uid://bxoyje2pq7nna" path="res://icon.svg" id="1_0f027"]
 [ext_resource type="Script" uid="uid://dyanuw3ckhq8o" path="res://network_manager.gd" id="1_2c62f"]
+[ext_resource type="Script" uid="uid://py7ricfw5std" path="res://registration_system.gd" id="2_auth"]
 [ext_resource type="Script" uid="uid://y1c5pk60il2c" path="res://client_identity.gd" id="2_client"]
-[ext_resource type="Script" path="res://registration_system.gd" id="2_auth"]
 [ext_resource type="Resource" path="user://world_data.tres" id="3_8mm7a"]
 [ext_resource type="Texture2D" uid="uid://bbkxfau70a8fc" path="res://kenney_voxel-pack/Spritesheets/spritesheet_tiles.png" id="3_d5x1h"]
 [ext_resource type="Script" uid="uid://plwytekgsub" path="res://world_manager.gd" id="3_world"]
@@ -224,13 +224,11 @@ func update_player_position(id: int, pos: Vector2):
 func request_terrain_modification(coords: Vector2i, source_id: int, atlas_coords: Vector2i, alternative_tile: int):
 	# Server receives terrain modification request from client
 	if multiplayer.is_server():
-		var world_manager = get_tree().get_first_node_in_group(\"world_manager\")
 		if world_manager:
 			world_manager.modify_terrain(coords, source_id, atlas_coords, alternative_tile)
 
 @rpc(\"authority\", \"call_local\", \"reliable\")
 func sync_terrain_modification(coords: Vector2i, source_id: int, atlas_coords: Vector2i, alternative_tile: int):
-	var world_manager = get_tree().get_first_node_in_group(\"world_manager\")
 	if world_manager:
 		world_manager.sync_terrain_modification(coords, source_id, atlas_coords, alternative_tile)
 
@@ -494,7 +492,7 @@ player_to_move = "player_4"
 new_position = Vector2(158.905, 300)
 
 [node name="WorldTileMapLayer" type="TileMapLayer" parent="WorldManager"]
-tile_map_data = PackedByteArray("AAD//wUAAQADAAQAAAAAAAUAAQADAAQAAAABAAUAAQADAAQAAAACAAUAAQADAAQAAAADAAUAAQADAAQAAAAEAAUAAQADAAQAAAD//wQAAQACAAQAAAAAAAQAAQACAAQAAAABAAQAAQACAAQAAAACAAQAAQACAAQAAAADAAQAAQACAAQAAAAEAAQAAQAAAAAAAAAAAAIAAQAAAAAAAAAAAAMAAQAAAAAAAAAEAAMAAQAAAAAAAAABAAMAAQAAAAAAAAADAAMAAQAAAAAAAAABAAEAAQAAAAAAAAAEAAIAAQAAAAAAAAA=")
+tile_map_data = PackedByteArray("AAD//wUAAQADAAQAAAAAAAUAAQADAAQAAAABAAUAAQADAAQAAAACAAUAAQADAAQAAAADAAUAAQADAAQAAAAEAAUAAQADAAQAAAD//wQAAQACAAQAAAAAAAQAAQACAAQAAAABAAQAAQAAAAAAAAACAAQAAQAAAAAAAAADAAQAAQAAAAAAAAAEAAQAAQAAAAAAAAAAAAIAAQAAAAAAAAAAAAMAAQAAAAAAAAAEAAMAAQAAAAAAAAADAAMAAQAAAAAAAAAEAAIAAQAAAAAAAAA=")
 tile_set = SubResource("TileSet_hq1ik")
 rendering_quadrant_size = 128
 

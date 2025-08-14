@@ -164,10 +164,10 @@ func hide_ui():
 	visible = false
 
 # Static function to create and show device binding UI
-static func show_device_binding_ui(parent: Node, client_identity: ClientIdentity) -> DeviceBindingUI:
+static func show_device_binding_ui(parent: Node, client_id: ClientIdentity) -> DeviceBindingUI:
 	"""Create and show device binding UI"""
 	var ui = DeviceBindingUI.new()
 	parent.add_child(ui)
-	ui.set_client_identity(client_identity)
+	ui.set_client_identity(client_id)
 	ui.show_ui()
 	return ui

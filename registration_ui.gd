@@ -247,7 +247,7 @@ func _on_registration_failed(error: String):
 	else:
 		status_label.text = "❌ Registration failed: " + error
 
-func _on_login_success(username: String, uuid_player: String):
+func _on_login_success(username: String, _uuid_player: String):
 	status_label.text = "✅ Login successful! Welcome back " + username
 	username_input.text = ""
 	password_input.text = ""
@@ -282,11 +282,11 @@ func hide_ui():
 	visible = false
 
 # Static function to create and show registration UI
-static func show_registration_ui(parent: Node, auth_system: AuthenticationSystem, client_identity: ClientIdentity) -> RegistrationUI:
+static func show_registration_ui(parent: Node, auth_sys: AuthenticationSystem, client_id: ClientIdentity) -> RegistrationUI:
 	"""Create and show registration UI"""
 	var ui = RegistrationUI.new()
 	parent.add_child(ui)
-	ui.set_auth_system(auth_system)
-	ui.set_client_identity(client_identity)
+	ui.set_auth_system(auth_sys)
+	ui.set_client_identity(client_id)
 	ui.show_ui()
 	return ui

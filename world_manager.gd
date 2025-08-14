@@ -440,17 +440,17 @@ func sync_editor_players_from_world_data():
 	if editor_players.size() > 0:
 		print("💡 TIP: Look in Scene tab under SpawnContainer for EditorPlayer nodes. Select them to drag around!")
 
-func spawn_editor_player(player_id: String, position: Vector2):
+func spawn_editor_player(player_id: String, spawn_pos: Vector2):
 	if not Engine.is_editor_hint() or not spawn_container:
 		print("WorldManager: Cannot spawn editor player - missing requirements")
 		return
 	
 	# Check if player is lost (far from reasonable bounds)
-	var is_lost = abs(position.x) > 5000 or abs(position.y) > 5000
-	var safe_position = position
+	var is_lost = abs(spawn_pos.x) > 5000 or abs(spawn_pos.y) > 5000
+	var safe_position = spawn_pos
 	if is_lost:
 		safe_position = Vector2(100, 100)  # Default safe spawn
-		print("WorldManager: Player ", player_id, " is lost at ", position, ", spawning at safe position ", safe_position)
+		print("WorldManager: Player ", player_id, " is lost at ", spawn_pos, ", spawning at safe position ", safe_position)
 	
 	# Create a simple Node2D for editor representation
 	var player = Node2D.new()

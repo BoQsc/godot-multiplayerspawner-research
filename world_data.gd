@@ -141,15 +141,15 @@ func register_client(client_id: String, peer_id: int, chosen_player_num: int = -
 	
 	# Check if this client already has a persistent player ID
 	if client_id in client_to_player_mapping:
-		var persistent_id = client_to_player_mapping[client_id]
+		var existing_persistent_id = client_to_player_mapping[client_id]
 		
 		# Validate that the persistent player ID exists and is consistent
-		if persistent_id in player_data:
-			print("Registered returning client: ", client_id, " (peer ", peer_id, ") -> persistent ID ", persistent_id, " (EXISTING)")
+		if existing_persistent_id in player_data:
+			print("Registered returning client: ", client_id, " (peer ", peer_id, ") -> persistent ID ", existing_persistent_id, " (EXISTING)")
 			last_modified = Time.get_datetime_string_from_system()
-			return persistent_id
+			return existing_persistent_id
 		else:
-			print("WARNING: Client ", client_id, " was mapped to non-existent player ", persistent_id, ", creating new player")
+			print("WARNING: Client ", client_id, " was mapped to non-existent player ", existing_persistent_id, ", creating new player")
 			# Remove the broken mapping and create new
 			client_to_player_mapping.erase(client_id)
 	
@@ -276,9 +276,9 @@ func update_player_health(player_id: String, health: float):
 		player_data[player_id]["last_seen"] = Time.get_datetime_string_from_system()
 		last_modified = Time.get_datetime_string_from_system()
 
-func add_player_experience(player_id: String, exp: int):
+func add_player_experience(player_id: String, experience_points: int):
 	if player_id in player_data:
-		player_data[player_id]["experience"] += exp
+		player_data[player_id]["experience"] += experience_points
 		player_data[player_id]["last_seen"] = Time.get_datetime_string_from_system()
 		last_modified = Time.get_datetime_string_from_system()
 		
