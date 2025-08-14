@@ -14,11 +14,16 @@ class_name WorldManager
 @export var sync_scene_to_world: bool = false : set = _on_sync_scene_to_world
 @export var show_world_info: bool = false : set = _on_show_world_info
 @export var save_world_now: bool = false : set = _on_save_world_now
+@export var sync_editor_players: bool = false : set = _on_sync_editor_players
 
 var game_manager: Node
 var is_loading: bool = false
 var last_file_modified_time: int = 0
 var last_tilemap_cell_count: int = 0
+
+# Editor player persistence
+var editor_players: Dictionary = {}  # player_id -> player_node
+var spawn_container: Node2D
 
 signal terrain_modified(coords: Vector2i, source_id: int, atlas_coords: Vector2i)
 signal world_data_changed()
@@ -35,6 +40,16 @@ func _ready():
 	else:
 		print("WorldManager: No TileMapLayer found")
 	
+	# Find SpawnContainer for editor player persistence
+	spawn_container = get_node_or_null("../SpawnContainer")
+	if not spawn_container:
+		spawn_container = get_tree().get_first_node_in_group("spawn_container")
+	
+	if spawn_container:
+		print("WorldManager: Found SpawnContainer at ", spawn_container.get_path())
+	else:
+		print("WorldManager: SpawnContainer not found")
+	
 	# Always load from external file to ensure editor and runtime sync
 	load_world_data()
 	
@@ -43,6 +58,8 @@ func _ready():
 		if world_data and world_tile_map_layer:
 			apply_world_data_to_tilemap()
 			print("WorldManager: Editor refreshed with ", world_data.get_tile_count(), " tiles from persistent data")
+		# Sync editor players from world data
+		sync_editor_players_from_world_data()
 	else:
 		# Check if tilemap has data but world_data is empty (editor painted tiles)
 		if world_tile_map_layer and world_data and world_data.get_tile_count() == 0:
@@ -228,6 +245,8 @@ func _process(delta):
 		_check_for_external_changes()
 		# Check if tilemap was modified in editor (direct painting)
 		_check_for_tilemap_changes()
+		# Check if editor players were moved
+		_check_for_editor_player_movement()
 	elif multiplayer.is_server():
 		auto_save_timer += delta
 		if auto_save_timer >= auto_save_interval:
@@ -251,6 +270,8 @@ func _check_for_external_changes():
 		if world_data and world_tile_map_layer:
 			apply_world_data_to_tilemap()
 			print("WorldManager: Editor auto-refreshed with ", world_data.get_tile_count(), " tiles")
+		# Also sync editor players
+		sync_editor_players_from_world_data()
 
 func _check_for_tilemap_changes():
 	if not world_tile_map_layer or not world_data:
@@ -372,3 +393,113 @@ func sync_terrain_modification(coords: Vector2i, source_id: int, atlas_coords: V
 	if not multiplayer.is_server():
 		world_tile_map_layer.set_cell(coords, source_id, atlas_coords, alternative_tile)
 		terrain_modified.emit(coords, source_id, atlas_coords)
+
+# Editor Player Persistence Functions
+func sync_editor_players_from_world_data():
+	if not Engine.is_editor_hint():
+		print("WorldManager: Not in editor, skipping player sync")
+		return
+	if not world_data:
+		print("WorldManager: No world data, skipping player sync")
+		return
+	if not spawn_container:
+		print("WorldManager: No spawn container found, skipping player sync")
+		return
+	
+	print("WorldManager: Syncing editor players from world data...")
+	
+	# Clear existing editor players
+	clear_editor_players()
+	
+	# Spawn editor players for each player in world data
+	var player_data = world_data.get_all_players()
+	print("WorldManager: Found ", player_data.size(), " players in world data")
+	
+	for player_id in player_data.keys():
+		var player_info = player_data[player_id]
+		print("WorldManager: Spawning editor player ", player_id, " at ", player_info["position"])
+		spawn_editor_player(player_id, player_info["position"])
+	
+	print("WorldManager: Spawned ", editor_players.size(), " editor players")
+
+func spawn_editor_player(player_id: String, position: Vector2):
+	if not Engine.is_editor_hint() or not spawn_container:
+		print("WorldManager: Cannot spawn editor player - missing requirements")
+		return
+	
+	# Create a simple Node2D for editor representation instead of full entity_scene
+	var player = Node2D.new()
+	player.name = "EditorPlayer_" + player_id
+	player.position = position
+	
+	# Add visual representation (sprite)
+	var sprite = Sprite2D.new()
+	var texture = PlaceholderTexture2D.new()
+	texture.size = Vector2(50, 50)
+	sprite.texture = texture
+	sprite.modulate = Color.CYAN  # Editor player color
+	player.add_child(sprite)
+	
+	# Add label with player ID
+	var label = Label.new()
+	label.text = player_id
+	label.position = Vector2(-25, -35)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_color_override("font_shadow_color", Color.BLACK)
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)
+	player.add_child(label)
+	
+	# Store player_id in the node's metadata for later retrieval
+	player.set_meta("persistent_player_id", player_id)
+	
+	# Add to spawn container and track
+	spawn_container.add_child(player)
+	editor_players[player_id] = player
+	
+	print("WorldManager: Successfully spawned editor player ", player_id, " at ", position)
+	print("WorldManager: Editor players count now: ", editor_players.size())
+
+func clear_editor_players():
+	if not Engine.is_editor_hint():
+		return
+	
+	# Remove all existing editor players
+	for player_id in editor_players.keys():
+		var player = editor_players[player_id]
+		if is_instance_valid(player):
+			player.queue_free()
+	
+	editor_players.clear()
+
+func _check_for_editor_player_movement():
+	if not Engine.is_editor_hint() or not world_data:
+		return
+	
+	# Check each editor player for position changes
+	for player_id in editor_players.keys():
+		var player = editor_players[player_id]
+		if not is_instance_valid(player):
+			continue
+		
+		var persistent_id = player.get_meta("persistent_player_id", "")
+		if persistent_id == "":
+			continue
+		
+		# Get current position from world data
+		var stored_data = world_data.get_player(persistent_id)
+		var stored_position = stored_data["position"]
+		
+		# Check if position changed
+		if player.position.distance_to(stored_position) > 1.0:  # Small threshold for floating point precision
+			# Update world data
+			world_data.update_player_position(persistent_id, player.position)
+			save_world_data()
+			print("WorldManager: Editor player ", persistent_id, " moved to ", player.position)
+
+func _on_sync_editor_players(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("🎭 WorldManager: Syncing editor players...")
+		sync_editor_players_from_world_data()
+		# Reset the button
+		sync_editor_players = false

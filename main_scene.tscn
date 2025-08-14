@@ -423,7 +423,7 @@ tile_map_data = PackedByteArray("AAD//wUAAQADAAQAAAAAAAUAAQADAAQAAAABAAUAAQADAAQ
 tile_set = SubResource("TileSet_hq1ik")
 rendering_quadrant_size = 128
 
-[node name="SpawnContainer" type="Node2D" parent="."]
+[node name="SpawnContainer" type="Node2D" parent="." groups=["spawn_container"]]
 position = Vector2(171, 173)
 
 [node name="Sprite2D" type="Sprite2D" parent="SpawnContainer"]
