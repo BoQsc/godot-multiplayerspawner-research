@@ -16,6 +16,10 @@ class_name WorldManager
 @export var save_world_now: bool = false : set = _on_save_world_now
 @export var sync_editor_players: bool = false : set = _on_sync_editor_players
 @export var rescue_lost_players: bool = false : set = _on_rescue_lost_players
+@export_group("Manual Player Positioning")
+@export var player_to_move: String = ""
+@export var new_position: Vector2 = Vector2.ZERO
+@export var move_player_now: bool = false : set = _on_move_player_now
 
 var game_manager: Node
 var is_loading: bool = false
@@ -442,11 +446,15 @@ func spawn_editor_player(player_id: String, position: Vector2):
 	player.name = "EditorPlayer_" + player_id
 	player.position = safe_position
 	
+	# Set the owner to the scene root so it appears in the scene tree
+	player.owner = get_tree().edited_scene_root
+	
 	# Add visual representation (sprite)
 	var sprite = Sprite2D.new()
 	var texture = PlaceholderTexture2D.new()
 	texture.size = Vector2(50, 50)
 	sprite.texture = texture
+	sprite.owner = get_tree().edited_scene_root  # Make sprite owned by scene
 	
 	# Color based on status
 	if is_lost:
@@ -468,15 +476,13 @@ func spawn_editor_player(player_id: String, position: Vector2):
 	label.add_theme_color_override("font_shadow_color", Color.BLACK)
 	label.add_theme_constant_override("shadow_offset_x", 1)
 	label.add_theme_constant_override("shadow_offset_y", 1)
+	label.owner = get_tree().edited_scene_root  # Make label owned by scene
 	player.add_child(label)
 	
 	# Store metadata for later retrieval
 	player.set_meta("persistent_player_id", player_id)
 	player.set_meta("original_position", position)
 	player.set_meta("is_lost", is_lost)
-	
-	# Make selectable in editor by giving it a unique node configuration
-	player.set_notify_transform(true)  # Enable transform notifications
 	
 	# Add to spawn container and track
 	spawn_container.add_child(player)
@@ -564,3 +570,16 @@ func rescue_all_lost_players():
 		print("✅ WorldManager: Rescued ", rescued_count, " lost players to safe spawn at ", safe_spawn)
 	else:
 		print("WorldManager: No lost players found to rescue")
+
+func _on_move_player_now(value: bool):
+	if Engine.is_editor_hint() and value:
+		if player_to_move != "" and world_data:
+			print("🎯 WorldManager: Moving player ", player_to_move, " to ", new_position)
+			world_data.update_player_position(player_to_move, new_position)
+			save_world_data()
+			sync_editor_players_from_world_data()  # Refresh editor display
+			print("✅ Player ", player_to_move, " moved to ", new_position)
+		else:
+			print("❌ Please specify player_to_move (e.g., 'player_1') and new_position")
+		# Reset the button
+		move_player_now = false
