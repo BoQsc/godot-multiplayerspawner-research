@@ -50,7 +50,8 @@ Password: [••••••••••••••••]
 
 ### User Flow
 1. **Anonymous Player**: Start playing immediately with UUID
-   - **Optional**: [✓] Device binding (prevents others from using this UUID on other devices)
+   - **Auto-Enabled**: [✓] Device binding (automatically protects new players)
+   - **Optional**: Can disable for gaming cafés or device transfers
 2. **Optional Registration**: "Claim this character" with username/password  
    - **Result**: Device binding automatically disabled (no longer needed)
 3. **Future Logins**: Enter credentials to resume character from any device
@@ -82,10 +83,10 @@ func get_device_fingerprint() -> String:
 ```
 
 ### Anonymous Use Cases
-- **🏠 Home PC**: [✓] Device binding → Protects your UUID from family/roommates
-- **🎮 Gaming Café**: [ ] Device binding → Play from any computer
-- **👨‍👩‍👧‍👦 Shared Computer**: [ ] Device binding → Multiple family members can play
-- **🔄 Device Transfer**: Temporarily disable → Move to new computer
+- **🏠 Home PC**: [✓] Auto-enabled → Protects your UUID from family/roommates
+- **🎮 Gaming Café**: [ ] Manually disable → Play from any computer
+- **👨‍👩‍👧‍👦 Shared Computer**: [ ] Disable if needed → Multiple family members can play
+- **🔄 Device Transfer**: Transfer or disable → Move to new computer
 
 ### Registration Transition
 When anonymous player registers with username/password:
@@ -178,7 +179,8 @@ func recover_account(username: String) -> RecoveryOptions:
 
 ### "Progressive Trust" Model
 1. **Anonymous** → Instant play, no barriers (UUID only)
-   - Optional: [✓] Device binding (protect UUID from others on shared computers)
+   - Auto-enabled: [✓] Device binding (automatically protect new players)
+   - Optional: [ ] Disable for gaming cafés or device transfers
 2. **Simple Account** → Username + password, cross-device freedom
    - Device binding automatically disabled (no longer relevant)
    - Optional: [ ] Remember login on this device

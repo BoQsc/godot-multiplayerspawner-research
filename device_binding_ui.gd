@@ -43,7 +43,7 @@ func create_ui():
 	
 	# Device binding checkbox
 	binding_checkbox = CheckBox.new()
-	binding_checkbox.text = "Protect this character on this device only"
+	binding_checkbox.text = "Protect this character on this device only (recommended)"
 	binding_checkbox.toggled.connect(_on_binding_toggled)
 	vbox.add_child(binding_checkbox)
 	
@@ -110,8 +110,9 @@ func update_ui():
 	
 	if binding_info.get("bound", false):
 		if binding_info.get("is_current_device", false):
-			info_text += "✅ This character is protected and bound to this device.\n"
-			info_text += "Others cannot access it from different computers."
+			info_text += "🔐 This character is automatically protected on this device.\n"
+			info_text += "Others cannot access it from different computers.\n"
+			info_text += "Device binding will be disabled if you register an account."
 		else:
 			info_text += "🔒 This character is bound to a different device.\n"
 			info_text += "Use 'Transfer to This Device' to move it here."

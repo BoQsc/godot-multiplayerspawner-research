@@ -143,6 +143,12 @@ func setup_device_binding_for_uuid():
 	# Check if device binding is enabled for this UUID
 	device_binding_enabled = device_binding.is_device_binding_enabled(uuid_player_id)
 	
+	# AUTO-ENABLE device binding for new anonymous players
+	if not device_binding_enabled:
+		device_binding.enable_device_binding(uuid_player_id, true)
+		device_binding_enabled = true
+		print("ClientIdentity: Auto-enabled device binding for new anonymous player")
+	
 	print("ClientIdentity: UUID player ID: ", uuid_player_id)
 	print("ClientIdentity: Device binding enabled: ", device_binding_enabled)
 
@@ -179,3 +185,17 @@ func transfer_uuid_to_this_device():
 func get_uuid_player_id() -> String:
 	"""Get the UUID player ID for this client"""
 	return uuid_player_id
+
+func disable_device_binding_after_registration():
+	"""Disable device binding after successful registration/login"""
+	if device_binding and device_binding_enabled:
+		device_binding.enable_device_binding(uuid_player_id, false)
+		device_binding_enabled = false
+		print("ClientIdentity: Device binding disabled after registration/login")
+		print("ClientIdentity: Cross-device access now enabled")
+
+func is_anonymous_player() -> bool:
+	"""Check if this is still an anonymous (unregistered) player"""
+	# In Phase 2, this will check if user has registered account
+	# For now, all players are anonymous
+	return true
