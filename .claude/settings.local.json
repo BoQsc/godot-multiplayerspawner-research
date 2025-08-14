@@ -8,7 +8,8 @@
       "Bash(dir \"%APPDATA%\\Godot\\app_userdata\\godot-multiplayerspawner-research\")",
       "Bash(dir:*)",
       "Bash(godot:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(del client_identity.dat server_identity.dat)"
     ],
     "deny": [],
     "ask": []

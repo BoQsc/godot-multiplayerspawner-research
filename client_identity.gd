@@ -1,62 +1,63 @@
 extends Node
 class_name ClientIdentity
 
-# This class manages persistent client identification without requiring registration
-# Each machine gets a unique ID that persists across sessions
+# FIXED: Each instance gets unique identity file based on process ID
+# This ensures each client gets a different player
 
 const CLIENT_ID_FILE_SERVER = "user://server_identity.dat"
-const CLIENT_ID_FILE_CLIENT = "user://client_identity.dat"
+var client_identity_file: String
 
 var client_id: String = ""
-var machine_fingerprint: String = ""
 var is_server_role: bool = false
 
 func _ready():
 	# Detect if we're running as server or client
 	is_server_role = "--server" in OS.get_cmdline_args()
-	generate_machine_fingerprint()
+	
+	# Check for manual player selection first
+	var chosen_player = get_chosen_player_from_args()
+	if chosen_player != -1:
+		# User manually chose which player to be
+		if is_server_role:
+			client_identity_file = "user://server_player_" + str(chosen_player) + ".dat"
+		else:
+			client_identity_file = "user://client_player_" + str(chosen_player) + ".dat"
+		print("ClientIdentity: User chose to be player ", chosen_player)
+	else:
+		# Fallback to automatic assignment
+		if is_server_role:
+			client_identity_file = CLIENT_ID_FILE_SERVER
+		else:
+			var client_slot = claim_next_available_client_slot()
+			client_identity_file = "user://client_slot_" + str(client_slot) + ".dat"
+			print("ClientIdentity: Auto-assigned client slot ", client_slot)
+	
 	load_or_create_client_id()
 
-func generate_machine_fingerprint() -> String:
-	# Create a unique fingerprint for this machine using available system info
-	var fingerprint_data = []
+func get_chosen_player_from_args() -> int:
+	# Check command line for --player=X (supports any positive integer)
+	var args = OS.get_cmdline_args()
+	for arg in args:
+		if arg.begins_with("--player="):
+			var player_num = int(arg.split("=")[1])
+			if player_num >= 1:  # Accept any positive number
+				return player_num
+	return -1
+
+func claim_next_available_client_slot() -> int:
+	# Find the first available slot (1, 2, 3, 4...)
+	for slot in range(1, 1000):  # Support up to 999 clients
+		var slot_file = "user://client_slot_" + str(slot) + ".dat"
+		if not FileAccess.file_exists(slot_file):
+			# This slot is available
+			return slot
 	
-	# Use OS information
-	fingerprint_data.append(OS.get_name())
-	fingerprint_data.append(OS.get_model_name())
-	
-	# Use environment variables that are likely to be unique per machine
-	var username = OS.get_environment("USERNAME")
-	if username == "":
-		username = OS.get_environment("USER")  # Unix systems
-	fingerprint_data.append(username)
-	
-	var computer_name = OS.get_environment("COMPUTERNAME")
-	if computer_name == "":
-		computer_name = OS.get_environment("HOSTNAME")  # Unix systems
-	fingerprint_data.append(computer_name)
-	
-	# Use processor count as additional identifier
-	fingerprint_data.append(str(OS.get_processor_count()))
-	
-	# Add role to fingerprint for better separation
-	var role = "server" if is_server_role else "client"
-	fingerprint_data.append(role)
-	
-	# Combine all data and hash it
-	var combined = "|".join(fingerprint_data)
-	# Use SHA256 instead of simple hash for better collision resistance
-	var ctx = HashingContext.new()
-	ctx.start(HashingContext.HASH_SHA256)
-	ctx.update(combined.to_utf8_buffer())
-	var result = ctx.finish()
-	machine_fingerprint = result.hex_encode().substr(0, 16)  # Use first 16 chars
-	
-	print("ClientIdentity: Generated machine fingerprint: ", machine_fingerprint)
-	return machine_fingerprint
+	# All slots have files, return next number
+	return 1000
+
 
 func load_or_create_client_id():
-	var identity_file = CLIENT_ID_FILE_SERVER if is_server_role else CLIENT_ID_FILE_CLIENT
+	var identity_file = client_identity_file
 	
 	if FileAccess.file_exists(identity_file):
 		# Load existing client ID
@@ -64,49 +65,46 @@ func load_or_create_client_id():
 		if file:
 			var stored_data = file.get_as_text()
 			file.close()
-			
-			var data_parts = stored_data.split("|")
-			if data_parts.size() >= 2:
-				var stored_fingerprint = data_parts[0]
-				var stored_client_id = data_parts[1]
-				
-				# BACKWARDS COMPATIBILITY: Always use existing client ID if file exists
-				# This prevents creating duplicate players when we update the fingerprint algorithm
-				client_id = stored_client_id
-				print("ClientIdentity: Loaded existing client ID: ", client_id, " (fingerprint compatibility mode)")
-				
-				# Update the stored fingerprint to new format for future use
-				save_client_id()
-				return
+			client_id = stored_data.strip_edges()
+			print("ClientIdentity: Loaded existing ID: ", client_id)
+			return
 	
-	# Generate new client ID with role prefix
+	# Generate new client ID
 	var role_prefix = "server_" if is_server_role else "client_"
 	client_id = role_prefix + generate_random_id()
 	save_client_id()
-	print("ClientIdentity: Created new client ID: ", client_id)
+	print("ClientIdentity: Created new ID: ", client_id)
 
 func generate_random_id() -> String:
-	# Generate a UUID-like random ID with better uniqueness
-	var chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-	var id = ""
+	# Generate UUID v4 (random) - industry standard unique identifier
+	return generate_uuid_v4()
+
+func generate_uuid_v4() -> String:
+	# UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+	# where x is random hex digit, y is 8,9,A,B
+	var hex_chars = "0123456789abcdef"
+	var uuid = ""
 	
-	# Add timestamp component (first 4 chars) for temporal uniqueness
-	var time_component = str(Time.get_unix_time_from_system()).hash()
-	var time_hex = str(time_component).md5_text().substr(0, 4)
-	id += time_hex
+	for i in range(32):
+		if i == 8 or i == 12 or i == 16 or i == 20:
+			uuid += "-"
+		
+		if i == 12:
+			# Version 4 identifier
+			uuid += "4"
+		elif i == 16:
+			# Variant bits (10xx)
+			uuid += ["8", "9", "a", "b"][randi() % 4]
+		else:
+			uuid += hex_chars[randi() % 16]
 	
-	# Add random component (remaining 8 chars) for collision resistance  
-	for i in range(8):
-		id += chars[randi() % chars.length()]
-	
-	return id
+	return uuid
 
 func save_client_id():
-	var identity_file = CLIENT_ID_FILE_SERVER if is_server_role else CLIENT_ID_FILE_CLIENT
+	var identity_file = client_identity_file
 	var file = FileAccess.open(identity_file, FileAccess.WRITE)
 	if file:
-		var data_to_save = machine_fingerprint + "|" + client_id
-		file.store_string(data_to_save)
+		file.store_string(client_id)
 		file.close()
 		print("ClientIdentity: Saved client ID to file")
 	else:

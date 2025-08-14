@@ -30,6 +30,7 @@ class_name WorldManager
 @export_group("Editor Diagnostics")
 @export var test_editor_display: bool = false : set = _on_test_editor_display
 @export var cleanup_duplicate_players: bool = false : set = _on_cleanup_duplicates
+@export var reset_all_players: bool = false : set = _on_reset_all_players
 
 var game_manager: Node
 var is_loading: bool = false
@@ -817,6 +818,13 @@ func _on_cleanup_duplicates(value: bool):
 		# Reset the button
 		cleanup_duplicate_players = false
 
+func _on_reset_all_players(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("🔥 WorldManager: Resetting all players...")
+		reset_all_players_data()
+		# Reset the button
+		reset_all_players = false
+
 func cleanup_duplicate_players_from_identity_bug():
 	if not world_data:
 		print("❌ No world data available")
@@ -839,15 +847,18 @@ func cleanup_duplicate_players_from_identity_bug():
 	
 	var merges_to_perform = []
 	
-	# Find client duplicates
+	# Find client duplicates - look for different length IDs (old vs new format)
 	var old_client_id = ""
 	var new_client_id = ""
 	for client_id in client_mappings.keys():
 		if client_id.begins_with("client_"):
-			if client_id.length() == 14:  # Old format like "client_4e8eud3a"
+			print("🔍 Checking client ID: ", client_id, " (length: ", client_id.length(), ")")
+			if client_id.length() <= 14:  # Old/shorter format like "client_4e8eud3a" (12 chars)
 				old_client_id = client_id
-			elif client_id.length() > 14:  # New format like "client_a70ds7hrkpyz"
+				print("  → Marked as OLD client: ", old_client_id)
+			elif client_id.length() > 14:  # New/longer format like "client_a70ds7hrkpyz" (16 chars)
 				new_client_id = client_id
+				print("  → Marked as NEW client: ", new_client_id)
 	
 	if old_client_id != "" and new_client_id != "":
 		merges_to_perform.append({
@@ -857,15 +868,18 @@ func cleanup_duplicate_players_from_identity_bug():
 		})
 		print("🔗 Found client duplicate: ", old_client_id, " vs ", new_client_id)
 	
-	# Find server duplicates
+	# Find server duplicates - look for different length IDs (old vs new format)
 	var old_server_id = ""
 	var new_server_id = ""
 	for client_id in client_mappings.keys():
 		if client_id.begins_with("server_"):
-			if client_id.length() == 14:  # Old format like "server_sref1044"
+			print("🔍 Checking server ID: ", client_id, " (length: ", client_id.length(), ")")
+			if client_id.length() <= 14:  # Old/shorter format like "server_sref1044" (12 chars)
 				old_server_id = client_id
-			elif client_id.length() > 14:  # New format like "server_e5c4zwkibvaq"
+				print("  → Marked as OLD server: ", old_server_id)
+			elif client_id.length() > 14:  # New/longer format like "server_e5c4zwkibvaq" (16 chars)
 				new_server_id = client_id
+				print("  → Marked as NEW server: ", new_server_id)
 	
 	if old_server_id != "" and new_server_id != "":
 		merges_to_perform.append({
@@ -878,12 +892,12 @@ func cleanup_duplicate_players_from_identity_bug():
 	# Perform merges
 	var cleaned_count = 0
 	for merge in merges_to_perform:
-		var old_client_id = merge["old_client"]
-		var new_client_id = merge["new_client"]
-		var old_player_id = client_mappings[old_client_id]
-		var new_player_id = client_mappings[new_client_id]
+		var merge_old_client_id = merge["old_client"]
+		var merge_new_client_id = merge["new_client"]
+		var old_player_id = client_mappings[merge_old_client_id]
+		var new_player_id = client_mappings[merge_new_client_id]
 		
-		print("🧹 Merging ", merge["type"], ": ", new_client_id, " (", new_player_id, ") into ", old_client_id, " (", old_player_id, ")")
+		print("🧹 Merging ", merge["type"], ": ", merge_new_client_id, " (", new_player_id, ") into ", merge_old_client_id, " (", old_player_id, ")")
 		
 		# Get player data
 		var old_player_data = players[old_player_id]
@@ -899,7 +913,7 @@ func cleanup_duplicate_players_from_identity_bug():
 			print("  → Keeping older player data from ", old_player_id)
 		
 		# Update client mapping to point new client ID to old player ID
-		world_data.client_to_player_mapping[new_client_id] = old_player_id
+		world_data.client_to_player_mapping[merge_new_client_id] = old_player_id
 		
 		# Remove the duplicate player data
 		world_data.player_data.erase(new_player_id)
@@ -919,3 +933,38 @@ func cleanup_duplicate_players_from_identity_bug():
 			print("    ", client_id, " -> ", player_id)
 	else:
 		print("ℹ️ No duplicate players found to clean up")
+
+func reset_all_players_data():
+	if not world_data:
+		print("❌ No world data available")
+		return
+	
+	print("🔥 === RESET ALL PLAYERS ===")
+	print("Before reset:")
+	print("  Players: ", world_data.player_data.size())
+	print("  Client mappings: ", world_data.client_to_player_mapping.size())
+	print("  Peer mappings: ", world_data.peer_to_client_mapping.size())
+	
+	# Clear all player data
+	world_data.player_data.clear()
+	world_data.client_to_player_mapping.clear()
+	world_data.peer_to_client_mapping.clear()
+	
+	# Reset the player ID counter
+	world_data.next_player_id = 1
+	
+	# Clear editor players display
+	for player_node in editor_players.values():
+		if player_node and is_instance_valid(player_node):
+			player_node.queue_free()
+	editor_players.clear()
+	
+	# Save the changes
+	save_world_data()
+	
+	print("✅ Reset complete!")
+	print("After reset:")
+	print("  Players: ", world_data.player_data.size())
+	print("  Client mappings: ", world_data.client_to_player_mapping.size())
+	print("  Peer mappings: ", world_data.peer_to_client_mapping.size())
+	print("🔄 All player data has been cleared. Next run will create fresh players starting from player_1")
