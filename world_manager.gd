@@ -20,6 +20,13 @@ class_name WorldManager
 @export var player_to_move: String = ""
 @export var new_position: Vector2 = Vector2.ZERO
 @export var move_player_now: bool = false : set = _on_move_player_now
+@export_group("Player Search & Management")
+@export var search_term: String = ""
+@export var search_players: bool = false : set = _on_search_players
+@export var focus_on_player: String = ""
+@export var focus_camera: bool = false : set = _on_focus_camera
+@export var list_all_players: bool = false : set = _on_list_all_players
+@export var show_player_distances: bool = false : set = _on_show_distances
 
 var game_manager: Node
 var is_loading: bool = false
@@ -578,3 +585,158 @@ func _on_move_player_now(value: bool):
 			print("❌ Please specify player_to_move (e.g., 'player_1') and new_position")
 		# Reset the button
 		move_player_now = false
+
+func _on_search_players(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("🔍 WorldManager: Searching for players containing '", search_term, "'...")
+		search_for_players(search_term)
+		# Reset the button
+		search_players = false
+
+func _on_focus_camera(value: bool):
+	if Engine.is_editor_hint() and value:
+		if focus_on_player != "":
+			print("🎯 WorldManager: Focusing camera on player ", focus_on_player)
+			focus_camera_on_player(focus_on_player)
+		else:
+			print("❌ Please specify focus_on_player (e.g., 'player_1')")
+		# Reset the button
+		focus_camera = false
+
+func _on_list_all_players(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("📋 WorldManager: Listing all players...")
+		list_all_players_with_positions()
+		# Reset the button
+		list_all_players = false
+
+func _on_show_distances(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("📏 WorldManager: Showing player distances from spawn...")
+		show_player_distances_from_spawn()
+		# Reset the button
+		show_player_distances = false
+
+func search_for_players(term: String):
+	if not world_data:
+		print("❌ No world data available")
+		return
+	
+	var matches = []
+	var player_data = world_data.get_all_players()
+	
+	for player_id in player_data.keys():
+		if term == "" or player_id.to_lower().contains(term.to_lower()):
+			var player_info = player_data[player_id]
+			matches.append({
+				"id": player_id,
+				"position": player_info["position"],
+				"last_seen": player_info["last_seen"],
+				"level": player_info["level"]
+			})
+	
+	print("🔍 Found ", matches.size(), " matching players:")
+	for match in matches:
+		var pos = match["position"]
+		var distance = pos.distance_to(Vector2(100, 100))  # Distance from default spawn
+		print("  • ", match["id"], " at ", pos, " (", int(distance), " units from spawn) - Level ", match["level"], " - Last seen: ", match["last_seen"])
+
+func focus_camera_on_player(player_id: String):
+	if not world_data:
+		print("❌ No world data available")
+		return
+	
+	var player_info = world_data.get_player(player_id)
+	if player_info.has("position"):
+		var pos = player_info["position"]
+		print("📍 Player ", player_id, " is at position ", pos)
+		print("💡 TIP: Navigate to coordinates X:", pos.x, " Y:", pos.y, " in the editor viewport")
+		
+		# Try to move the editor camera (this might not work in all contexts)
+		var editor_viewport = get_viewport()
+		if editor_viewport and editor_viewport.has_method("get_camera_2d"):
+			var camera = editor_viewport.get_camera_2d()
+			if camera:
+				camera.global_position = pos
+				print("🎯 Editor camera moved to player position")
+		else:
+			print("💡 Manually navigate to position ", pos, " in the editor")
+	else:
+		print("❌ Player ", player_id, " not found")
+
+func list_all_players_with_positions():
+	if not world_data:
+		print("❌ No world data available")
+		return
+	
+	var player_data = world_data.get_all_players()
+	print("📋 === ALL PLAYERS (", player_data.size(), " total) ===")
+	
+	# Sort players by distance from spawn for easier management
+	var players_with_distance = []
+	for player_id in player_data.keys():
+		var player_info = player_data[player_id]
+		var pos = player_info["position"]
+		var distance = pos.distance_to(Vector2(100, 100))
+		players_with_distance.append({
+			"id": player_id,
+			"info": player_info,
+			"distance": distance
+		})
+	
+	# Sort by distance
+	players_with_distance.sort_custom(func(a, b): return a.distance < b.distance)
+	
+	for player in players_with_distance:
+		var info = player.info
+		var status = "✅ NORMAL"
+		if player.distance > 5000:
+			status = "🚨 LOST"
+		elif player.distance > 1000:
+			status = "⚠️ FAR"
+		
+		print("  ", status, " ", player.id, " at (", int(info.position.x), ", ", int(info.position.y), ") - Distance: ", int(player.distance), " - Level: ", info.level, " - HP: ", info.health, "/", info.max_health)
+
+func show_player_distances_from_spawn():
+	if not world_data:
+		print("❌ No world data available")
+		return
+	
+	var spawn_point = Vector2(100, 100)  # Default spawn
+	var player_data = world_data.get_all_players()
+	
+	print("📏 === PLAYER DISTANCES FROM SPAWN (", spawn_point, ") ===")
+	
+	var close_players = []
+	var medium_players = []
+	var far_players = []
+	var lost_players = []
+	
+	for player_id in player_data.keys():
+		var player_info = player_data[player_id]
+		var distance = player_info["position"].distance_to(spawn_point)
+		
+		if distance < 500:
+			close_players.append({"id": player_id, "distance": distance})
+		elif distance < 1000:
+			medium_players.append({"id": player_id, "distance": distance})
+		elif distance < 5000:
+			far_players.append({"id": player_id, "distance": distance})
+		else:
+			lost_players.append({"id": player_id, "distance": distance})
+	
+	print("✅ CLOSE (< 500 units): ", close_players.size(), " players")
+	for player in close_players:
+		print("    ", player.id, " - ", int(player.distance), " units")
+	
+	print("⚠️ MEDIUM (500-1000 units): ", medium_players.size(), " players")
+	for player in medium_players:
+		print("    ", player.id, " - ", int(player.distance), " units")
+	
+	print("🔶 FAR (1000-5000 units): ", far_players.size(), " players")
+	for player in far_players:
+		print("    ", player.id, " - ", int(player.distance), " units")
+	
+	print("🚨 LOST (> 5000 units): ", lost_players.size(), " players")
+	for player in lost_players:
+		print("    ", player.id, " - ", int(player.distance), " units")
