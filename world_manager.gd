@@ -11,11 +11,13 @@ class_name WorldManager
 @export_group("Editor Tools")
 @export var refresh_from_file: bool = false : set = _on_refresh_from_file
 @export var export_to_scene: bool = false : set = _on_export_to_scene
+@export var sync_scene_to_world: bool = false : set = _on_sync_scene_to_world
 @export var show_world_info: bool = false : set = _on_show_world_info
 
 var game_manager: Node
 var is_loading: bool = false
 var last_file_modified_time: int = 0
+var last_tilemap_cell_count: int = 0
 
 signal terrain_modified(coords: Vector2i, source_id: int, atlas_coords: Vector2i)
 signal world_data_changed()
@@ -223,6 +225,8 @@ func _process(delta):
 	if Engine.is_editor_hint():
 		# Check if world data file was modified externally (by runtime)
 		_check_for_external_changes()
+		# Check if tilemap was modified in editor (direct painting)
+		_check_for_tilemap_changes()
 	elif multiplayer.is_server():
 		auto_save_timer += delta
 		if auto_save_timer >= auto_save_interval:
@@ -245,6 +249,25 @@ func _check_for_external_changes():
 		if world_data and world_tile_map_layer:
 			apply_world_data_to_tilemap()
 			print("WorldManager: Editor auto-refreshed with ", world_data.get_tile_count(), " tiles")
+
+func _check_for_tilemap_changes():
+	if not world_tile_map_layer or not world_data:
+		return
+	
+	var current_cell_count = world_tile_map_layer.get_used_cells().size()
+	
+	# Initialize the count on first check
+	if last_tilemap_cell_count == 0:
+		last_tilemap_cell_count = current_cell_count
+		return
+	
+	# Detect changes in tilemap
+	if current_cell_count != last_tilemap_cell_count:
+		print("WorldManager: Detected tilemap changes in editor (", current_cell_count, " cells), auto-syncing to persistent world...")
+		sync_tilemap_to_world_data()
+		save_world_data()
+		last_tilemap_cell_count = current_cell_count
+		print("✅ Editor changes automatically saved to persistent world data")
 
 func _on_refresh_from_file(value: bool):
 	if Engine.is_editor_hint() and value:
@@ -289,6 +312,21 @@ func _on_export_to_scene(value: bool):
 		
 		# Reset the button
 		export_to_scene = false
+
+func _on_sync_scene_to_world(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("📤 WorldManager: Syncing scene changes to persistent world...")
+		
+		if world_tile_map_layer and world_data:
+			sync_tilemap_to_world_data()
+			save_world_data()
+			print("✅ Synced ", world_data.get_tile_count(), " tiles from scene to persistent world")
+			print("💾 Changes saved to ", world_save_path)
+		else:
+			print("❌ No tilemap or world data available")
+		
+		# Reset the button
+		sync_scene_to_world = false
 
 func _on_show_world_info(value: bool):
 	if Engine.is_editor_hint() and value:
