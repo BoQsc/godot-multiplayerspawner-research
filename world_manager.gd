@@ -446,15 +446,11 @@ func spawn_editor_player(player_id: String, position: Vector2):
 	player.name = "EditorPlayer_" + player_id
 	player.position = safe_position
 	
-	# Set the owner to the scene root so it appears in the scene tree
-	player.owner = get_tree().edited_scene_root
-	
 	# Add visual representation (sprite)
 	var sprite = Sprite2D.new()
 	var texture = PlaceholderTexture2D.new()
 	texture.size = Vector2(50, 50)
 	sprite.texture = texture
-	sprite.owner = get_tree().edited_scene_root  # Make sprite owned by scene
 	
 	# Color based on status
 	if is_lost:
@@ -476,7 +472,6 @@ func spawn_editor_player(player_id: String, position: Vector2):
 	label.add_theme_color_override("font_shadow_color", Color.BLACK)
 	label.add_theme_constant_override("shadow_offset_x", 1)
 	label.add_theme_constant_override("shadow_offset_y", 1)
-	label.owner = get_tree().edited_scene_root  # Make label owned by scene
 	player.add_child(label)
 	
 	# Store metadata for later retrieval
