@@ -15,6 +15,7 @@ class_name WorldManager
 @export var show_world_info: bool = false : set = _on_show_world_info
 @export var save_world_now: bool = false : set = _on_save_world_now
 @export var sync_editor_players: bool = false : set = _on_sync_editor_players
+@export var rescue_lost_players: bool = false : set = _on_rescue_lost_players
 
 var game_manager: Node
 var is_loading: bool = false
@@ -421,43 +422,70 @@ func sync_editor_players_from_world_data():
 		spawn_editor_player(player_id, player_info["position"])
 	
 	print("WorldManager: Spawned ", editor_players.size(), " editor players")
+	if editor_players.size() > 0:
+		print("💡 TIP: Look in Scene tab under SpawnContainer for EditorPlayer nodes. Select them to drag around!")
 
 func spawn_editor_player(player_id: String, position: Vector2):
 	if not Engine.is_editor_hint() or not spawn_container:
 		print("WorldManager: Cannot spawn editor player - missing requirements")
 		return
 	
-	# Create a simple Node2D for editor representation instead of full entity_scene
+	# Check if player is lost (far from reasonable bounds)
+	var is_lost = abs(position.x) > 5000 or abs(position.y) > 5000
+	var safe_position = position
+	if is_lost:
+		safe_position = Vector2(100, 100)  # Default safe spawn
+		print("WorldManager: Player ", player_id, " is lost at ", position, ", spawning at safe position ", safe_position)
+	
+	# Create a simple Node2D for editor representation
 	var player = Node2D.new()
 	player.name = "EditorPlayer_" + player_id
-	player.position = position
+	player.position = safe_position
 	
 	# Add visual representation (sprite)
 	var sprite = Sprite2D.new()
 	var texture = PlaceholderTexture2D.new()
 	texture.size = Vector2(50, 50)
 	sprite.texture = texture
-	sprite.modulate = Color.CYAN  # Editor player color
+	
+	# Color based on status
+	if is_lost:
+		sprite.modulate = Color.RED  # Lost players are red
+	else:
+		sprite.modulate = Color.CYAN  # Normal players are cyan
+	
 	player.add_child(sprite)
 	
-	# Add label with player ID
+	# Add label with player ID and status
 	var label = Label.new()
-	label.text = player_id
-	label.position = Vector2(-25, -35)
+	if is_lost:
+		label.text = player_id + " (LOST)"
+	else:
+		label.text = player_id
+	
+	label.position = Vector2(-30, -40)
 	label.add_theme_color_override("font_color", Color.WHITE)
 	label.add_theme_color_override("font_shadow_color", Color.BLACK)
 	label.add_theme_constant_override("shadow_offset_x", 1)
 	label.add_theme_constant_override("shadow_offset_y", 1)
 	player.add_child(label)
 	
-	# Store player_id in the node's metadata for later retrieval
+	# Store metadata for later retrieval
 	player.set_meta("persistent_player_id", player_id)
+	player.set_meta("original_position", position)
+	player.set_meta("is_lost", is_lost)
+	
+	# Make selectable in editor by giving it a unique node configuration
+	player.set_notify_transform(true)  # Enable transform notifications
 	
 	# Add to spawn container and track
 	spawn_container.add_child(player)
 	editor_players[player_id] = player
 	
-	print("WorldManager: Successfully spawned editor player ", player_id, " at ", position)
+	if is_lost:
+		print("WorldManager: Spawned LOST player ", player_id, " (originally at ", position, ") at safe position ", safe_position)
+	else:
+		print("WorldManager: Successfully spawned editor player ", player_id, " at ", position)
 	print("WorldManager: Editor players count now: ", editor_players.size())
 
 func clear_editor_players():
@@ -503,3 +531,36 @@ func _on_sync_editor_players(value: bool):
 		sync_editor_players_from_world_data()
 		# Reset the button
 		sync_editor_players = false
+
+func _on_rescue_lost_players(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("🚑 WorldManager: Rescuing lost players...")
+		rescue_all_lost_players()
+		# Reset the button
+		rescue_lost_players = false
+
+func rescue_all_lost_players():
+	if not Engine.is_editor_hint() or not world_data:
+		return
+	
+	var rescued_count = 0
+	var safe_spawn = Vector2(100, 100)
+	
+	# Check all players in world data for lost positions
+	var player_data = world_data.get_all_players()
+	for player_id in player_data.keys():
+		var player_info = player_data[player_id]
+		var pos = player_info["position"]
+		
+		# Check if player is lost (far from reasonable bounds)
+		if abs(pos.x) > 5000 or abs(pos.y) > 5000:
+			print("WorldManager: Rescuing lost player ", player_id, " from ", pos, " to ", safe_spawn)
+			world_data.update_player_position(player_id, safe_spawn)
+			rescued_count += 1
+	
+	if rescued_count > 0:
+		save_world_data()
+		sync_editor_players_from_world_data()  # Refresh editor display
+		print("✅ WorldManager: Rescued ", rescued_count, " lost players to safe spawn at ", safe_spawn)
+	else:
+		print("WorldManager: No lost players found to rescue")
