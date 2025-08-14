@@ -1,7 +1,8 @@
-[gd_scene load_steps=9 format=4 uid="uid://dslh1c7rihy52"]
+[gd_scene load_steps=10 format=4 uid="uid://dslh1c7rihy52"]
 
 [ext_resource type="Texture2D" uid="uid://bxoyje2pq7nna" path="res://icon.svg" id="1_0f027"]
 [ext_resource type="Script" uid="uid://dyanuw3ckhq8o" path="res://network_manager.gd" id="1_2c62f"]
+[ext_resource type="Script" uid="uid://y1c5pk60il2c" path="res://client_identity.gd" id="2_client"]
 [ext_resource type="Resource" path="user://world_data.tres" id="3_8mm7a"]
 [ext_resource type="Texture2D" uid="uid://bbkxfau70a8fc" path="res://kenney_voxel-pack/Spritesheets/spritesheet_tiles.png" id="3_d5x1h"]
 [ext_resource type="Script" uid="uid://plwytekgsub" path="res://world_manager.gd" id="3_world"]
@@ -11,12 +12,21 @@ resource_name = "GameManager"
 script/source = "extends Node 
 
 const PORT = 4443
-var players = {}
+var players = {}  # peer_id -> player_node
+var player_persistent_ids = {}  # peer_id -> persistent_player_id
 var network_manager: NetworkManager
+var world_manager: WorldManager
+var client_identity: ClientIdentity
+
+# Automatic position saving
+var save_timer: float = 0.0
+var save_interval: float = 5.0  # Save every 5 seconds
 
 func _ready() -> void:
-	# Find NetworkManager
+	# Find NetworkManager, WorldManager, and ClientIdentity
 	network_manager = get_tree().get_first_node_in_group(\"network_manager\")
+	world_manager = get_tree().get_first_node_in_group(\"world_manager\")
+	client_identity = get_tree().get_first_node_in_group(\"client_identity\")
 	
 	if \"--server\" in OS.get_cmdline_args():
 		print(\"Creating server\")
@@ -27,50 +37,99 @@ func _ready() -> void:
 		multiplayer.peer_connected.connect(_on_player_connected)
 		multiplayer.peer_disconnected.connect(_on_player_disconnected)
 		
-		# Spawn server player (ID 1)
+		# Spawn server player (ID 1) with persistent data
 		await get_tree().process_frame
-		_spawn_player(1, Vector2(100, 100))
+		# Wait for client identity to be ready
+		if client_identity:
+			var server_client_id = client_identity.get_client_id()
+			var server_persistent_id = _register_player_with_client_id(1, server_client_id)
+			var server_spawn_pos = _get_player_spawn_position(server_persistent_id)
+			_spawn_player(1, server_spawn_pos, server_persistent_id)
+		else:
+			print(\"Warning: ClientIdentity not found, using fallback spawn\")
 	else:
 		print(\"Creating Client\")
 		var peer = ENetMultiplayerPeer.new()
 		peer.create_client(\"127.0.0.1\", PORT)
 		multiplayer.multiplayer_peer = peer
 
+func _process(delta):
+	# Auto-save player positions periodically
+	save_timer += delta
+	if save_timer >= save_interval:
+		_auto_save_all_player_positions()
+		save_timer = 0.0
+
+func _notification(what):
+	# Save positions when the application is about to quit
+	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_APPLICATION_PAUSED:
+		_emergency_save_all_positions()
+
+func _auto_save_all_player_positions():
+	if multiplayer.is_server() and world_manager and world_manager.world_data:
+		var saved_count = 0
+		for peer_id in players.keys():
+			var persistent_id = player_persistent_ids.get(peer_id, \"\")
+			if persistent_id != \"\":
+				var current_pos = players[peer_id].position
+				world_manager.world_data.update_player_position(persistent_id, current_pos)
+				saved_count += 1
+				print(\"Auto-saved \", persistent_id, \" (peer \", peer_id, \") at \", current_pos)
+		
+		if saved_count > 0:
+			# Save to file once after updating all positions
+			world_manager.save_world_data()
+			print(\"Auto-saved \", saved_count, \" player positions to file\")
+
+func _emergency_save_all_positions():
+	# Force save all player positions immediately
+	if world_manager and world_manager.world_data:
+		_auto_save_all_player_positions()
+		print(\"Emergency save: Player positions saved before shutdown\")
+
 func _on_player_connected(id):
 	print(\"Player connected: \", id)
 	if multiplayer.is_server():
-		# Send existing players to new player
-		for player_id in players.keys():
-			rpc_id(id, \"spawn_player\", player_id, players[player_id].position)
-		
-		# Spawn new player and notify all clients
-		var spawn_pos = Vector2(randf_range(50, 500), randf_range(50, 400))
-		_spawn_player(id, spawn_pos)
-		rpc(\"spawn_player\", id, spawn_pos)
+		# Request client ID from the connecting player
+		rpc_id(id, \"request_client_id\")
+	else:
+		# Client side: send our client ID to server
+		if client_identity:
+			var my_client_id = client_identity.get_client_id()
+			rpc_id(1, \"receive_client_id\", id, my_client_id)
 		
 func _on_player_disconnected(id):
 	print(\"Player disconnected: \", id)
 	if multiplayer.is_server():
+		# Save player data before despawning
+		_save_player_data(id)
+		_unregister_player(id)
 		_despawn_player(id)
 		rpc(\"despawn_player\", id)
 
-func _spawn_player(id: int, pos: Vector2):
+func _spawn_player(peer_id: int, pos: Vector2, persistent_id: String):
 	var player = load(\"res://entity_scene.tscn\").instantiate()
-	player.name = str(id)
+	player.name = str(peer_id)
 	player.position = pos
-	player.player_id = id
+	player.player_id = peer_id
 	get_parent().get_node(\"SpawnContainer\").add_child(player)
-	players[id] = player
+	players[peer_id] = player
+	player_persistent_ids[peer_id] = persistent_id
+	
+	# Immediately save the initial spawn position to persistent data
+	if multiplayer.is_server() and world_manager and world_manager.world_data:
+		world_manager.world_data.update_player_position(persistent_id, pos)
 
-func _despawn_player(id: int):
-	if id in players:
-		players[id].queue_free()
-		players.erase(id)
+func _despawn_player(peer_id: int):
+	if peer_id in players:
+		players[peer_id].queue_free()
+		players.erase(peer_id)
+		player_persistent_ids.erase(peer_id)
 
 @rpc(\"any_peer\", \"call_local\", \"reliable\")
-func spawn_player(id: int, pos: Vector2):
+func spawn_player(peer_id: int, pos: Vector2, persistent_id: String):
 	if not multiplayer.is_server():
-		_spawn_player(id, pos)
+		_spawn_player(peer_id, pos, persistent_id)
 
 @rpc(\"any_peer\", \"call_local\", \"reliable\") 
 func despawn_player(id: int):
@@ -86,6 +145,12 @@ func update_player_position(id: int, pos: Vector2):
 		# Fallback: direct position update if no NetworkManager
 		if id in players:
 			players[id].position = pos
+	
+	# Update persistent world data (server only, periodically)
+	if multiplayer.is_server() and world_manager and world_manager.world_data:
+		var persistent_id = player_persistent_ids.get(id, \"\")
+		if persistent_id != \"\":
+			world_manager.world_data.update_player_position(persistent_id, pos)
 
 @rpc(\"any_peer\", \"call_remote\", \"reliable\")
 func request_terrain_modification(coords: Vector2i, source_id: int, atlas_coords: Vector2i, alternative_tile: int):
@@ -100,6 +165,72 @@ func sync_terrain_modification(coords: Vector2i, source_id: int, atlas_coords: V
 	var world_manager = get_tree().get_first_node_in_group(\"world_manager\")
 	if world_manager:
 		world_manager.sync_terrain_modification(coords, source_id, atlas_coords, alternative_tile)
+
+# Client ID exchange RPCs
+@rpc(\"authority\", \"call_remote\", \"reliable\")
+func request_client_id():
+	# Client receives request for client ID from server
+	if client_identity and not multiplayer.is_server():
+		var my_client_id = client_identity.get_client_id()
+		var my_peer_id = multiplayer.get_unique_id()
+		rpc_id(1, \"receive_client_id\", my_peer_id, my_client_id)
+
+@rpc(\"any_peer\", \"call_remote\", \"reliable\")
+func receive_client_id(peer_id: int, client_id: String):
+	# Server receives client ID from connecting player
+	if multiplayer.is_server():
+		
+		# Register the player with their client ID
+		var persistent_id = _register_player_with_client_id(peer_id, client_id)
+		
+		# Send existing players to new player
+		for existing_peer_id in players.keys():
+			var existing_persistent_id = player_persistent_ids[existing_peer_id]
+			rpc_id(peer_id, \"spawn_player\", existing_peer_id, players[existing_peer_id].position, existing_persistent_id)
+		
+		# Spawn new player with persistent data and notify all clients
+		var spawn_pos = _get_player_spawn_position(persistent_id)
+		_spawn_player(peer_id, spawn_pos, persistent_id)
+		rpc(\"spawn_player\", peer_id, spawn_pos, persistent_id)
+
+# Player persistence helper functions
+func _register_player(peer_id: int) -> String:
+	if world_manager and world_manager.world_data and client_identity:
+		var client_id = client_identity.get_client_id()
+		return world_manager.world_data.register_client(client_id, peer_id)
+	else:
+		print(\"Warning: No world manager or client identity available for player registration\")
+		return \"player_\" + str(peer_id)
+
+func _register_player_with_client_id(peer_id: int, client_id: String) -> String:
+	if world_manager and world_manager.world_data:
+		return world_manager.world_data.register_client(client_id, peer_id)
+	else:
+		print(\"Warning: No world manager available for player registration\")
+		return \"player_\" + str(peer_id)
+
+func _unregister_player(peer_id: int):
+	if world_manager and world_manager.world_data:
+		world_manager.world_data.unregister_peer(peer_id)
+
+func _get_player_spawn_position(persistent_id: String) -> Vector2:
+	if world_manager and world_manager.world_data:
+		var player_data = world_manager.world_data.get_player(persistent_id)
+		return player_data[\"position\"]
+	else:
+		# Fallback to default spawn if no world data
+		print(\"No persistent data found for player \", persistent_id, \", using default spawn\")
+		return Vector2(100, 100)
+
+func _save_player_data(peer_id: int):
+	if world_manager and world_manager.world_data and peer_id in players and peer_id in player_persistent_ids:
+		var player = players[peer_id]
+		var persistent_id = player_persistent_ids[peer_id]
+		var current_pos = player.position
+		
+		# For now, just save position. Later we can expand to save health, inventory, etc.
+		world_manager.world_data.save_player(persistent_id, current_pos)
+		world_manager.save_world_data()  # Save to file
 "
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_8mm7a"]
@@ -276,6 +407,9 @@ sources/1 = SubResource("TileSetAtlasSource_8mm7a")
 [node name="NetworkManager" type="Node" parent="."]
 script = ExtResource("1_2c62f")
 
+[node name="ClientIdentity" type="Node" parent="." groups=["client_identity"]]
+script = ExtResource("2_client")
+
 [node name="GameManager" type="Node" parent="." groups=["game_manager"]]
 script = SubResource("GDScript_2c62f")
 
@@ -285,7 +419,7 @@ world_tile_map_layer = NodePath("WorldTileMapLayer")
 world_data = ExtResource("3_8mm7a")
 
 [node name="WorldTileMapLayer" type="TileMapLayer" parent="WorldManager"]
-tile_map_data = PackedByteArray("AAAAAAAAAQAAAAAAAAAAAAEAAQAAAAAAAAAAAAIAAQAAAAAAAAAAAAMAAQAAAAAAAAAAAAQAAQAHAAQAAAAAAAYAAQAHAAQAAAAAAAcAAQAHAAQAAAAAAAgAAQAHAAQAAAABAAAAAQAAAAAAAAABAAEAAQAAAAAAAAABAAIAAQAAAAAAAAABAAMAAQAAAAAAAAABAAQAAQAHAAQAAAABAAYAAQAHAAQAAAABAAcAAQAHAAQAAAABAAgAAQAHAAQAAAACAAQAAQAAAAAAAAACAAYAAQAHAAQAAAACAAcAAQAHAAQAAAACAAgAAQAHAAQAAAADAAQAAQAHAAQAAAADAAYAAQAHAAQAAAADAAcAAQAHAAQAAAADAAgAAQAHAAQAAAAEAAQAAQAAAAAAAAAEAAYAAQAHAAQAAAAEAAcAAQAHAAQAAAAEAAgAAQAHAAQAAAAFAAQAAQAHAAQAAAAFAAYAAQAHAAQAAAAFAAcAAQAHAAQAAAAFAAgAAQAHAAQAAAAGAAQAAQAHAAQAAAAGAAYAAQAHAAQAAAAGAAcAAQAHAAQAAAAGAAgAAQAHAAQAAAAHAAQAAQAHAAQAAAAHAAYAAQAHAAQAAAAHAAcAAQAHAAQAAAAHAAgAAQAHAAQAAAAIAAQAAQAAAAAAAAAGAAAAAQAEAAQAAAAGAAEAAQAEAAQAAAAFAAMAAQADAAQAAAA=")
+tile_map_data = PackedByteArray("AAD//wUAAQADAAQAAAAAAAUAAQADAAQAAAABAAUAAQADAAQAAAACAAUAAQADAAQAAAADAAUAAQADAAQAAAAEAAUAAQADAAQAAAD//wQAAQACAAQAAAAAAAQAAQACAAQAAAABAAQAAQACAAQAAAACAAQAAQACAAQAAAADAAQAAQACAAQAAAAEAAQAAQACAAQAAAAFAAAAAQAAAAAAAAAAAAIAAQAAAAAAAAAAAAMAAQAAAAAAAAAEAAMAAQAAAAAAAAABAAEAAQAAAAAAAAA=")
 tile_set = SubResource("TileSet_hq1ik")
 rendering_quadrant_size = 128
 

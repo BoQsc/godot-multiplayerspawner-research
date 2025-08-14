@@ -13,6 +13,7 @@ class_name WorldManager
 @export var export_to_scene: bool = false : set = _on_export_to_scene
 @export var sync_scene_to_world: bool = false : set = _on_sync_scene_to_world
 @export var show_world_info: bool = false : set = _on_show_world_info
+@export var save_world_now: bool = false : set = _on_save_world_now
 
 var game_manager: Node
 var is_loading: bool = false
@@ -230,6 +231,7 @@ func _process(delta):
 	elif multiplayer.is_server():
 		auto_save_timer += delta
 		if auto_save_timer >= auto_save_interval:
+			print("WorldManager: Auto-saving world data (", world_data.get_tile_count(), " tiles, ", world_data.get_player_count(), " players)")
 			save_world_data()
 			auto_save_timer = 0.0
 
@@ -336,6 +338,17 @@ func _on_show_world_info(value: bool):
 			print("❌ No world data available")
 		# Reset the button
 		show_world_info = false
+
+func _on_save_world_now(value: bool):
+	if value:
+		print("💾 WorldManager: Manual save triggered...")
+		if world_data:
+			save_world_data()
+			print("✅ World data saved (", world_data.get_tile_count(), " tiles, ", world_data.get_player_count(), " players)")
+		else:
+			print("❌ No world data available to save")
+		# Reset the button
+		save_world_now = false
 
 func _input(event):
 	if not enable_terrain_modification:

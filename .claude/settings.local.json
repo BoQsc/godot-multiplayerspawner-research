@@ -5,7 +5,10 @@
       "Bash(rm:*)",
       "Bash(del \"C:\\Users\\Windows10_new\\Documents\\godot-multiplayerspawner-research\\world_test.gd\")",
       "WebFetch(domain:github.com)",
-      "Bash(dir \"%APPDATA%\\Godot\\app_userdata\\godot-multiplayerspawner-research\")"
+      "Bash(dir \"%APPDATA%\\Godot\\app_userdata\\godot-multiplayerspawner-research\")",
+      "Bash(dir:*)",
+      "Bash(godot:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
