@@ -42,7 +42,8 @@ func _ready() -> void:
 		# Wait for client identity to be ready
 		if client_identity:
 			var server_client_id = client_identity.get_client_id()
-			var server_persistent_id = _register_player_with_client_id(1, server_client_id)
+			var server_chosen_num = client_identity.get_chosen_player_number()
+			var server_persistent_id = _register_player_with_client_id(1, server_client_id, server_chosen_num)
 			var server_spawn_pos = _get_player_spawn_position(server_persistent_id)
 			_spawn_player(1, server_spawn_pos, server_persistent_id)
 		else:
@@ -96,7 +97,8 @@ func _on_player_connected(id):
 		# Client side: send our client ID to server
 		if client_identity:
 			var my_client_id = client_identity.get_client_id()
-			rpc_id(1, \"receive_client_id\", id, my_client_id)
+			var my_chosen_player_num = client_identity.get_chosen_player_number()
+			rpc_id(1, \"receive_client_id\", id, my_client_id, my_chosen_player_num)
 		
 func _on_player_disconnected(id):
 	print(\"Player disconnected: \", id)
@@ -173,15 +175,16 @@ func request_client_id():
 	if client_identity and not multiplayer.is_server():
 		var my_client_id = client_identity.get_client_id()
 		var my_peer_id = multiplayer.get_unique_id()
-		rpc_id(1, \"receive_client_id\", my_peer_id, my_client_id)
+		var my_chosen_player_num = client_identity.get_chosen_player_number()
+		rpc_id(1, \"receive_client_id\", my_peer_id, my_client_id, my_chosen_player_num)
 
 @rpc(\"any_peer\", \"call_remote\", \"reliable\")
-func receive_client_id(peer_id: int, client_id: String):
+func receive_client_id(peer_id: int, client_id: String, chosen_player_num: int = -1):
 	# Server receives client ID from connecting player
 	if multiplayer.is_server():
 		
-		# Register the player with their client ID
-		var persistent_id = _register_player_with_client_id(peer_id, client_id)
+		# Register the player with their client ID and chosen number
+		var persistent_id = _register_player_with_client_id(peer_id, client_id, chosen_player_num)
 		
 		# Send existing players to new player
 		for existing_peer_id in players.keys():
@@ -197,14 +200,15 @@ func receive_client_id(peer_id: int, client_id: String):
 func _register_player(peer_id: int) -> String:
 	if world_manager and world_manager.world_data and client_identity:
 		var client_id = client_identity.get_client_id()
-		return world_manager.world_data.register_client(client_id, peer_id)
+		var chosen_num = client_identity.get_chosen_player_number()
+		return world_manager.world_data.register_client(client_id, peer_id, chosen_num)
 	else:
 		print(\"Warning: No world manager or client identity available for player registration\")
 		return \"player_\" + str(peer_id)
 
-func _register_player_with_client_id(peer_id: int, client_id: String) -> String:
+func _register_player_with_client_id(peer_id: int, client_id: String, chosen_player_num: int = -1) -> String:
 	if world_manager and world_manager.world_data:
-		return world_manager.world_data.register_client(client_id, peer_id)
+		return world_manager.world_data.register_client(client_id, peer_id, chosen_player_num)
 	else:
 		print(\"Warning: No world manager available for player registration\")
 		return \"player_\" + str(peer_id)

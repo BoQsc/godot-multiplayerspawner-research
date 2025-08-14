@@ -124,7 +124,7 @@ func get_tile_count() -> int:
 	return tile_data.size()
 
 # Player ID management functions
-func register_client(client_id: String, peer_id: int) -> String:
+func register_client(client_id: String, peer_id: int, chosen_player_num: int = -1) -> String:
 	# Validate input parameters
 	if client_id == "" or peer_id <= 0:
 		print("ERROR: Invalid client registration - client_id: '", client_id, "', peer_id: ", peer_id)
@@ -154,15 +154,21 @@ func register_client(client_id: String, peer_id: int) -> String:
 			client_to_player_mapping.erase(client_id)
 	
 	# Create new persistent player ID for this client
-	var persistent_id = "player_" + str(next_player_id)
+	var persistent_id: String
 	
-	# Ensure the persistent_id doesn't already exist (safety check)
-	while persistent_id in player_data:
-		next_player_id += 1
+	if chosen_player_num > 0:
+		# Use the chosen player number directly
+		persistent_id = "player_" + str(chosen_player_num)
+		print("Using chosen player number: ", chosen_player_num)
+	else:
+		# Fallback to sequential numbering
 		persistent_id = "player_" + str(next_player_id)
-		print("WARNING: Player ID collision detected, using ", persistent_id, " instead")
-	
-	next_player_id += 1
+		# Ensure the persistent_id doesn't already exist (safety check)
+		while persistent_id in player_data:
+			next_player_id += 1
+			persistent_id = "player_" + str(next_player_id)
+			print("WARNING: Player ID collision detected, using ", persistent_id, " instead")
+		next_player_id += 1
 	client_to_player_mapping[client_id] = persistent_id
 	
 	print("Registered new client: ", client_id, " (peer ", peer_id, ") -> persistent ID ", persistent_id, " (NEW)")

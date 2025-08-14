@@ -117,3 +117,7 @@ func get_display_name() -> String:
 	# For now, just return the client ID
 	# Later this could be expanded to allow custom usernames
 	return client_id
+
+func get_chosen_player_number() -> int:
+	# Return the chosen player number if one was specified
+	return get_chosen_player_from_args()
