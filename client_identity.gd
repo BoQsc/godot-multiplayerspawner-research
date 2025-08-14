@@ -39,11 +39,18 @@ func generate_machine_fingerprint() -> String:
 	# Use processor count as additional identifier
 	fingerprint_data.append(str(OS.get_processor_count()))
 	
-	# Don't add role to fingerprint - use separate files instead
+	# Add role to fingerprint for better separation
+	var role = "server" if is_server_role else "client"
+	fingerprint_data.append(role)
 	
 	# Combine all data and hash it
 	var combined = "|".join(fingerprint_data)
-	machine_fingerprint = str(combined.hash())
+	# Use SHA256 instead of simple hash for better collision resistance
+	var ctx = HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	ctx.update(combined.to_utf8_buffer())
+	var result = ctx.finish()
+	machine_fingerprint = result.hex_encode().substr(0, 16)  # Use first 16 chars
 	
 	print("ClientIdentity: Generated machine fingerprint: ", machine_fingerprint)
 	return machine_fingerprint
@@ -63,13 +70,14 @@ func load_or_create_client_id():
 				var stored_fingerprint = data_parts[0]
 				var stored_client_id = data_parts[1]
 				
-				# Verify the fingerprint matches (same machine)
-				if stored_fingerprint == machine_fingerprint:
-					client_id = stored_client_id
-					print("ClientIdentity: Loaded existing client ID: ", client_id)
-					return
-				else:
-					print("ClientIdentity: Machine fingerprint changed, generating new client ID")
+				# BACKWARDS COMPATIBILITY: Always use existing client ID if file exists
+				# This prevents creating duplicate players when we update the fingerprint algorithm
+				client_id = stored_client_id
+				print("ClientIdentity: Loaded existing client ID: ", client_id, " (fingerprint compatibility mode)")
+				
+				# Update the stored fingerprint to new format for future use
+				save_client_id()
+				return
 	
 	# Generate new client ID with role prefix
 	var role_prefix = "server_" if is_server_role else "client_"
@@ -78,11 +86,19 @@ func load_or_create_client_id():
 	print("ClientIdentity: Created new client ID: ", client_id)
 
 func generate_random_id() -> String:
-	# Generate a random alphanumeric ID
+	# Generate a UUID-like random ID with better uniqueness
 	var chars = "abcdefghijklmnopqrstuvwxyz0123456789"
 	var id = ""
+	
+	# Add timestamp component (first 4 chars) for temporal uniqueness
+	var time_component = str(Time.get_unix_time_from_system()).hash()
+	var time_hex = str(time_component).md5_text().substr(0, 4)
+	id += time_hex
+	
+	# Add random component (remaining 8 chars) for collision resistance  
 	for i in range(8):
 		id += chars[randi() % chars.length()]
+	
 	return id
 
 func save_client_id():

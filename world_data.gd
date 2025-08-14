@@ -125,18 +125,43 @@ func get_tile_count() -> int:
 
 # Player ID management functions
 func register_client(client_id: String, peer_id: int) -> String:
+	# Validate input parameters
+	if client_id == "" or peer_id <= 0:
+		print("ERROR: Invalid client registration - client_id: '", client_id, "', peer_id: ", peer_id)
+		return ""
+	
+	# Check for existing peer conflicts
+	if peer_id in peer_to_client_mapping:
+		var existing_client = peer_to_client_mapping[peer_id]
+		if existing_client != client_id:
+			print("WARNING: Peer ID ", peer_id, " was previously mapped to different client: ", existing_client, " -> ", client_id)
+	
 	# Map this peer to the client ID for this session
 	peer_to_client_mapping[peer_id] = client_id
 	
 	# Check if this client already has a persistent player ID
 	if client_id in client_to_player_mapping:
 		var persistent_id = client_to_player_mapping[client_id]
-		print("Registered returning client: ", client_id, " (peer ", peer_id, ") -> persistent ID ", persistent_id, " (EXISTING)")
-		last_modified = Time.get_datetime_string_from_system()
-		return persistent_id
+		
+		# Validate that the persistent player ID exists and is consistent
+		if persistent_id in player_data:
+			print("Registered returning client: ", client_id, " (peer ", peer_id, ") -> persistent ID ", persistent_id, " (EXISTING)")
+			last_modified = Time.get_datetime_string_from_system()
+			return persistent_id
+		else:
+			print("WARNING: Client ", client_id, " was mapped to non-existent player ", persistent_id, ", creating new player")
+			# Remove the broken mapping and create new
+			client_to_player_mapping.erase(client_id)
 	
 	# Create new persistent player ID for this client
 	var persistent_id = "player_" + str(next_player_id)
+	
+	# Ensure the persistent_id doesn't already exist (safety check)
+	while persistent_id in player_data:
+		next_player_id += 1
+		persistent_id = "player_" + str(next_player_id)
+		print("WARNING: Player ID collision detected, using ", persistent_id, " instead")
+	
 	next_player_id += 1
 	client_to_player_mapping[client_id] = persistent_id
 	
@@ -159,6 +184,36 @@ func unregister_peer(peer_id: int):
 		print("Unregistered peer ", peer_id, " (client ID: ", client_id, ")")
 		peer_to_client_mapping.erase(peer_id)
 		# Note: We keep the client_to_player_mapping for persistence
+		last_modified = Time.get_datetime_string_from_system()
+		
+		# Clean up old peer mappings periodically to prevent pollution
+		cleanup_old_peer_mappings()
+
+func cleanup_old_peer_mappings():
+	# Remove excessive peer mappings for the same client to prevent dictionary pollution
+	var client_peer_counts = {}
+	
+	# Count peers per client
+	for peer_id in peer_to_client_mapping:
+		var client_id = peer_to_client_mapping[peer_id]
+		if client_id not in client_peer_counts:
+			client_peer_counts[client_id] = []
+		client_peer_counts[client_id].append(peer_id)
+	
+	# Keep only the most recent 3 peer IDs per client
+	var cleaned_count = 0
+	for client_id in client_peer_counts:
+		var peer_list = client_peer_counts[client_id]
+		if peer_list.size() > 3:
+			# Sort by peer ID (newer IDs are generally larger)
+			peer_list.sort()
+			# Remove the oldest ones
+			for i in range(peer_list.size() - 3):
+				peer_to_client_mapping.erase(peer_list[i])
+				cleaned_count += 1
+	
+	if cleaned_count > 0:
+		print("WorldData: Cleaned up ", cleaned_count, " old peer mappings")
 		last_modified = Time.get_datetime_string_from_system()
 
 # Player data management functions

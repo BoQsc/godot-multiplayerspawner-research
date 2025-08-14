@@ -27,6 +27,9 @@ class_name WorldManager
 @export var focus_camera: bool = false : set = _on_focus_camera
 @export var list_all_players: bool = false : set = _on_list_all_players
 @export var show_player_distances: bool = false : set = _on_show_distances
+@export_group("Editor Diagnostics")
+@export var test_editor_display: bool = false : set = _on_test_editor_display
+@export var cleanup_duplicate_players: bool = false : set = _on_cleanup_duplicates
 
 var game_manager: Node
 var is_loading: bool = false
@@ -740,3 +743,179 @@ func show_player_distances_from_spawn():
 	print("🚨 LOST (> 5000 units): ", lost_players.size(), " players")
 	for player in lost_players:
 		print("    ", player.id, " - ", int(player.distance), " units")
+
+func _on_test_editor_display(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("🔧 WorldManager: Testing editor display system...")
+		test_editor_player_display()
+		# Reset the button
+		test_editor_display = false
+
+func test_editor_player_display():
+	if not Engine.is_editor_hint():
+		print("❌ Not in editor mode")
+		return
+	
+	print("🔧 === EDITOR DISPLAY DIAGNOSTICS ===")
+	
+	# Test spawn container
+	if spawn_container:
+		print("✅ SpawnContainer found at: ", spawn_container.get_path())
+		print("   Children count: ", spawn_container.get_child_count())
+	else:
+		print("❌ SpawnContainer not found")
+		return
+	
+	# Test world data
+	if world_data:
+		var player_count = world_data.get_player_count()
+		print("✅ WorldData loaded with ", player_count, " players")
+		
+		if player_count > 0:
+			print("   Player list:")
+			var players = world_data.get_all_players()
+			for player_id in players.keys():
+				var info = players[player_id]
+				print("     • ", player_id, " at ", info["position"])
+		else:
+			print("   No players in world data")
+	else:
+		print("❌ WorldData not found")
+		return
+	
+	# Test editor players
+	print("📊 Editor players status:")
+	print("   Tracked count: ", editor_players.size())
+	
+	for player_id in editor_players.keys():
+		var player_node = editor_players[player_id]
+		if is_instance_valid(player_node):
+			print("   ✅ ", player_id, " - Node valid at ", player_node.position)
+			print("      Node name: ", player_node.name)
+			print("      Parent: ", player_node.get_parent().name if player_node.get_parent() else "None")
+			print("      Children: ", player_node.get_child_count())
+		else:
+			print("   ❌ ", player_id, " - Node invalid")
+	
+	# Test if nodes are visible in scene tree
+	print("📋 SpawnContainer children:")
+	for child in spawn_container.get_children():
+		if child.name.begins_with("EditorPlayer_"):
+			print("   ✅ Found: ", child.name, " at ", child.position)
+		else:
+			print("   ℹ️ Other child: ", child.name)
+	
+	print("🔧 === DIAGNOSTICS COMPLETE ===")
+	
+	if editor_players.size() == 0:
+		print("💡 TIP: Try clicking 'Sync Editor Players' to refresh the display")
+
+func _on_cleanup_duplicates(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("🧹 WorldManager: Cleaning up duplicate players...")
+		cleanup_duplicate_players_from_identity_bug()
+		# Reset the button
+		cleanup_duplicate_players = false
+
+func cleanup_duplicate_players_from_identity_bug():
+	if not world_data:
+		print("❌ No world data available")
+		return
+	
+	print("🧹 === DUPLICATE PLAYER CLEANUP ===")
+	
+	# Get current mappings
+	var client_mappings = world_data.client_to_player_mapping
+	var players = world_data.get_all_players()
+	
+	print("Before cleanup:")
+	print("  Client mappings: ", client_mappings.size())
+	for client_id in client_mappings.keys():
+		var player_id = client_mappings[client_id]
+		print("    ", client_id, " -> ", player_id)
+	
+	# Strategy: Merge newer identity format players back into older ones
+	# Look for pairs: old short IDs + new long IDs for same role
+	
+	var merges_to_perform = []
+	
+	# Find client duplicates
+	var old_client_id = ""
+	var new_client_id = ""
+	for client_id in client_mappings.keys():
+		if client_id.begins_with("client_"):
+			if client_id.length() == 14:  # Old format like "client_4e8eud3a"
+				old_client_id = client_id
+			elif client_id.length() > 14:  # New format like "client_a70ds7hrkpyz"
+				new_client_id = client_id
+	
+	if old_client_id != "" and new_client_id != "":
+		merges_to_perform.append({
+			"old_client": old_client_id,
+			"new_client": new_client_id,
+			"type": "client"
+		})
+		print("🔗 Found client duplicate: ", old_client_id, " vs ", new_client_id)
+	
+	# Find server duplicates
+	var old_server_id = ""
+	var new_server_id = ""
+	for client_id in client_mappings.keys():
+		if client_id.begins_with("server_"):
+			if client_id.length() == 14:  # Old format like "server_sref1044"
+				old_server_id = client_id
+			elif client_id.length() > 14:  # New format like "server_e5c4zwkibvaq"
+				new_server_id = client_id
+	
+	if old_server_id != "" and new_server_id != "":
+		merges_to_perform.append({
+			"old_client": old_server_id,
+			"new_client": new_server_id,
+			"type": "server"
+		})
+		print("🔗 Found server duplicate: ", old_server_id, " vs ", new_server_id)
+	
+	# Perform merges
+	var cleaned_count = 0
+	for merge in merges_to_perform:
+		var old_client_id = merge["old_client"]
+		var new_client_id = merge["new_client"]
+		var old_player_id = client_mappings[old_client_id]
+		var new_player_id = client_mappings[new_client_id]
+		
+		print("🧹 Merging ", merge["type"], ": ", new_client_id, " (", new_player_id, ") into ", old_client_id, " (", old_player_id, ")")
+		
+		# Get player data
+		var old_player_data = players[old_player_id]
+		var new_player_data = players[new_player_id]
+		
+		# Use the newer player data (more recent position/activity)
+		if new_player_data["last_seen"] >= old_player_data["last_seen"]:
+			print("  → Using newer player data from ", new_player_id)
+			# Copy new data to old player ID
+			world_data.player_data[old_player_id] = new_player_data.duplicate()
+			world_data.player_data[old_player_id]["player_id"] = old_player_id  # Fix the ID reference
+		else:
+			print("  → Keeping older player data from ", old_player_id)
+		
+		# Update client mapping to point new client ID to old player ID
+		world_data.client_to_player_mapping[new_client_id] = old_player_id
+		
+		# Remove the duplicate player data
+		world_data.player_data.erase(new_player_id)
+		
+		cleaned_count += 1
+	
+	if cleaned_count > 0:
+		save_world_data()
+		sync_editor_players_from_world_data()  # Refresh display
+		print("✅ Cleanup complete: Merged ", cleaned_count, " duplicate players")
+		print("🔄 You should now see 2 players in the editor instead of 4")
+		
+		# Show final mapping
+		print("After cleanup:")
+		for client_id in world_data.client_to_player_mapping.keys():
+			var player_id = world_data.client_to_player_mapping[client_id]
+			print("    ", client_id, " -> ", player_id)
+	else:
+		print("ℹ️ No duplicate players found to clean up")
