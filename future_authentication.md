@@ -10,16 +10,14 @@
 
 ### Username + Password (No Email Required)
 ```gdscript
-# Simple registration - just username/password
-func register_simple_account(username: String, password: String, enable_device_binding: bool = true) -> bool:
+# Simple registration - just username/password (no device binding needed)
+func register_simple_account(username: String, password: String) -> bool:
     if username in accounts:
         return false  # Username taken
     
     accounts[username] = {
         "password_hash": password.sha256_text(),
         "uuid_player": current_player_uuid,
-        "device_binding_enabled": enable_device_binding,
-        "trusted_devices": [get_device_fingerprint()] if enable_device_binding else [],
         "created_at": Time.get_datetime_string_from_system()
     }
     save_accounts()
@@ -31,80 +29,69 @@ func login_simple_account(username: String, password: String) -> String:
         var stored_hash = account["password_hash"]
         
         if stored_hash == password.sha256_text():
-            # Check device binding if enabled
-            if account["device_binding_enabled"]:
-                var current_device = get_device_fingerprint()
-                if not current_device in account["trusted_devices"]:
-                    return "DEVICE_NOT_TRUSTED"  # Requires device authorization
-            
-            return account["uuid_player"]  # Success
+            return account["uuid_player"]  # Success - no device checks needed
     return ""  # Failed login
 ```
 
-### Security Options (User Choice)
+### Registration Options
 ```gdscript
-# In-game settings panel
-[✓] Enable device binding (recommended)
-    └─ Only allow login from trusted devices
-[ ] Require new device confirmation  
+# Registration UI
+Username: [john_doe        ]
+Password: [••••••••••••••••]
 [ ] Remember login on this device
-[⚙️] Manage trusted devices (3 devices)
+[Register] [Login]
 ```
 
 ### Benefits
 - ✅ **No Email Required**: Just username + password
 - ✅ **Instant Registration**: Link current UUID player to account
-- ✅ **Cross-Device**: Login from any computer with credentials
-- ✅ **Optional Device Binding**: Toggle on/off anytime
-- ✅ **Anonymous Flexibility**: Untick device binding for device freedom
+- ✅ **Cross-Device Freedom**: Login from any computer with credentials
+- ✅ **No Device Restrictions**: Username + password is sufficient authentication
 
 ### User Flow
 1. **Anonymous Player**: Start playing immediately with UUID
-   - **Optional**: [ ] Device binding (prevents others from using this UUID on other devices)
+   - **Optional**: [✓] Device binding (prevents others from using this UUID on other devices)
 2. **Optional Registration**: "Claim this character" with username/password  
-   - **Optional**: [✓] Enable device binding for extra security
-3. **Future Logins**: Enter credentials to resume character
-4. **Device Management**: Add/remove trusted devices anytime
+   - **Result**: Device binding automatically disabled (no longer needed)
+3. **Future Logins**: Enter credentials to resume character from any device
+4. **Cross-Platform**: No device restrictions once registered
 
-### Device Binding Features (Optional Security Layer)
+## Device Binding (Anonymous Players Only)
+
+### Anonymous UUID Protection
 ```gdscript
+# Device binding ONLY for anonymous players
+var anonymous_device_binding: Dictionary = {}  # uuid -> device_fingerprint
+
+func enable_anonymous_device_binding(uuid_player: String, enabled: bool):
+    var device_fp = get_device_fingerprint()
+    if enabled:
+        anonymous_device_binding[uuid_player] = device_fp
+    else:
+        anonymous_device_binding.erase(uuid_player)
+    save_anonymous_bindings()
+
+func can_access_anonymous_uuid(uuid_player: String) -> bool:
+    if uuid_player in anonymous_device_binding:
+        return anonymous_device_binding[uuid_player] == get_device_fingerprint()
+    return true  # No binding = open access
+
 func get_device_fingerprint() -> String:
-    var factors = [
-        OS.get_unique_id(),           # Hardware ID
-        OS.get_processor_name(),      # CPU info
-        str(OS.get_processor_count()),# CPU cores
-        OS.get_model_name(),          # Device model
-        str(DisplayServer.screen_get_size()), # Screen resolution
-    ]
+    var factors = [OS.get_unique_id(), OS.get_processor_name()]
     return factors.join("|").sha256_text()
 ```
 
-### Device Management Functions
-```gdscript
-# Toggle device binding on/off
-func toggle_device_binding(username: String, enabled: bool):
-    if username in accounts:
-        accounts[username]["device_binding_enabled"] = enabled
-        if enabled and get_device_fingerprint() not in accounts[username]["trusted_devices"]:
-            accounts[username]["trusted_devices"].append(get_device_fingerprint())
-        save_accounts()
+### Anonymous Use Cases
+- **🏠 Home PC**: [✓] Device binding → Protects your UUID from family/roommates
+- **🎮 Gaming Café**: [ ] Device binding → Play from any computer
+- **👨‍👩‍👧‍👦 Shared Computer**: [ ] Device binding → Multiple family members can play
+- **🔄 Device Transfer**: Temporarily disable → Move to new computer
 
-# Add new trusted device (requires password confirmation)
-func add_trusted_device(username: String, password: String) -> bool:
-    if login_simple_account(username, password) != "":
-        var device_fp = get_device_fingerprint()
-        if device_fp not in accounts[username]["trusted_devices"]:
-            accounts[username]["trusted_devices"].append(device_fp)
-            save_accounts()
-            return true
-    return false
-```
-
-### Use Cases
-- **🏠 Home Computer**: Enable device binding for security
-- **🎮 Gaming Café**: Disable device binding for flexibility  
-- **💻 Work/School**: Add trusted device temporarily
-- **📱 Mobile**: Cross-platform play without device restrictions
+### Registration Transition
+When anonymous player registers with username/password:
+1. ✅ Account created with cross-device access
+2. ✅ Device binding automatically disabled
+3. ✅ UUID protection no longer needed (password provides security)
 
 ## Phase 3 - Steam Integration (FUTURE)
 
@@ -191,11 +178,11 @@ func recover_account(username: String) -> RecoveryOptions:
 
 ### "Progressive Trust" Model
 1. **Anonymous** → Instant play, no barriers (UUID only)
-   - Optional: [ ] Device binding for anonymous UUID protection
-2. **Simple Account** → Username + password, cross-device access  
-   - Optional: [✓] Enable device binding (recommended)
+   - Optional: [✓] Device binding (protect UUID from others on shared computers)
+2. **Simple Account** → Username + password, cross-device freedom
+   - Device binding automatically disabled (no longer relevant)
    - Optional: [ ] Remember login on this device
-3. **Steam Verified** → High trust, cross-platform features
+3. **Steam Verified** → High trust, cross-platform features  
 4. **Multi-Factor** → Maximum security, valuable accounts
 
 ### No Forced Registration
