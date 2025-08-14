@@ -196,6 +196,19 @@ func disable_device_binding_after_registration():
 
 func is_anonymous_player() -> bool:
 	"""Check if this is still an anonymous (unregistered) player"""
-	# In Phase 2, this will check if user has registered account
-	# For now, all players are anonymous
-	return true
+	# Check if authentication system shows user as logged in
+	var auth_system = get_tree().get_first_node_in_group("auth_system")
+	if auth_system:
+		return not auth_system.is_logged_in()
+	return true  # Default to anonymous if no auth system
+
+func get_display_username() -> String:
+	"""Get display username (registered name or UUID)"""
+	var auth_system = get_tree().get_first_node_in_group("auth_system")
+	if auth_system and auth_system.is_logged_in():
+		return auth_system.get_current_username()
+	else:
+		# Show short UUID for anonymous players
+		if uuid_player_id.length() > 20:
+			return uuid_player_id.substr(0, 16) + "..."
+		return uuid_player_id

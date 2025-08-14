@@ -3,6 +3,7 @@
 [ext_resource type="Texture2D" uid="uid://bxoyje2pq7nna" path="res://icon.svg" id="1_0f027"]
 [ext_resource type="Script" uid="uid://dyanuw3ckhq8o" path="res://network_manager.gd" id="1_2c62f"]
 [ext_resource type="Script" uid="uid://y1c5pk60il2c" path="res://client_identity.gd" id="2_client"]
+[ext_resource type="Script" path="res://registration_system.gd" id="2_auth"]
 [ext_resource type="Resource" path="user://world_data.tres" id="3_8mm7a"]
 [ext_resource type="Texture2D" uid="uid://bbkxfau70a8fc" path="res://kenney_voxel-pack/Spritesheets/spritesheet_tiles.png" id="3_d5x1h"]
 [ext_resource type="Script" uid="uid://plwytekgsub" path="res://world_manager.gd" id="3_world"]
@@ -17,16 +18,23 @@ var player_persistent_ids = {}  # peer_id -> persistent_player_id
 var network_manager: NetworkManager
 var world_manager: WorldManager
 var client_identity: ClientIdentity
+var auth_system: AuthenticationSystem
 
 # Automatic position saving
 var save_timer: float = 0.0
 var save_interval: float = 5.0  # Save every 5 seconds
 
 func _ready() -> void:
-	# Find NetworkManager, WorldManager, and ClientIdentity
+	# Find NetworkManager, WorldManager, ClientIdentity, and AuthSystem
 	network_manager = get_tree().get_first_node_in_group(\"network_manager\")
 	world_manager = get_tree().get_first_node_in_group(\"world_manager\")
 	client_identity = get_tree().get_first_node_in_group(\"client_identity\")
+	auth_system = get_tree().get_first_node_in_group(\"auth_system\")
+	
+	# Setup auth system client identity reference
+	if auth_system and client_identity:
+		auth_system.client_identity = client_identity
+		print(\"GameManager: Connected auth system to client identity\")
 	
 	if \"--server\" in OS.get_cmdline_args():
 		print(\"Creating server\")
@@ -77,10 +85,12 @@ func _process(delta):
 		save_timer = 0.0
 
 func _unhandled_key_input(event):
-	# Handle device binding UI toggle
+	# Handle UI toggles
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_F1:  # F1 to open device binding settings
 			_show_device_binding_ui()
+		elif event.keycode == KEY_F2:  # F2 to open registration/login
+			_show_registration_ui()
 
 func _show_device_binding_ui():
 	# Show device binding UI for anonymous players
@@ -94,6 +104,19 @@ func _show_device_binding_ui():
 
 func _on_device_binding_ui_closed():
 	print(\"GameManager: Device binding UI closed\")
+
+func _show_registration_ui():
+	# Show registration/login UI
+	if auth_system and client_identity:
+		var ui_scene = preload(\"res://registration_ui.gd\")
+		var ui = ui_scene.show_registration_ui(get_parent(), auth_system, client_identity)
+		ui.ui_closed.connect(_on_registration_ui_closed)
+		print(\"GameManager: Showing registration UI (F2)\")
+	else:
+		print(\"GameManager: Auth system or client identity not available\")
+
+func _on_registration_ui_closed():
+	print(\"GameManager: Registration UI closed\")
 
 func _show_access_denied_message():
 	# Simple access denied message
@@ -456,6 +479,9 @@ script = ExtResource("1_2c62f")
 
 [node name="ClientIdentity" type="Node" parent="." groups=["client_identity"]]
 script = ExtResource("2_client")
+
+[node name="AuthenticationSystem" type="Node" parent="." groups=["auth_system"]]
+script = ExtResource("2_auth")
 
 [node name="GameManager" type="Node" parent="." groups=["game_manager"]]
 script = SubResource("GDScript_2c62f")
