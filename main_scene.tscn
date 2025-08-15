@@ -694,6 +694,50 @@ func _cleanup_all_players():
 	player_persistent_ids.clear()
 	print(\"Cleaned up all players before reconnection\")
 
+func _cleanup_old_client_instances(client_id: String, new_peer_id: int):
+	# Find and remove any existing players with the same client_id but different peer_id
+	var peers_to_remove = []
+	
+	# Check world manager for client mappings to find old peer IDs
+	if world_manager and world_manager.world_data:
+		var world_data = world_manager.world_data
+		
+		# Look through peer mappings to find old peer IDs for this client
+		for existing_peer_id in world_data.peer_to_client_mapping.keys():
+			var existing_client_id = world_data.peer_to_client_mapping[existing_peer_id]
+			
+			# If same client but different peer ID, it's an old connection
+			if existing_client_id == client_id and existing_peer_id != new_peer_id:
+				peers_to_remove.append(existing_peer_id)
+	
+	# Also check local players dictionary for orphaned entries
+	for existing_peer_id in players.keys():
+		if existing_peer_id != new_peer_id:
+			# Check if this peer might be an old instance of the same client
+			var existing_persistent_id = player_persistent_ids.get(existing_peer_id, \"\")
+			if existing_persistent_id != \"\":
+				# Extract UUID from persistent ID to compare with client ID
+				var existing_uuid = existing_persistent_id.replace(\"player_\", \"\")
+				var new_uuid = client_id.replace(\"client_\", \"\")
+				
+				if existing_uuid == new_uuid:
+					peers_to_remove.append(existing_peer_id)
+	
+	# Remove all old instances
+	for old_peer_id in peers_to_remove:
+		print(\"Cleaning up old instance of client \", client_id, \" (old peer ID: \", old_peer_id, \", new peer ID: \", new_peer_id, \")\")
+		
+		# Save player data before removing
+		_save_player_data(old_peer_id)
+		
+		# Remove from world manager
+		if world_manager and world_manager.world_data:
+			world_manager.world_data.unregister_peer(old_peer_id)
+		
+		# Despawn and notify all clients
+		_despawn_player(old_peer_id)
+		rpc(\"despawn_player\", old_peer_id)
+
 func _handle_connection_failure():
 	if not is_client_mode:
 		return
@@ -862,6 +906,9 @@ func request_client_id():
 func receive_client_id(peer_id: int, client_id: String, chosen_player_num: int = -1):
 	# Server receives client ID from connecting player
 	if multiplayer.is_server():
+		
+		# Clean up any old instances of this client before registering new one
+		_cleanup_old_client_instances(client_id, peer_id)
 		
 		# Register the player with their client ID and chosen number
 		var persistent_id = _register_player_with_client_id(peer_id, client_id, chosen_player_num)
