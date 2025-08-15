@@ -9,7 +9,9 @@
       "Bash(dir:*)",
       "Bash(godot:*)",
       "Bash(cat:*)",
-      "Bash(del client_identity.dat server_identity.dat)"
+      "Bash(del client_identity.dat server_identity.dat)",
+      "Bash(del \"entity_scene.tscn57467357.tmp\")",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": [],

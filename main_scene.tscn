@@ -876,6 +876,9 @@ func _spawn_player(peer_id: int, pos: Vector2, persistent_id: String):
 	players[peer_id] = player
 	player_persistent_ids[peer_id] = persistent_id
 	
+	# Set the persistent ID on the player for label display
+	player.set_persistent_id(persistent_id)
+	
 	# Immediately save the initial spawn position to persistent data
 	if multiplayer.is_server() and world_manager and world_manager.world_data:
 		world_manager.world_data.update_player_position(persistent_id, pos)
