@@ -1,10 +1,11 @@
 extends Control
-class_name RegisterUI
+class_name SigninUI
 
 # Simple registration and login UI for Phase 2 authentication
 
-var register_system: RegisterSystem
-var login_identity: LoginIdentity
+var register: Register
+var login: Login
+var user_identity: UserIdentity
 
 # UI Elements
 var main_panel: Panel
@@ -146,30 +147,37 @@ func _unhandled_key_input(event):
 		if event.keycode == KEY_ESCAPE:
 			close_ui()
 
-func set_register_system(system: RegisterSystem):
+func set_register_system(reg: Register):
 	"""Set the registration system reference"""
-	register_system = system
-	if register_system:
+	register = reg
+	if register:
 		# Connect to register system signals
-		register_system.registration_success.connect(_on_registration_success)
-		register_system.registration_failed.connect(_on_registration_failed)
-		register_system.login_success.connect(_on_login_success)
-		register_system.login_failed.connect(_on_login_failed)
-		register_system.logout_complete.connect(_on_logout_complete)
+		register.registration_success.connect(_on_registration_success)
+		register.registration_failed.connect(_on_registration_failed)
 	update_ui_state()
 
-func set_login_identity(identity: LoginIdentity):
-	"""Set the login identity reference"""
-	login_identity = identity
+func set_login_system(login_sys: Login):
+	"""Set the login system reference"""
+	login = login_sys
+	if login:
+		# Connect to login system signals
+		login.login_success.connect(_on_login_success)
+		login.login_failed.connect(_on_login_failed)
+		login.logout_complete.connect(_on_logout_complete)
+	update_ui_state()
+
+func set_user_identity(identity: UserIdentity):
+	"""Set the user identity reference"""
+	user_identity = identity
 	update_ui_state()
 
 func update_ui_state():
 	"""Update UI elements based on current authentication state"""
-	if not register_system:
+	if not login:
 		return
 	
-	var is_logged_in = register_system.is_logged_in()
-	var current_user = register_system.get_current_username()
+	var is_logged_in = login.is_logged_in()
+	var current_user = login.get_current_username()
 	
 	# Update visibility and enabled state
 	username_input.visible = not is_logged_in
@@ -183,8 +191,8 @@ func update_ui_state():
 		info_label.text = "Logged in as: " + current_user + "\nDevice binding disabled - you can login from any device"
 		status_label.text = "✅ Account registered and logged in successfully!\nYour character is now linked to your username."
 	else:
-		if login_identity:
-			var uuid_player = login_identity.get_uuid_player_id()
+		if user_identity:
+			var uuid_player = user_identity.get_uuid_player_id()
 			info_label.text = "Register to claim: " + uuid_player + "\nEnable cross-device access with username/password"
 		else:
 			info_label.text = "Register to claim this character and enable cross-device access"
@@ -205,8 +213,8 @@ func _on_login_pressed():
 
 func _on_logout_pressed():
 	"""Handle logout button press"""
-	if register_system:
-		register_system.logout_current_user()
+	if login:
+		login.logout_current_user()
 
 func _attempt_register_or_login():
 	"""Try registration first, then login if username exists"""
@@ -217,9 +225,9 @@ func _attempt_register_or_login():
 		status_label.text = "❌ Please enter both username and password"
 		return
 	
-	if register_system:
+	if register:
 		# Try registration first
-		register_system.register_current_player(username, password)
+		register.register_current_player(username, password)
 
 func _attempt_login():
 	"""Attempt login only"""
@@ -230,8 +238,8 @@ func _attempt_login():
 		status_label.text = "❌ Please enter both username and password"
 		return
 	
-	if register_system:
-		register_system.login_user(username, password)
+	if login:
+		login.login_user(username, password)
 
 # Auth system signal handlers
 func _on_registration_success(username: String):
@@ -281,12 +289,13 @@ func hide_ui():
 	"""Hide the registration UI"""
 	visible = false
 
-# Static function to create and show registration UI
-static func show_register_ui(parent: Node, reg_sys: RegisterSystem, login_id: LoginIdentity) -> RegisterUI:
-	"""Create and show registration UI"""
-	var ui = RegisterUI.new()
+# Static function to create and show signin UI
+static func show_signin_ui(parent: Node, reg: Register, login_sys: Login, user_id: UserIdentity) -> SigninUI:
+	"""Create and show signin UI"""
+	var ui = SigninUI.new()
 	parent.get_node("UILayer").add_child(ui)
-	ui.set_register_system(reg_sys)
-	ui.set_login_identity(login_id)
+	ui.set_register_system(reg)
+	ui.set_login_system(login_sys)
+	ui.set_user_identity(user_id)
 	ui.show_ui()
 	return ui

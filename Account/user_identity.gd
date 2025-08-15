@@ -1,10 +1,10 @@
 extends Node
-class_name LoginIdentity
+class_name UserIdentity
 
 # Client identity management with device binding support for anonymous players
 
 const CLIENT_ID_FILE_SERVER = "user://server_identity.dat"
-var login_identity_file: String
+var user_identity_file: String
 
 var client_id: String = ""
 var is_server_role: bool = false
@@ -27,18 +27,18 @@ func _ready():
 	if chosen_player != -1:
 		# User manually chose which player to be
 		if is_server_role:
-			login_identity_file = "user://server_player_" + str(chosen_player) + ".dat"
+			user_identity_file = "user://server_player_" + str(chosen_player) + ".dat"
 		else:
-			login_identity_file = "user://client_player_" + str(chosen_player) + ".dat"
-		print("LoginIdentity: User chose to be player ", chosen_player)
+			user_identity_file = "user://client_player_" + str(chosen_player) + ".dat"
+		print("UserIdentity: User chose to be player ", chosen_player)
 	else:
 		# Fallback to automatic assignment
 		if is_server_role:
-			login_identity_file = CLIENT_ID_FILE_SERVER
+			user_identity_file = CLIENT_ID_FILE_SERVER
 		else:
 			var client_slot = claim_next_available_client_slot()
-			login_identity_file = "user://client_slot_" + str(client_slot) + ".dat"
-			print("LoginIdentity: Auto-assigned client slot ", client_slot)
+			user_identity_file = "user://client_slot_" + str(client_slot) + ".dat"
+			print("UserIdentity: Auto-assigned client slot ", client_slot)
 	
 	load_or_create_client_id()
 	setup_device_binding_for_uuid()
@@ -73,7 +73,7 @@ func claim_next_available_client_slot() -> int:
 
 
 func load_or_create_client_id():
-	var identity_file = login_identity_file
+	var identity_file = user_identity_file
 	
 	if FileAccess.file_exists(identity_file):
 		# Load existing client ID
@@ -82,14 +82,14 @@ func load_or_create_client_id():
 			var stored_data = file.get_as_text()
 			file.close()
 			client_id = stored_data.strip_edges()
-			print("LoginIdentity: Loaded existing ID: ", client_id)
+			print("UserIdentity: Loaded existing ID: ", client_id)
 			return
 	
 	# Generate new client ID
 	var role_prefix = "server_" if is_server_role else "client_"
 	client_id = role_prefix + generate_random_id()
 	save_client_id()
-	print("LoginIdentity: Created new ID: ", client_id)
+	print("UserIdentity: Created new ID: ", client_id)
 
 func generate_random_id() -> String:
 	# Generate UUID v4 (random) - industry standard unique identifier
@@ -117,14 +117,14 @@ func generate_uuid_v4() -> String:
 	return uuid
 
 func save_client_id():
-	var identity_file = login_identity_file
+	var identity_file = user_identity_file
 	var file = FileAccess.open(identity_file, FileAccess.WRITE)
 	if file:
 		file.store_string(client_id)
 		file.close()
-		print("LoginIdentity: Saved client ID to file")
+		print("UserIdentity: Saved client ID to file")
 	else:
-		print("LoginIdentity: Failed to save client ID")
+		print("UserIdentity: Failed to save client ID")
 
 func get_client_id() -> String:
 	return client_id
@@ -154,10 +154,10 @@ func setup_device_binding_for_uuid():
 	if not device_binding_enabled:
 		device_binding.enable_device_binding(uuid_player_id, true)
 		device_binding_enabled = true
-		print("LoginIdentity: Auto-enabled device binding for new anonymous player")
+		print("UserIdentity: Auto-enabled device binding for new anonymous player")
 	
-	print("LoginIdentity: UUID player ID: ", uuid_player_id)
-	print("LoginIdentity: Device binding enabled: ", device_binding_enabled)
+	print("UserIdentity: UUID player ID: ", uuid_player_id)
+	print("UserIdentity: Device binding enabled: ", device_binding_enabled)
 
 func can_access_current_uuid() -> bool:
 	"""Check if current device can access this UUID player"""
@@ -170,7 +170,7 @@ func enable_uuid_device_binding(enabled: bool):
 	if device_binding:
 		device_binding_enabled = enabled
 		device_binding.enable_device_binding(uuid_player_id, enabled)
-		print("LoginIdentity: Device binding ", "enabled" if enabled else "disabled", " for ", uuid_player_id)
+		print("UserIdentity: Device binding ", "enabled" if enabled else "disabled", " for ", uuid_player_id)
 
 func is_uuid_device_binding_enabled() -> bool:
 	"""Check if device binding is enabled for current UUID"""
@@ -187,7 +187,7 @@ func transfer_uuid_to_this_device():
 	if device_binding:
 		device_binding.transfer_uuid_to_this_device(uuid_player_id)
 		device_binding_enabled = true
-		print("LoginIdentity: Transferred ", uuid_player_id, " to current device")
+		print("UserIdentity: Transferred ", uuid_player_id, " to current device")
 
 func get_uuid_player_id() -> String:
 	"""Get the UUID player ID for this client"""
@@ -198,22 +198,22 @@ func disable_device_binding_after_registration():
 	if device_binding and device_binding_enabled:
 		device_binding.enable_device_binding(uuid_player_id, false)
 		device_binding_enabled = false
-		print("LoginIdentity: Device binding disabled after registration/login")
-		print("LoginIdentity: Cross-device access now enabled")
+		print("UserIdentity: Device binding disabled after registration/login")
+		print("UserIdentity: Cross-device access now enabled")
 
 func is_anonymous_player() -> bool:
 	"""Check if this is still an anonymous (unregistered) player"""
-	# Check if authentication system shows user as logged in
-	var register_system = get_tree().get_first_node_in_group("auth_system")
-	if register_system:
-		return not register_system.is_logged_in()
-	return true  # Default to anonymous if no auth system
+	# Check if login system shows user as logged in
+	var login_system = get_tree().get_first_node_in_group("login_system")
+	if login_system:
+		return not login_system.is_logged_in()
+	return true  # Default to anonymous if no login system
 
 func get_display_username() -> String:
 	"""Get display username (registered name or UUID)"""
-	var register_system = get_tree().get_first_node_in_group("auth_system")
-	if register_system and register_system.is_logged_in():
-		return register_system.get_current_username()
+	var login_system = get_tree().get_first_node_in_group("login_system")
+	if login_system and login_system.is_logged_in():
+		return login_system.get_current_username()
 	else:
 		# Show short UUID for anonymous players
 		if uuid_player_id.length() > 20:

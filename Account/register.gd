@@ -1,9 +1,8 @@
 extends Node
-class_name RegisterSystem
+class_name Register
 
-# Phase 2: Simple Username + Password Registration System
-# No email required - just username and password for cross-device access
-# Device binding automatically disabled after registration
+# Registration system for new user accounts
+# Handles username/password registration with cross-device access
 
 const ACCOUNTS_FILE = "user://player_accounts.dat"
 
@@ -17,19 +16,15 @@ class PlayerAccount:
 	var is_logged_in: bool = false
 
 var accounts: Dictionary = {}  # username -> PlayerAccount
-var current_logged_in_user: String = ""  # Currently logged in username
-var login_identity: LoginIdentity  # Reference to client identity
+var user_identity: UserIdentity  # Reference to user identity
 
 # Signals for UI updates
 signal registration_success(username: String)
 signal registration_failed(error: String)
-signal login_success(username: String, uuid_player: String)
-signal login_failed(error: String)
-signal logout_complete()
 
 func _ready():
 	load_accounts()
-	print("RegisterSystem: Loaded ", accounts.size(), " registered accounts")
+	print("Register: Loaded ", accounts.size(), " registered accounts")
 
 # Load existing accounts from file
 func load_accounts():
@@ -74,12 +69,12 @@ func register_current_player(username: String, password: String) -> bool:
 		registration_failed.emit("Username already taken")
 		return false
 	
-	if not login_identity:
-		registration_failed.emit("No client identity available")
+	if not user_identity:
+		registration_failed.emit("No user identity available")
 		return false
 	
 	# Get current UUID player
-	var uuid_player = login_identity.get_uuid_player_id()
+	var uuid_player = user_identity.get_uuid_player_id()
 	if uuid_player == "":
 		registration_failed.emit("No UUID player found")
 		return false
@@ -94,72 +89,14 @@ func register_current_player(username: String, password: String) -> bool:
 	account.is_logged_in = true
 	
 	accounts[username] = account
-	current_logged_in_user = username
 	save_accounts()
 	
 	# Disable device binding (no longer needed)
-	login_identity.disable_device_binding_after_registration()
+	user_identity.disable_device_binding_after_registration()
 	
-	print("RegisterSystem: Registered ", username, " -> ", uuid_player)
+	print("Register: Registered ", username, " -> ", uuid_player)
 	registration_success.emit(username)
 	return true
-
-# Login with username/password
-func login_user(username: String, password: String) -> bool:
-	# Validate input
-	if username.strip_edges() == "" or password == "":
-		login_failed.emit("Username and password required")
-		return false
-	
-	if not username in accounts:
-		login_failed.emit("Account not found")
-		return false
-	
-	var account = accounts[username]
-	if account.password_hash != password.sha256_text():
-		login_failed.emit("Invalid password")
-		return false
-	
-	if not login_identity:
-		login_failed.emit("No client identity available")
-		return false
-	
-	# Update login state
-	account.last_login = Time.get_datetime_string_from_system()
-	account.is_logged_in = true
-	current_logged_in_user = username
-	save_accounts()
-	
-	# Disable device binding (no longer needed)
-	login_identity.disable_device_binding_after_registration()
-	
-	print("RegisterSystem: Login successful ", username, " -> ", account.uuid_player_id)
-	login_success.emit(username, account.uuid_player_id)
-	return true
-
-# Logout current user
-func logout_current_user():
-	if current_logged_in_user != "" and current_logged_in_user in accounts:
-		accounts[current_logged_in_user].is_logged_in = false
-		save_accounts()
-		print("RegisterSystem: Logged out ", current_logged_in_user)
-	
-	current_logged_in_user = ""
-	logout_complete.emit()
-
-# Check if user is currently logged in
-func is_logged_in() -> bool:
-	return current_logged_in_user != ""
-
-# Get current logged in username
-func get_current_username() -> String:
-	return current_logged_in_user
-
-# Get UUID player for current logged in user
-func get_current_uuid_player() -> String:
-	if current_logged_in_user in accounts:
-		return accounts[current_logged_in_user].uuid_player_id
-	return ""
 
 # Get account info by username
 func get_account(username: String) -> PlayerAccount:
@@ -179,13 +116,13 @@ func link_uuid_to_account(username: String, uuid_player_id: String) -> bool:
 	print("Linked UUID player to account: ", username, " -> ", uuid_player_id)
 	return true
 
+# Check if username exists
+func username_exists(username: String) -> bool:
+	return username in accounts
+
 # Future features to implement:
 # - Email verification
-# - Password reset via email
 # - Account recovery
-# - Two-factor authentication
 # - Social login (Google, Discord, etc.)
 # - Account linking (merge multiple UUID players)
-# - Player statistics and achievements
-# - Friends system
 # - Account suspension/moderation tools

@@ -5,8 +5,9 @@ var players = {}  # peer_id -> player_node
 var player_persistent_ids = {}  # peer_id -> persistent_player_id
 var network_manager: NetworkManager
 var world_manager: WorldManager
-var login_identity: LoginIdentity
-var register_system: RegisterSystem
+var user_identity: UserIdentity
+var register: Register
+var login: Login
 
 # Automatic position saving
 var save_timer: float = 0.0
@@ -36,16 +37,22 @@ var last_heartbeat_time: float = 0.0
 var heartbeat_interval: float = 2.0   # Send heartbeat every 2 seconds
 
 func _ready() -> void:
-	# Find NetworkManager, WorldManager, LoginIdentity, and RegisterSystem
+	# Find NetworkManager, WorldManager, UserIdentity, Register, and Login systems
 	network_manager = get_tree().get_first_node_in_group("network_manager")
 	world_manager = get_tree().get_first_node_in_group("world_manager")
-	login_identity = get_tree().get_first_node_in_group("client_identity")
-	register_system = get_tree().get_first_node_in_group("auth_system")
+	user_identity = get_tree().get_first_node_in_group("user_identity")
+	register = get_tree().get_first_node_in_group("register_system")
+	login = get_tree().get_first_node_in_group("login_system")
 	
-	# Setup register system with login identity reference
-	if register_system and login_identity:
-		register_system.login_identity = login_identity
-		print("GameManager: Connected register system to login identity")
+	# Setup systems with user identity references
+	if register and user_identity:
+		register.user_identity = user_identity
+		print("GameManager: Connected register system to user identity")
+	
+	if login and register and user_identity:
+		login.register = register
+		login.user_identity = user_identity
+		print("GameManager: Connected login system to register and user identity")
 	
 	if "--server" in OS.get_cmdline_args():
 		print("Creating server")
@@ -59,28 +66,28 @@ func _ready() -> void:
 		
 		# Spawn server player (ID 1) with persistent data
 		await get_tree().process_frame
-		# Wait for client identity to be ready
-		if login_identity:
+		# Wait for user identity to be ready
+		if user_identity:
 			# Check device binding access for anonymous players
-			if not login_identity.can_access_current_uuid():
+			if not user_identity.can_access_current_uuid():
 				print("ERROR: Cannot access UUID player - bound to different device")
 				print("Use F1 to open device binding settings and transfer if needed")
 				_show_access_denied_message()
 				return
 			
-			var server_client_id = login_identity.get_client_id()
-			var server_chosen_num = login_identity.get_chosen_player_number()
+			var server_client_id = user_identity.get_client_id()
+			var server_chosen_num = user_identity.get_chosen_player_number()
 			var server_persistent_id = _register_player_with_client_id(1, server_client_id, server_chosen_num)
 			var server_spawn_pos = _get_player_spawn_position(server_persistent_id)
 			_spawn_player(1, server_spawn_pos, server_persistent_id)
 		else:
-			print("Warning: LoginIdentity not found, using fallback spawn")
+			print("Warning: UserIdentity not found, using fallback spawn")
 	else:
 		print("Creating Client")
 		is_client_mode = true
 		
 		# Check device binding access for client too
-		if login_identity and not login_identity.can_access_current_uuid():
+		if user_identity and not user_identity.can_access_current_uuid():
 			print("ERROR: Cannot access UUID player - bound to different device")
 			print("Use F1 to open device binding settings and transfer if needed")
 			_show_access_denied_message()
@@ -121,13 +128,13 @@ func _unhandled_key_input(event):
 
 func _show_device_binding_ui():
 	# Show device binding UI for anonymous players
-	if login_identity and login_identity.can_access_current_uuid():
+	if user_identity and user_identity.can_access_current_uuid():
 		var ui_scene = preload("res://Account/device_binding_ui.gd")
-		device_binding_ui = ui_scene.show_device_binding_ui(get_parent(), login_identity)
+		device_binding_ui = ui_scene.show_device_binding_ui(get_parent(), user_identity)
 		device_binding_ui.ui_closed.connect(_on_device_binding_ui_closed)
 		print("GameManager: Showing device binding UI (F1)")
 	else:
-		print("GameManager: Cannot access UUID or client identity not available")
+		print("GameManager: Cannot access UUID or user identity not available")
 
 func _on_device_binding_ui_closed():
 	device_binding_ui = null
@@ -135,13 +142,13 @@ func _on_device_binding_ui_closed():
 
 func _show_register_ui():
 	# Show registration/login UI
-	if register_system and login_identity:
-		var ui_scene = preload("res://Account/register_ui.gd")
-		register_ui = ui_scene.show_register_ui(get_parent(), register_system, login_identity)
+	if register and login and user_identity:
+		var ui_scene = preload("res://Account/signin_ui.gd")
+		register_ui = ui_scene.show_signin_ui(get_parent(), register, login, user_identity)
 		register_ui.ui_closed.connect(_on_register_ui_closed)
-		print("GameManager: Showing registration UI (F2)")
+		print("GameManager: Showing signin UI (F2)")
 	else:
-		print("GameManager: Auth system or client identity not available")
+		print("GameManager: Auth systems or user identity not available")
 
 func _on_register_ui_closed():
 	register_ui = null
@@ -559,7 +566,7 @@ func _connect_to_server(ip: String, port: int):
 	connection_state = ConnectionState.CONNECTING
 	
 	# Check device binding access
-	if login_identity and not login_identity.can_access_current_uuid():
+	if user_identity and not user_identity.can_access_current_uuid():
 		print("ERROR: Cannot access UUID player - bound to different device")
 		print("Use F1 to open device binding settings and transfer if needed")
 		_show_access_denied_message()
@@ -841,9 +848,9 @@ func _on_player_connected(id):
 		rpc_id(id, "request_client_id")
 	else:
 		# Client side: send our client ID to server
-		if login_identity:
-			var my_client_id = login_identity.get_client_id()
-			var my_chosen_player_num = login_identity.get_chosen_player_number()
+		if user_identity:
+			var my_client_id = user_identity.get_client_id()
+			var my_chosen_player_num = user_identity.get_chosen_player_number()
 			rpc_id(1, "receive_client_id", id, my_client_id, my_chosen_player_num)
 		
 func _on_player_disconnected(id):
@@ -919,10 +926,10 @@ func sync_terrain_modification(coords: Vector2i, source_id: int, atlas_coords: V
 @rpc("authority", "call_remote", "reliable")
 func request_client_id():
 	# Client receives request for client ID from server
-	if login_identity and not multiplayer.is_server():
-		var my_client_id = login_identity.get_client_id()
+	if user_identity and not multiplayer.is_server():
+		var my_client_id = user_identity.get_client_id()
 		var my_peer_id = multiplayer.get_unique_id()
-		var my_chosen_player_num = login_identity.get_chosen_player_number()
+		var my_chosen_player_num = user_identity.get_chosen_player_number()
 		rpc_id(1, "receive_client_id", my_peer_id, my_client_id, my_chosen_player_num)
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -955,12 +962,12 @@ func receive_client_id(peer_id: int, client_id: String, chosen_player_num: int =
 
 # Player persistence helper functions
 func _register_player(peer_id: int) -> String:
-	if world_manager and world_manager.world_data and login_identity:
-		var client_id = login_identity.get_client_id()
-		var chosen_num = login_identity.get_chosen_player_number()
+	if world_manager and world_manager.world_data and user_identity:
+		var client_id = user_identity.get_client_id()
+		var chosen_num = user_identity.get_chosen_player_number()
 		return world_manager.world_data.register_client(client_id, peer_id, chosen_num)
 	else:
-		print("Warning: No world manager or client identity available for player registration")
+		print("Warning: No world manager or user identity available for player registration")
 		return "player_" + str(peer_id)
 
 func _register_player_with_client_id(peer_id: int, client_id: String, chosen_player_num: int = -1) -> String:

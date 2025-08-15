@@ -26,7 +26,10 @@
       "Bash(else echo \"❌ $file\")",
       "Bash(fi)",
       "Bash(done)",
-      "Bash(for file in \"Account/device_binding_ui.gd\" \"Account/register_ui.gd\" \"entity_scene.tscn\")"
+      "Bash(for file in \"Account/device_binding_ui.gd\" \"Account/register_ui.gd\" \"entity_scene.tscn\")",
+      "Bash(del \"C:\\Users\\Windows10_new\\Documents\\godot-multiplayerspawner-research\\Account\\register_system.gd\")",
+      "Bash(for file in \"Account/register.gd\" \"Account/login.gd\" \"Account/signin_ui.gd\" \"Account/user_identity.gd\" \"Account/device_binding.gd\" \"Account/device_binding_ui.gd\")",
+      "Bash(do echo \"✅ $file\")"
     ],
     "deny": [],
     "ask": [],
