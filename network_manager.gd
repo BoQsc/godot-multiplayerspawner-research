@@ -94,8 +94,8 @@ func _handle_local_player_rate_limiting():
 			var player_data = tracked_players[local_player_id]
 			var current_pos = player_data.last_position
 			
-			# Send the position update
-			if game_manager:
+			# Send the position update (only if connected)
+			if game_manager and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 				game_manager.rpc("update_player_position", local_player_id, current_pos)
 			
 			last_update_time = current_time
@@ -129,7 +129,7 @@ func force_sync_player(player_id: int):
 	"""Force immediate position sync for a player (for teleports, etc.)"""
 	if player_id == local_player_id and player_id in tracked_players:
 		var player_data = tracked_players[player_id]
-		if game_manager:
+		if game_manager and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 			game_manager.rpc("update_player_position", player_id, player_data.entity.position)
 		last_sent_position = player_data.entity.position
 		last_update_time = Time.get_ticks_msec() / 1000.0

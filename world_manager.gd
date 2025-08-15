@@ -176,13 +176,13 @@ func modify_terrain(coords: Vector2i, source_id: int = -1, atlas_coords: Vector2
 		world_tile_map_layer.set_cell(coords, source_id, atlas_coords, alternative_tile)
 		world_data.set_tile(coords, source_id, atlas_coords, alternative_tile)
 		terrain_modified.emit(coords, source_id, atlas_coords)
-		if game_manager:
+		if game_manager and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 			game_manager.rpc("sync_terrain_modification", coords, source_id, atlas_coords, alternative_tile)
 		# Save world data EVERY change for reliability
 		save_world_data()
 	else:
 		# Client: Send request to server
-		if game_manager:
+		if game_manager and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 			game_manager.rpc_id(1, "request_terrain_modification", coords, source_id, atlas_coords, alternative_tile)
 	
 	return true
@@ -412,7 +412,7 @@ func sync_terrain_modification(coords: Vector2i, source_id: int, atlas_coords: V
 
 # Send complete world state to a client
 func send_world_state_to_client(peer_id: int):
-	if multiplayer.is_server() and world_data:
+	if multiplayer.is_server() and world_data and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		print("WorldManager: Sending world state to client ", peer_id)
 		var tile_data = world_data.tile_data
 		rpc_id(peer_id, "receive_world_state", tile_data)
