@@ -28,6 +28,7 @@ var save_interval: float = 5.0  # Save every 5 seconds
 var device_binding_ui: Control = null
 var registration_ui: Control = null
 var custom_join_ui: Control = null
+var player_list_ui: Control = null
 
 func _ready() -> void:
 	# Find NetworkManager, WorldManager, ClientIdentity, and AuthSystem
@@ -100,6 +101,8 @@ func _unhandled_key_input(event):
 			_toggle_registration_ui()
 		elif event.keycode == KEY_F3:  # F3 to toggle custom IP join
 			_toggle_custom_join_ui()
+		elif event.keycode == KEY_F4:  # F4 to toggle player list
+			_toggle_player_list_ui()
 
 func _show_device_binding_ui():
 	# Show device binding UI for anonymous players
@@ -145,6 +148,11 @@ func _close_all_ui_windows():
 		custom_join_ui.queue_free()
 		custom_join_ui = null
 		print(\"GameManager: Custom join UI closed (ESC)\")
+	
+	if player_list_ui:
+		player_list_ui.queue_free()
+		player_list_ui = null
+		print(\"GameManager: Player list UI closed (ESC)\")
 
 func _toggle_device_binding_ui():
 	if device_binding_ui:
@@ -175,6 +183,16 @@ func _toggle_custom_join_ui():
 	else:
 		# Open if not already open
 		_show_custom_join_ui()
+
+func _toggle_player_list_ui():
+	if player_list_ui:
+		# Close if already open
+		player_list_ui.queue_free()
+		player_list_ui = null
+		print(\"GameManager: Player list UI closed (F4 toggle)\")
+	else:
+		# Open if not already open
+		_show_player_list_ui()
 
 func _show_custom_join_ui():
 	# Create custom IP join UI
@@ -301,6 +319,131 @@ func _connect_to_custom_server(ip: String, port: int):
 	
 	multiplayer.multiplayer_peer = peer
 	print(\"Client connecting to \", ip, \":\", port)
+
+func _show_player_list_ui():
+	# Create player list UI
+	player_list_ui = ColorRect.new()
+	player_list_ui.name = \"PlayerListUI\"
+	player_list_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	player_list_ui.color = Color(0, 0, 0, 0.7)  # Semi-transparent background
+	
+	# Background panel
+	var bg_panel = Panel.new()
+	bg_panel.name = \"Panel\"
+	bg_panel.position = Vector2(get_viewport().size.x / 2 - 250, get_viewport().size.y / 2 - 200)
+	bg_panel.size = Vector2(500, 400)
+	bg_panel.modulate = Color(0.2, 0.2, 0.2, 0.9)
+	
+	# Title label
+	var title_label = Label.new()
+	title_label.text = \"Online Players\"
+	title_label.position = Vector2(200, 20)
+	title_label.add_theme_font_size_override(\"font_size\", 20)
+	
+	# Scroll container for player list
+	var scroll_container = ScrollContainer.new()
+	scroll_container.position = Vector2(20, 60)
+	scroll_container.size = Vector2(460, 280)
+	
+	# VBoxContainer to hold player entries
+	var player_list_container = VBoxContainer.new()
+	player_list_container.name = \"PlayerListContainer\"
+	scroll_container.add_child(player_list_container)
+	
+	# Populate player list
+	_populate_player_list(player_list_container)
+	
+	# Refresh button
+	var refresh_btn = Button.new()
+	refresh_btn.text = \"Refresh\"
+	refresh_btn.position = Vector2(50, 350)
+	refresh_btn.size = Vector2(100, 30)
+	
+	# Close button
+	var close_btn = Button.new()
+	close_btn.text = \"Close\"
+	close_btn.position = Vector2(350, 350)
+	close_btn.size = Vector2(100, 30)
+	
+	# Add all elements to panel
+	bg_panel.add_child(title_label)
+	bg_panel.add_child(scroll_container)
+	bg_panel.add_child(refresh_btn)
+	bg_panel.add_child(close_btn)
+	
+	player_list_ui.add_child(bg_panel)
+	get_parent().add_child(player_list_ui)
+	
+	# Connect button signals
+	refresh_btn.pressed.connect(_on_player_list_refresh.bind(player_list_container))
+	close_btn.pressed.connect(_on_player_list_close)
+	
+	print(\"GameManager: Showing player list UI (F4)\")
+
+func _populate_player_list(container: VBoxContainer):
+	# Clear existing entries
+	for child in container.get_children():
+		child.queue_free()
+	
+	# Add header
+	var header_label = Label.new()
+	header_label.text = \"Connected Players (\" + str(players.size()) + \"):\"
+	header_label.add_theme_font_size_override(\"font_size\", 16)
+	container.add_child(header_label)
+	
+	# Add separator
+	var separator = HSeparator.new()
+	container.add_child(separator)
+	
+	# Add each player
+	for peer_id in players.keys():
+		var player_info = HBoxContainer.new()
+		
+		# Player ID label
+		var id_label = Label.new()
+		id_label.text = \"ID: \" + str(peer_id)
+		id_label.custom_minimum_size = Vector2(80, 0)
+		
+		# Player persistent ID
+		var persistent_id = player_persistent_ids.get(peer_id, \"Unknown\")
+		var persistent_label = Label.new()
+		persistent_label.text = \"Player: \" + persistent_id
+		persistent_label.custom_minimum_size = Vector2(150, 0)
+		
+		# Player position
+		var pos = players[peer_id].position
+		var pos_label = Label.new()
+		pos_label.text = \"Pos: (\" + str(int(pos.x)) + \", \" + str(int(pos.y)) + \")\"
+		pos_label.custom_minimum_size = Vector2(120, 0)
+		
+		# Connection status
+		var status_label = Label.new()
+		if peer_id == 1:
+			status_label.text = \"[SERVER]\"
+			status_label.modulate = Color.CYAN
+		elif peer_id == multiplayer.get_unique_id():
+			status_label.text = \"[YOU]\"
+			status_label.modulate = Color.GREEN
+		else:
+			status_label.text = \"[CLIENT]\"
+			status_label.modulate = Color.WHITE
+		
+		player_info.add_child(id_label)
+		player_info.add_child(persistent_label)
+		player_info.add_child(pos_label)
+		player_info.add_child(status_label)
+		
+		container.add_child(player_info)
+
+func _on_player_list_refresh(container: VBoxContainer):
+	_populate_player_list(container)
+	print(\"GameManager: Player list refreshed\")
+
+func _on_player_list_close():
+	if player_list_ui:
+		player_list_ui.queue_free()
+		player_list_ui = null
+		print(\"GameManager: Player list UI closed\")
 
 func _show_access_denied_message():
 	# Simple access denied message
