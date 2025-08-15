@@ -12,6 +12,7 @@
       "Bash(del client_identity.dat server_identity.dat)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "defaultMode": "acceptEdits"
   }
 }

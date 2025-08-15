@@ -91,6 +91,8 @@ func _unhandled_key_input(event):
 			_show_device_binding_ui()
 		elif event.keycode == KEY_F2:  # F2 to open registration/login
 			_show_registration_ui()
+		elif event.keycode == KEY_F3:  # F3 to open custom IP join
+			_show_custom_join_ui()
 
 func _show_device_binding_ui():
 	# Show device binding UI for anonymous players
@@ -117,6 +119,130 @@ func _show_registration_ui():
 
 func _on_registration_ui_closed():
 	print(\"GameManager: Registration UI closed\")
+
+func _show_custom_join_ui():
+	# Create custom IP join UI
+	var ui_container = ColorRect.new()
+	ui_container.name = \"CustomJoinUI\"
+	ui_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	ui_container.color = Color(0, 0, 0, 0.7)  # Semi-transparent background
+	
+	# Background panel
+	var bg_panel = Panel.new()
+	bg_panel.name = \"Panel\"
+	bg_panel.position = Vector2(get_viewport().size.x / 2 - 200, get_viewport().size.y / 2 - 150)
+	bg_panel.size = Vector2(400, 300)
+	bg_panel.modulate = Color(0.2, 0.2, 0.2, 0.9)
+	
+	# Title label
+	var title_label = Label.new()
+	title_label.text = \"Join Custom Server\"
+	title_label.position = Vector2(150, 20)
+	title_label.add_theme_font_size_override(\"font_size\", 20)
+	
+	# IP input
+	var ip_label = Label.new()
+	ip_label.text = \"Server IP:\"
+	ip_label.position = Vector2(50, 70)
+	
+	var ip_input = LineEdit.new()
+	ip_input.name = \"IPInput\"
+	ip_input.text = \"127.0.0.1\"
+	ip_input.position = Vector2(50, 95)
+	ip_input.size = Vector2(300, 30)
+	
+	# Port input
+	var port_label = Label.new()
+	port_label.text = \"Port:\"
+	port_label.position = Vector2(50, 140)
+	
+	var port_input = LineEdit.new()
+	port_input.name = \"PortInput\"
+	port_input.text = \"4443\"
+	port_input.position = Vector2(50, 165)
+	port_input.size = Vector2(300, 30)
+	
+	# Connect button
+	var connect_btn = Button.new()
+	connect_btn.text = \"Connect\"
+	connect_btn.position = Vector2(50, 220)
+	connect_btn.size = Vector2(100, 40)
+	
+	# Cancel button
+	var cancel_btn = Button.new()
+	cancel_btn.text = \"Cancel\"
+	cancel_btn.position = Vector2(250, 220)
+	cancel_btn.size = Vector2(100, 40)
+	
+	# Add all elements to panel
+	bg_panel.add_child(title_label)
+	bg_panel.add_child(ip_label)
+	bg_panel.add_child(ip_input)
+	bg_panel.add_child(port_label)
+	bg_panel.add_child(port_input)
+	bg_panel.add_child(connect_btn)
+	bg_panel.add_child(cancel_btn)
+	
+	ui_container.add_child(bg_panel)
+	get_parent().add_child(ui_container)
+	
+	# Connect button signals
+	connect_btn.pressed.connect(_on_custom_connect_pressed.bind(ui_container))
+	cancel_btn.pressed.connect(_on_custom_join_cancel.bind(ui_container))
+	
+	print(\"GameManager: Showing custom join UI (F3)\")
+
+func _on_custom_connect_pressed(ui_container: Control):
+	var ip_input = ui_container.get_node(\"Panel/IPInput\")
+	var port_input = ui_container.get_node(\"Panel/PortInput\")
+	
+	var ip = ip_input.text.strip_edges()
+	var port_text = port_input.text.strip_edges()
+	
+	# Validate inputs
+	if ip == \"\":
+		print(\"Error: IP address cannot be empty\")
+		return
+	
+	if port_text == \"\":
+		print(\"Error: Port cannot be empty\")
+		return
+	
+	var port = port_text.to_int()
+	if port <= 0 or port > 65535:
+		print(\"Error: Invalid port number (must be 1-65535)\")
+		return
+	
+	# Close UI
+	ui_container.queue_free()
+	
+	# Connect to custom server
+	_connect_to_custom_server(ip, port)
+
+func _on_custom_join_cancel(ui_container: Control):
+	ui_container.queue_free()
+	print(\"GameManager: Custom join cancelled\")
+
+func _connect_to_custom_server(ip: String, port: int):
+	print(\"Connecting to custom server: \", ip, \":\", port)
+	
+	# Check device binding access for client
+	if client_identity and not client_identity.can_access_current_uuid():
+		print(\"ERROR: Cannot access UUID player - bound to different device\")
+		print(\"Use F1 to open device binding settings and transfer if needed\")
+		_show_access_denied_message()
+		return
+	
+	# Create client connection
+	var peer = ENetMultiplayerPeer.new()
+	var result = peer.create_client(ip, port)
+	
+	if result != OK:
+		print(\"Failed to create client connection to \", ip, \":\", port)
+		return
+	
+	multiplayer.multiplayer_peer = peer
+	print(\"Client connecting to \", ip, \":\", port)
 
 func _show_access_denied_message():
 	# Simple access denied message
