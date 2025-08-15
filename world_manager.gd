@@ -34,6 +34,19 @@ class_name WorldManager
 @export_group("Editor Player Visibility")
 @export var toggle_players_visible: bool = false : set = _on_toggle_players_visible
 @export var editor_players_visible: bool = true
+@export_group("Player Focus Mode")
+@export var focus_player_list: String = "" # Comma-separated list of player IDs
+@export var apply_focus: bool = false : set = _on_apply_focus
+@export var clear_focus: bool = false : set = _on_clear_focus
+@export var highlight_focused: bool = true
+@export_group("Player Filtering & Display")
+@export var show_recent_players_only: bool = true
+@export var max_recent_players: int = 20 : set = _on_max_recent_changed
+@export var hide_insignificant_players: bool = true
+@export var significance_threshold: int = 5 # Minimum level or playtime to be "significant"
+@export var use_transparency_gradient: bool = true
+@export var oldest_player_alpha: float = 0.3 # How transparent the oldest players become
+@export var refresh_display_filters: bool = false : set = _on_refresh_filters
 
 var game_manager: Node
 var is_loading: bool = false
@@ -43,6 +56,10 @@ var last_tilemap_cell_count: int = 0
 # Editor player persistence
 var editor_players: Dictionary = {}  # player_id -> player_node
 var spawn_container: Node2D
+
+# Focus mode state
+var focused_players: Array[String] = []  # List of player IDs currently focused
+var is_focus_mode_active: bool = false
 
 signal terrain_modified(coords: Vector2i, source_id: int, atlas_coords: Vector2i)
 signal world_data_changed()
@@ -467,18 +484,27 @@ func sync_editor_players_from_world_data():
 	# Clear existing editor players
 	clear_editor_players()
 	
-	# Spawn editor players for each player in world data
-	var player_data = world_data.get_all_players()
-	print("WorldManager: Found ", player_data.size(), " players in world data")
+	# Get and filter player data
+	var all_player_data = world_data.get_all_players()
+	var filtered_players = get_filtered_players(all_player_data)
 	
-	for player_id in player_data.keys():
-		var player_info = player_data[player_id]
-		print("WorldManager: Spawning editor player ", player_id, " at ", player_info["position"])
-		spawn_editor_player(player_id, player_info["position"])
+	print("WorldManager: Found ", all_player_data.size(), " total players, showing ", filtered_players.size(), " after filtering")
+	
+	# Spawn filtered players with appropriate styling
+	for i in range(filtered_players.size()):
+		var player_info = filtered_players[i]
+		var player_id = player_info["player_id"]
+		var position = player_info["position"]
+		var rank = i  # 0 = most recent, higher = older
+		
+		spawn_editor_player_with_styling(player_id, position, player_info, rank, filtered_players.size())
 	
 	print("WorldManager: Spawned ", editor_players.size(), " editor players")
 	if editor_players.size() > 0:
 		print("💡 TIP: Look in Scene tab under SpawnContainer for EditorPlayer nodes. Select them to drag around!")
+		if all_player_data.size() > filtered_players.size():
+			var hidden_count = all_player_data.size() - filtered_players.size()
+			print("📊 Filtered out ", hidden_count, " players (insignificant or too old). Use focus mode to find specific players.")
 
 func spawn_editor_player(player_id: String, spawn_pos: Vector2):
 	if not Engine.is_editor_hint() or not spawn_container:
@@ -1044,3 +1070,301 @@ func toggle_editor_players_visibility():
 		print("ℹ️ No editor players found to toggle")
 
 # Keyboard shortcut: Ctrl+H to toggle player visibility
+
+func _on_apply_focus(value: bool):
+	if Engine.is_editor_hint() and value:
+		if focus_player_list.strip_edges() == "":
+			print("❌ Please enter player IDs in 'Focus Player List' (comma-separated)")
+		else:
+			print("🎯 WorldManager: Applying focus to players: ", focus_player_list)
+			apply_player_focus(focus_player_list)
+		# Reset the button
+		apply_focus = false
+
+func _on_clear_focus(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("🔄 WorldManager: Clearing player focus")
+		clear_player_focus()
+		# Reset the button
+		clear_focus = false
+
+func apply_player_focus(player_list_string: String):
+	if not Engine.is_editor_hint() or not spawn_container:
+		return
+	
+	# Parse the comma-separated list
+	var player_ids = []
+	for player_id in player_list_string.split(","):
+		var trimmed_id = player_id.strip_edges()
+		if trimmed_id != "":
+			player_ids.append(trimmed_id)
+	
+	if player_ids.size() == 0:
+		print("❌ No valid player IDs found in list")
+		return
+	
+	focused_players = player_ids
+	is_focus_mode_active = true
+	
+	print("🎯 Focus mode activated for ", focused_players.size(), " players: ", focused_players)
+	
+	var visible_count = 0
+	var hidden_count = 0
+	var not_found_count = 0
+	
+	# Hide all players first
+	for child in spawn_container.get_children():
+		if child.name.begins_with("EditorPlayer_"):
+			child.visible = false
+			hidden_count += 1
+	
+	# Show and highlight only focused players
+	for player_id in focused_players:
+		var found_player = false
+		
+		# Look for the player in spawn container
+		for child in spawn_container.get_children():
+			if child.name == "EditorPlayer_" + player_id:
+				child.visible = true
+				visible_count += 1
+				found_player = true
+				
+				# Highlight if enabled
+				if highlight_focused:
+					highlight_player_node(child)
+				
+				print("  ✅ Focused on player: ", player_id, " at ", child.position)
+				break
+		
+		if not found_player:
+			not_found_count += 1
+			print("  ❌ Player not found: ", player_id)
+	
+	print("📊 Focus Results:")
+	print("  • Visible: ", visible_count, " players")
+	print("  • Hidden: ", hidden_count, " players") 
+	print("  • Not found: ", not_found_count, " players")
+	
+	if visible_count > 0:
+		print("💡 TIP: Use 'Clear Focus' to show all players again")
+
+func clear_player_focus():
+	if not Engine.is_editor_hint() or not spawn_container:
+		return
+	
+	focused_players.clear()
+	is_focus_mode_active = false
+	
+	var restored_count = 0
+	
+	# Show all players and remove highlights
+	for child in spawn_container.get_children():
+		if child.name.begins_with("EditorPlayer_"):
+			child.visible = editor_players_visible  # Respect global visibility setting
+			remove_player_highlight(child)
+			restored_count += 1
+	
+	print("🔄 Focus mode cleared - restored visibility for ", restored_count, " players")
+	print("💡 Players now follow global visibility setting (currently ", "VISIBLE" if editor_players_visible else "HIDDEN", ")")
+
+func highlight_player_node(player_node: Node2D):
+	# Make the focused player more prominent
+	var sprite = player_node.get_child(0) as Sprite2D  # First child should be the sprite
+	if sprite:
+		sprite.modulate = Color.YELLOW
+		sprite.scale = Vector2(1.5, 1.5)
+	
+	# Update label to show it's focused
+	var label = player_node.get_child(1) as Label  # Second child should be the label
+	if label:
+		var original_text = label.text
+		if not original_text.contains("🎯"):
+			label.text = "🎯 " + original_text
+		label.add_theme_color_override("font_color", Color.YELLOW)
+
+func remove_player_highlight(player_node: Node2D):
+	# Reset sprite appearance
+	var sprite = player_node.get_child(0) as Sprite2D
+	if sprite:
+		# Check if it's a lost player (keep red color for lost players)
+		var is_lost = player_node.get_meta("is_lost", false)
+		sprite.modulate = Color.RED if is_lost else Color.CYAN
+		sprite.scale = Vector2(1.0, 1.0)
+	
+	# Reset label
+	var label = player_node.get_child(1) as Label
+	if label:
+		var original_text = label.text
+		if original_text.contains("🎯 "):
+			label.text = original_text.replace("🎯 ", "")
+		label.add_theme_color_override("font_color", Color.WHITE)
+
+# Player Filtering Functions
+func get_filtered_players(all_players: Dictionary) -> Array:
+	var players_array = []
+	
+	# Convert dictionary to array with metadata
+	for player_id in all_players.keys():
+		var player_info = all_players[player_id]
+		var enhanced_info = player_info.duplicate()
+		enhanced_info["player_id"] = player_id
+		players_array.append(enhanced_info)
+	
+	# Sort by last_seen (most recent first)
+	players_array.sort_custom(func(a, b): return a["last_seen"] > b["last_seen"])
+	
+	var filtered_players = []
+	
+	for player_info in players_array:
+		var should_show = true
+		
+		# Filter by significance
+		if hide_insignificant_players and should_show:
+			if is_player_insignificant(player_info):
+				should_show = false
+		
+		if should_show:
+			filtered_players.append(player_info)
+		
+		# Limit to recent players
+		if show_recent_players_only and filtered_players.size() >= max_recent_players:
+			break
+	
+	return filtered_players
+
+func is_player_insignificant(player_info: Dictionary) -> bool:
+	# Check if player meets significance threshold
+	var level = player_info.get("level", 1)
+	var last_seen_raw = player_info.get("last_seen", 0)
+	
+	# Convert last_seen to float if it's a string
+	var last_seen: float = 0.0
+	if last_seen_raw is String:
+		last_seen = float(last_seen_raw)
+	else:
+		last_seen = float(last_seen_raw)
+	
+	var current_time = Time.get_unix_time_from_system()
+	var time_since_seen = current_time - last_seen
+	
+	# Player is insignificant if:
+	# 1. Level is below threshold AND
+	# 2. Haven't been seen in over an hour (3600 seconds)
+	return level < significance_threshold and time_since_seen > 3600
+
+func spawn_editor_player_with_styling(player_id: String, spawn_pos: Vector2, player_info: Dictionary, rank: int, total_filtered: int):
+	if not Engine.is_editor_hint() or not spawn_container:
+		return
+	
+	# Check if player is lost (far from reasonable bounds)
+	var is_lost = abs(spawn_pos.x) > 5000 or abs(spawn_pos.y) > 5000
+	var safe_position = spawn_pos
+	if is_lost:
+		safe_position = Vector2(100, 100)  # Default safe spawn
+	
+	# Create a simple Node2D for editor representation
+	var player = Node2D.new()
+	player.name = "EditorPlayer_" + player_id
+	player.position = safe_position
+	
+	# Add visual representation (sprite)
+	var sprite = Sprite2D.new()
+	var texture = PlaceholderTexture2D.new()
+	texture.size = Vector2(50, 50)
+	sprite.texture = texture
+	
+	# Calculate transparency based on rank (age)
+	var alpha = 1.0
+	if use_transparency_gradient and total_filtered > 1:
+		# Most recent = 1.0 alpha, oldest = oldest_player_alpha
+		var age_ratio = float(rank) / float(total_filtered - 1)
+		alpha = lerp(1.0, oldest_player_alpha, age_ratio)
+	
+	# Color and transparency based on player status
+	var base_color = Color.CYAN
+	if is_lost:
+		base_color = Color.RED
+	elif is_player_insignificant(player_info):
+		base_color = Color.GRAY
+	
+	# Apply calculated alpha
+	base_color.a = alpha
+	sprite.modulate = base_color
+	
+	# Scale based on significance
+	var scale_factor = 1.0
+	if player_info.get("level", 1) >= significance_threshold * 2:
+		scale_factor = 1.2  # Important players are slightly larger
+	elif is_player_insignificant(player_info):
+		scale_factor = 0.8  # Insignificant players are smaller
+	
+	sprite.scale = Vector2(scale_factor, scale_factor)
+	player.add_child(sprite)
+	
+	# Add detailed label
+	var label = Label.new()
+	var level = player_info.get("level", 1)
+	var last_seen_raw = player_info.get("last_seen", 0)
+	
+	# Convert last_seen to float if it's a string
+	var last_seen: float = 0.0
+	if last_seen_raw is String:
+		last_seen = float(last_seen_raw)
+	else:
+		last_seen = float(last_seen_raw)
+	
+	var current_time = Time.get_unix_time_from_system()
+	var hours_ago = int((current_time - last_seen) / 3600)
+	
+	var status_text = ""
+	if is_lost:
+		status_text += " (LOST)"
+	elif hours_ago < 1:
+		status_text += " (RECENT)"
+	elif hours_ago < 24:
+		status_text += " (" + str(hours_ago) + "h ago)"
+	else:
+		var days_ago = int(hours_ago / 24)
+		status_text += " (" + str(days_ago) + "d ago)"
+	
+	label.text = player_id + " L" + str(level) + status_text
+	label.position = Vector2(-40, -50)
+	
+	# Label styling based on significance
+	var label_color = Color.WHITE
+	if is_player_insignificant(player_info):
+		label_color = Color.GRAY
+	elif level >= significance_threshold * 2:
+		label_color = Color.YELLOW
+	
+	label_color.a = alpha  # Apply same transparency
+	label.add_theme_color_override("font_color", label_color)
+	label.add_theme_color_override("font_shadow_color", Color.BLACK)
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)
+	player.add_child(label)
+	
+	# Store enhanced metadata
+	player.set_meta("persistent_player_id", player_id)
+	player.set_meta("original_position", spawn_pos)
+	player.set_meta("is_lost", is_lost)
+	player.set_meta("player_level", level)
+	player.set_meta("last_seen", last_seen)
+	player.set_meta("is_significant", not is_player_insignificant(player_info))
+	player.set_meta("rank", rank)
+	
+	# Add to spawn container and track
+	spawn_container.add_child(player)
+	editor_players[player_id] = player
+
+# Filter control callbacks
+func _on_max_recent_changed(value: int):
+	max_recent_players = max(1, value)  # Ensure at least 1
+	if Engine.is_editor_hint():
+		print("📊 Max recent players changed to: ", max_recent_players)
+
+func _on_refresh_filters(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("🔄 Refreshing display filters...")
+		sync_editor_players_from_world_data()
+		refresh_display_filters = false
