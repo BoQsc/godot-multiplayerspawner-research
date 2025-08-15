@@ -19,7 +19,14 @@
       "Bash(rg:*)",
       "Bash(move:*)",
       "Bash(mv:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(for file in \"network_manager.gd\" \"Account/register_system.gd\" \"Account/login_identity.gd\" \"world_manager.gd\" \"game_manager.gd\")",
+      "Bash(do if [ -f \"$file\" ])",
+      "Bash(then echo \"✅ $file\")",
+      "Bash(else echo \"❌ $file\")",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(for file in \"Account/device_binding_ui.gd\" \"Account/register_ui.gd\" \"entity_scene.tscn\")"
     ],
     "deny": [],
     "ask": [],
