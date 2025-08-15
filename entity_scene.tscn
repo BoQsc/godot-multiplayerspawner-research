@@ -28,4 +28,4 @@ vertical_alignment = 1
 
 [node name="PlayerCamera" type="Camera2D" parent="."]
 enabled = false
-position_smoothing_enabled = true
+position_smoothing_enabled = false

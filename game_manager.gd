@@ -889,19 +889,15 @@ func despawn_player(id: int):
 
 @rpc("any_peer", "call_remote", "unreliable")
 func update_player_position(id: int, pos: Vector2):
-	# Skip processing if this is the server receiving its own position update
-	if multiplayer.is_server() and id == 1:
-		return  # Server doesn't need to process its own movement via RPC
-	
 	# Forward position update to NetworkManager for handling
 	if network_manager:
 		network_manager.receive_remote_position(id, pos)
 	else:
-		# Fallback: direct position update if no NetworkManager
-		if id in players:
+		# Fallback: direct position update if no NetworkManager (skip server's own updates)
+		if id in players and not (multiplayer.is_server() and id == 1):
 			players[id].position = pos
 	
-	# Update persistent world data (server only, periodically)
+	# Update persistent world data (server only, periodically) 
 	if multiplayer.is_server() and world_manager and world_manager.world_data:
 		var persistent_id = player_persistent_ids.get(id, "")
 		if persistent_id != "":
