@@ -410,6 +410,34 @@ func sync_terrain_modification(coords: Vector2i, source_id: int, atlas_coords: V
 		world_tile_map_layer.set_cell(coords, source_id, atlas_coords, alternative_tile)
 		terrain_modified.emit(coords, source_id, atlas_coords)
 
+# Send complete world state to a client
+func send_world_state_to_client(peer_id: int):
+	if multiplayer.is_server() and world_data:
+		print("WorldManager: Sending world state to client ", peer_id)
+		var tile_data = world_data.tile_data
+		rpc_id(peer_id, "receive_world_state", tile_data)
+
+# Receive complete world state from server
+@rpc("authority", "call_remote", "reliable")
+func receive_world_state(tile_data: Dictionary):
+	if not multiplayer.is_server():
+		print("WorldManager: Received world state with ", tile_data.size(), " tiles")
+		
+		# Clear current tilemap
+		world_tile_map_layer.clear()
+		
+		# Apply all tiles from server
+		for coords in tile_data.keys():
+			var tile_info = tile_data[coords]
+			var source_id = tile_info.get("source_id", -1)
+			var atlas_coords = tile_info.get("atlas_coords", Vector2i(-1, -1))
+			var alternative_tile = tile_info.get("alternative_tile", 0)
+			
+			if source_id != -1:  # Only set valid tiles
+				world_tile_map_layer.set_cell(coords, source_id, atlas_coords, alternative_tile)
+		
+		print("WorldManager: Applied ", tile_data.size(), " tiles from server")
+
 # Editor Player Persistence Functions
 func sync_editor_players_from_world_data():
 	if not Engine.is_editor_hint():

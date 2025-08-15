@@ -585,6 +585,10 @@ func receive_client_id(peer_id: int, client_id: String, chosen_player_num: int =
 		# Register the player with their client ID and chosen number
 		var persistent_id = _register_player_with_client_id(peer_id, client_id, chosen_player_num)
 		
+		# Send world state to new player
+		if world_manager:
+			world_manager.send_world_state_to_client(peer_id)
+		
 		# Send existing players to new player
 		for existing_peer_id in players.keys():
 			var existing_persistent_id = player_persistent_ids[existing_peer_id]
