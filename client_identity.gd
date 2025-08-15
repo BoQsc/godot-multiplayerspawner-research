@@ -44,12 +44,19 @@ func _ready():
 	setup_device_binding_for_uuid()
 
 func get_chosen_player_from_args() -> int:
-	# Check command line for --player=X (supports any positive integer)
+	# Check command line for --player=X or --player X (supports any positive integer)
 	var args = OS.get_cmdline_args()
-	for arg in args:
+	for i in range(args.size()):
+		var arg = args[i]
 		if arg.begins_with("--player="):
 			var player_num = int(arg.split("=")[1])
 			if player_num >= 1:  # Accept any positive number
+				print("Found --player=", player_num, " argument")
+				return player_num
+		elif arg == "--player" and i + 1 < args.size():
+			var player_num = int(args[i + 1])
+			if player_num >= 1:  # Accept any positive number
+				print("Found --player ", player_num, " argument")
 				return player_num
 	return -1
 

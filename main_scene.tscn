@@ -738,6 +738,38 @@ func _cleanup_old_client_instances(client_id: String, new_peer_id: int):
 		_despawn_player(old_peer_id)
 		rpc(\"despawn_player\", old_peer_id)
 
+func _cleanup_stale_connections():
+	# Remove any players whose peer connections are no longer active
+	var stale_peers = []
+	
+	# Get list of currently connected peer IDs
+	var connected_peers = multiplayer.get_peers()
+	connected_peers.append(1)  # Server is always peer 1
+	
+	# Find players whose peer IDs are not in the connected list
+	for peer_id in players.keys():
+		if not connected_peers.has(peer_id):
+			stale_peers.append(peer_id)
+			print(\"Found stale connection: peer \", peer_id, \" is no longer connected\")
+	
+	# Remove all stale players
+	for stale_peer_id in stale_peers:
+		print(\"Cleaning up stale player: \", stale_peer_id)
+		
+		# Save player data before removing
+		_save_player_data(stale_peer_id)
+		
+		# Remove from world manager
+		if world_manager and world_manager.world_data:
+			world_manager.world_data.unregister_peer(stale_peer_id)
+		
+		# Despawn locally and notify all clients
+		_despawn_player(stale_peer_id)
+		rpc(\"despawn_player\", stale_peer_id)
+	
+	if stale_peers.size() > 0:
+		print(\"Cleaned up \", stale_peers.size(), \" stale connections\")
+
 func _handle_connection_failure():
 	if not is_client_mode:
 		return
@@ -907,6 +939,9 @@ func receive_client_id(peer_id: int, client_id: String, chosen_player_num: int =
 	# Server receives client ID from connecting player
 	if multiplayer.is_server():
 		
+		# Clean up any stale/disconnected players first
+		_cleanup_stale_connections()
+		
 		# Clean up any old instances of this client before registering new one
 		_cleanup_old_client_instances(client_id, peer_id)
 		
@@ -951,6 +986,13 @@ func _unregister_player(peer_id: int):
 func _get_player_spawn_position(persistent_id: String) -> Vector2:
 	if world_manager and world_manager.world_data:
 		var player_data = world_manager.world_data.get_player(persistent_id)
+		print(\"Getting spawn position for \", persistent_id, \": \", player_data[\"position\"])
+		
+		# Debug: Check if this is returning default data
+		if player_data[\"position\"] == Vector2(100, 100):
+			print(\"WARNING: Player \", persistent_id, \" not found in world data, using default spawn\")
+			print(\"Available players in world data: \", world_manager.world_data.player_data.keys())
+		
 		return player_data[\"position\"]
 	else:
 		# Fallback to default spawn if no world data
@@ -1159,7 +1201,7 @@ player_to_move = "player_4"
 new_position = Vector2(158.905, 300)
 
 [node name="WorldTileMapLayer" type="TileMapLayer" parent="WorldManager"]
-tile_map_data = PackedByteArray("AAD//wUAAQADAAQAAAAAAAUAAQADAAQAAAABAAUAAQADAAQAAAACAAUAAQADAAQAAAADAAUAAQADAAQAAAAEAAUAAQADAAQAAAD//wQAAQACAAQAAAABAAQAAQAAAAAAAAACAAQAAQAAAAAAAAADAAQAAQAAAAAAAAAEAAQAAQAAAAAAAAAAAAIAAQAAAAAAAAAAAAMAAQAAAAAAAAAEAAMAAQAAAAAAAAADAAMAAQAAAAAAAAAEAAIAAQAAAAAAAAAFAAMAAQAAAAAAAAACAAMAAQAAAAAAAAABAAIAAQAAAAAAAAAFAAIAAQAAAAAAAAAIAAAAAQAAAAAAAAAIAAEAAQAAAAAAAAAIAAIAAQAAAAAAAAAIAAMAAQAAAAAAAAAIAAQAAQAAAAAAAAABAAMAAQAAAAAAAAAHAAAAAQAAAAAAAAA=")
+tile_map_data = PackedByteArray("AAD//wUAAQADAAQAAAAAAAUAAQADAAQAAAABAAUAAQADAAQAAAACAAUAAQADAAQAAAADAAUAAQADAAQAAAAEAAUAAQADAAQAAAD//wQAAQACAAQAAAABAAQAAQAAAAAAAAACAAQAAQAAAAAAAAADAAQAAQAAAAAAAAAEAAQAAQAAAAAAAAAAAAIAAQAAAAAAAAAAAAMAAQAAAAAAAAAEAAMAAQAAAAAAAAADAAMAAQAAAAAAAAAEAAIAAQAAAAAAAAAFAAMAAQAAAAAAAAACAAMAAQAAAAAAAAABAAIAAQAAAAAAAAAFAAIAAQAAAAAAAAAIAAAAAQAAAAAAAAAIAAEAAQAAAAAAAAAIAAIAAQAAAAAAAAAIAAMAAQAAAAAAAAAIAAQAAQAAAAAAAAABAAMAAQAAAAAAAAAHAAAAAQAAAAAAAAAGAAIAAQAAAAAAAAA=")
 tile_set = SubResource("TileSet_hq1ik")
 rendering_quadrant_size = 128
 
