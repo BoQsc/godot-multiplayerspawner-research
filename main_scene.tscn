@@ -550,11 +550,15 @@ func _on_reconnection_cancel():
 	# Stop reconnection attempts
 	connection_state = ConnectionState.DISCONNECTED
 	reconnection_attempts = 0
+	last_heartbeat_time = 0.0
 	
 	# Disconnect from server
 	if multiplayer.multiplayer_peer:
 		multiplayer.multiplayer_peer.close()
 		multiplayer.multiplayer_peer = null
+	
+	# Clean up players when giving up
+	_cleanup_all_players()
 	
 	print(\"GameManager: Reconnection cancelled by user\")
 
@@ -586,11 +590,15 @@ func _connect_to_server(ip: String, port: int):
 	
 	multiplayer.multiplayer_peer = peer
 	
-	# Connect multiplayer signals for connection monitoring
-	multiplayer.peer_connected.connect(_on_client_connected_to_server)
-	multiplayer.peer_disconnected.connect(_on_client_disconnected_from_server)
-	multiplayer.connection_failed.connect(_on_client_connection_failed)
-	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	# Connect multiplayer signals for connection monitoring (only if not already connected)
+	if not multiplayer.peer_connected.is_connected(_on_client_connected_to_server):
+		multiplayer.peer_connected.connect(_on_client_connected_to_server)
+	if not multiplayer.peer_disconnected.is_connected(_on_client_disconnected_from_server):
+		multiplayer.peer_disconnected.connect(_on_client_disconnected_from_server)
+	if not multiplayer.connection_failed.is_connected(_on_client_connection_failed):
+		multiplayer.connection_failed.connect(_on_client_connection_failed)
+	if not multiplayer.server_disconnected.is_connected(_on_server_disconnected):
+		multiplayer.server_disconnected.connect(_on_server_disconnected)
 	
 	print(\"Client attempting connection to \", ip, \":\", port)
 
@@ -672,7 +680,19 @@ func _handle_server_disconnection():
 		return
 	
 	print(\"Server connection lost, starting reconnection...\")
+	
+	# Clean up existing players to prevent duplicates
+	_cleanup_all_players()
+	
 	_start_reconnection()
+
+func _cleanup_all_players():
+	# Remove all players from the scene to prevent duplicates on reconnection
+	for peer_id in players.keys():
+		_despawn_player(peer_id)
+	players.clear()
+	player_persistent_ids.clear()
+	print(\"Cleaned up all players before reconnection\")
 
 func _handle_connection_failure():
 	if not is_client_mode:
@@ -682,6 +702,10 @@ func _handle_connection_failure():
 	_schedule_next_reconnection()
 
 func _monitor_connection(delta: float):
+	# Only monitor if we think we're connected
+	if connection_state != ConnectionState.CONNECTED:
+		return
+	
 	# Check if we've received any communication from server recently
 	var current_time = Time.get_ticks_msec() / 1000.0
 	
@@ -700,8 +724,8 @@ func _monitor_connection(delta: float):
 
 func _send_heartbeat():
 	# Send a lightweight heartbeat RPC to server
-	if multiplayer.is_connected() and multiplayer.get_unique_id() != 1:
-		rpc_unreliable_id(1, \"client_heartbeat\", multiplayer.get_unique_id())
+	if connection_state == ConnectionState.CONNECTED and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED and multiplayer.get_unique_id() != 1:
+		rpc_id(1, \"client_heartbeat\", multiplayer.get_unique_id())
 
 @rpc(\"any_peer\", \"call_remote\", \"unreliable\")
 func client_heartbeat(peer_id: int):
@@ -1088,7 +1112,7 @@ player_to_move = "player_4"
 new_position = Vector2(158.905, 300)
 
 [node name="WorldTileMapLayer" type="TileMapLayer" parent="WorldManager"]
-tile_map_data = PackedByteArray("AAD//wUAAQADAAQAAAAAAAUAAQADAAQAAAABAAUAAQADAAQAAAACAAUAAQADAAQAAAADAAUAAQADAAQAAAAEAAUAAQADAAQAAAD//wQAAQACAAQAAAAAAAQAAQACAAQAAAABAAQAAQAAAAAAAAACAAQAAQAAAAAAAAADAAQAAQAAAAAAAAAEAAQAAQAAAAAAAAAAAAIAAQAAAAAAAAAAAAMAAQAAAAAAAAAEAAMAAQAAAAAAAAADAAMAAQAAAAAAAAAEAAIAAQAAAAAAAAAFAAMAAQAAAAAAAAACAAMAAQAAAAAAAAA=")
+tile_map_data = PackedByteArray("AAD//wUAAQADAAQAAAAAAAUAAQADAAQAAAABAAUAAQADAAQAAAACAAUAAQADAAQAAAADAAUAAQADAAQAAAAEAAUAAQADAAQAAAD//wQAAQACAAQAAAABAAQAAQAAAAAAAAACAAQAAQAAAAAAAAADAAQAAQAAAAAAAAAEAAQAAQAAAAAAAAAAAAIAAQAAAAAAAAAAAAMAAQAAAAAAAAAEAAMAAQAAAAAAAAADAAMAAQAAAAAAAAAEAAIAAQAAAAAAAAAFAAMAAQAAAAAAAAACAAMAAQAAAAAAAAABAAIAAQAAAAAAAAAFAAIAAQAAAAAAAAAIAAAAAQAAAAAAAAAIAAEAAQAAAAAAAAAIAAIAAQAAAAAAAAAIAAMAAQAAAAAAAAAIAAQAAQAAAAAAAAABAAMAAQAAAAAAAAA=")
 tile_set = SubResource("TileSet_hq1ik")
 rendering_quadrant_size = 128
 
