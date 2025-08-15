@@ -783,7 +783,7 @@ func _monitor_connection(delta: float):
 		return
 	
 	# Check if we've received any communication from server recently
-	var current_time = Time.get_ticks_msec() / 1000.0
+	var _current_time = Time.get_ticks_msec() / 1000.0
 	
 	# Send periodic heartbeat to server
 	last_heartbeat_time += delta
@@ -804,7 +804,7 @@ func _send_heartbeat():
 		rpc_id(1, \"client_heartbeat\", multiplayer.get_unique_id())
 
 @rpc(\"any_peer\", \"call_remote\", \"unreliable\")
-func client_heartbeat(peer_id: int):
+func client_heartbeat(_peer_id: int):
 	# Server receives heartbeat from client
 	if multiplayer.is_server():
 		# Simply acknowledge the heartbeat (could update last seen time)
