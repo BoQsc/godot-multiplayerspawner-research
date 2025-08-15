@@ -66,6 +66,10 @@ func report_local_movement(new_position: Vector2):
 
 func receive_remote_position(player_id: int, new_position: Vector2):
 	"""Called when receiving position update for remote player"""
+	# Skip processing if this is the server (peer 1) receiving its own position update
+	if multiplayer.is_server() and player_id == 1:
+		return
+	
 	if player_id in tracked_players and player_id != local_player_id:
 		var player_data = tracked_players[player_id]
 		var current_pos = player_data.entity.position

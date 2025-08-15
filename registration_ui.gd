@@ -32,7 +32,7 @@ func create_ui():
 	# Main panel
 	main_panel = Panel.new()
 	main_panel.size = Vector2(450, 400)
-	main_panel.position = Vector2(100, 50)
+	main_panel.position = Vector2(30, 10)  # F2 - Top-left corner, slight offset from F1
 	add_child(main_panel)
 	
 	# VBox container for layout
@@ -285,7 +285,7 @@ func hide_ui():
 static func show_registration_ui(parent: Node, auth_sys: AuthenticationSystem, client_id: ClientIdentity) -> RegistrationUI:
 	"""Create and show registration UI"""
 	var ui = RegistrationUI.new()
-	parent.add_child(ui)
+	parent.get_node("UILayer").add_child(ui)
 	ui.set_auth_system(auth_sys)
 	ui.set_client_identity(client_id)
 	ui.show_ui()

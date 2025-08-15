@@ -11,7 +11,11 @@
       "Bash(cat:*)",
       "Bash(del client_identity.dat server_identity.dat)",
       "Bash(del \"entity_scene.tscn57467357.tmp\")",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(move main_scene.tscn main_scene_old.tscn)",
+      "Bash(move main_scene_clean.tscn main_scene.tscn)",
+      "Bash(mv main_scene.tscn main_scene_old.tscn)",
+      "Bash(mv main_scene_clean.tscn main_scene.tscn)"
     ],
     "deny": [],
     "ask": [],

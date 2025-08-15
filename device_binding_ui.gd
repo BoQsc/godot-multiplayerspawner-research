@@ -21,7 +21,7 @@ func create_ui():
 	# Main panel
 	device_binding_panel = Panel.new()
 	device_binding_panel.size = Vector2(400, 300)
-	device_binding_panel.position = Vector2(50, 50)
+	device_binding_panel.position = Vector2(10, 10)  # F1 - Top-left corner
 	add_child(device_binding_panel)
 	
 	# VBox container for layout
@@ -167,7 +167,7 @@ func hide_ui():
 static func show_device_binding_ui(parent: Node, client_id: ClientIdentity) -> DeviceBindingUI:
 	"""Create and show device binding UI"""
 	var ui = DeviceBindingUI.new()
-	parent.add_child(ui)
+	parent.get_node("UILayer").add_child(ui)
 	ui.set_client_identity(client_id)
 	ui.show_ui()
 	return ui
