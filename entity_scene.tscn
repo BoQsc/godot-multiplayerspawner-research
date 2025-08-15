@@ -25,3 +25,7 @@ offset_bottom = -50.0
 text = "Player"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="PlayerCamera" type="Camera2D" parent="."]
+enabled = false
+position_smoothing_enabled = true

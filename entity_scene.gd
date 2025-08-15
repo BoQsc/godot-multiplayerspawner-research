@@ -9,6 +9,7 @@ var is_local_player: bool = false
 var game_manager: Node
 var network_manager: NetworkManager
 var persistent_id: String = ""
+var player_camera: Camera2D
 
 func _ready():
 	player_id = int(name)
@@ -20,6 +21,15 @@ func _ready():
 	
 	if not game_manager:
 		game_manager = get_parent().get_parent().get_node("GameManager")
+	
+	# Setup camera for local player only
+	player_camera = get_node("PlayerCamera")
+	if is_local_player:
+		player_camera.enabled = true
+		player_camera.make_current()
+		print("Camera enabled for local player: ", player_id)
+	else:
+		player_camera.enabled = false
 	
 	# Register with NetworkManager
 	if network_manager and is_local_player:
