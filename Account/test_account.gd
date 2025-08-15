@@ -1,9 +1,9 @@
 extends Node
 
 # Simple test script for Phase 2 registration system
-# Run with: godot --headless --script test_registration.gd
+# Run with: godot --headless --script Account/test_account.gd
 
-var register_system: AccountSystem
+var register_system: RegisterSystem
 var login_identity: LoginIdentity
 
 func _ready():

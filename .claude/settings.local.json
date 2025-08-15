@@ -18,7 +18,8 @@
       "Bash(mv main_scene_clean.tscn main_scene.tscn)",
       "Bash(rg:*)",
       "Bash(move:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": [],

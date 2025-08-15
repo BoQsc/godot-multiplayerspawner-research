@@ -36,7 +36,7 @@ var last_heartbeat_time: float = 0.0
 var heartbeat_interval: float = 2.0   # Send heartbeat every 2 seconds
 
 func _ready() -> void:
-	# Find NetworkManager, WorldManager, ClientIdentity, and AuthSystem
+	# Find NetworkManager, WorldManager, LoginIdentity, and RegisterSystem
 	network_manager = get_tree().get_first_node_in_group("network_manager")
 	world_manager = get_tree().get_first_node_in_group("world_manager")
 	login_identity = get_tree().get_first_node_in_group("client_identity")
@@ -74,7 +74,7 @@ func _ready() -> void:
 			var server_spawn_pos = _get_player_spawn_position(server_persistent_id)
 			_spawn_player(1, server_spawn_pos, server_persistent_id)
 		else:
-			print("Warning: ClientIdentity not found, using fallback spawn")
+			print("Warning: LoginIdentity not found, using fallback spawn")
 	else:
 		print("Creating Client")
 		is_client_mode = true
