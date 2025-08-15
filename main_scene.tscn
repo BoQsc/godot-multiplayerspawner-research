@@ -24,6 +24,11 @@ var auth_system: AuthenticationSystem
 var save_timer: float = 0.0
 var save_interval: float = 5.0  # Save every 5 seconds
 
+# UI window tracking
+var device_binding_ui: Control = null
+var registration_ui: Control = null
+var custom_join_ui: Control = null
+
 func _ready() -> void:
 	# Find NetworkManager, WorldManager, ClientIdentity, and AuthSystem
 	network_manager = get_tree().get_first_node_in_group(\"network_manager\")
@@ -87,45 +92,96 @@ func _process(delta):
 func _unhandled_key_input(event):
 	# Handle UI toggles
 	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_F1:  # F1 to open device binding settings
-			_show_device_binding_ui()
-		elif event.keycode == KEY_F2:  # F2 to open registration/login
-			_show_registration_ui()
-		elif event.keycode == KEY_F3:  # F3 to open custom IP join
-			_show_custom_join_ui()
+		if event.keycode == KEY_ESCAPE:  # ESC to close all UI windows
+			_close_all_ui_windows()
+		elif event.keycode == KEY_F1:  # F1 to toggle device binding settings
+			_toggle_device_binding_ui()
+		elif event.keycode == KEY_F2:  # F2 to toggle registration/login
+			_toggle_registration_ui()
+		elif event.keycode == KEY_F3:  # F3 to toggle custom IP join
+			_toggle_custom_join_ui()
 
 func _show_device_binding_ui():
 	# Show device binding UI for anonymous players
 	if client_identity and client_identity.can_access_current_uuid():
 		var ui_scene = preload(\"res://device_binding_ui.gd\")
-		var ui = ui_scene.show_device_binding_ui(get_parent(), client_identity)
-		ui.ui_closed.connect(_on_device_binding_ui_closed)
+		device_binding_ui = ui_scene.show_device_binding_ui(get_parent(), client_identity)
+		device_binding_ui.ui_closed.connect(_on_device_binding_ui_closed)
 		print(\"GameManager: Showing device binding UI (F1)\")
 	else:
 		print(\"GameManager: Cannot access UUID or client identity not available\")
 
 func _on_device_binding_ui_closed():
+	device_binding_ui = null
 	print(\"GameManager: Device binding UI closed\")
 
 func _show_registration_ui():
 	# Show registration/login UI
 	if auth_system and client_identity:
 		var ui_scene = preload(\"res://registration_ui.gd\")
-		var ui = ui_scene.show_registration_ui(get_parent(), auth_system, client_identity)
-		ui.ui_closed.connect(_on_registration_ui_closed)
+		registration_ui = ui_scene.show_registration_ui(get_parent(), auth_system, client_identity)
+		registration_ui.ui_closed.connect(_on_registration_ui_closed)
 		print(\"GameManager: Showing registration UI (F2)\")
 	else:
 		print(\"GameManager: Auth system or client identity not available\")
 
 func _on_registration_ui_closed():
+	registration_ui = null
 	print(\"GameManager: Registration UI closed\")
+
+func _close_all_ui_windows():
+	# Close all open UI windows
+	if device_binding_ui:
+		device_binding_ui.queue_free()
+		device_binding_ui = null
+		print(\"GameManager: Device binding UI closed (ESC)\")
+	
+	if registration_ui:
+		registration_ui.queue_free()
+		registration_ui = null
+		print(\"GameManager: Registration UI closed (ESC)\")
+	
+	if custom_join_ui:
+		custom_join_ui.queue_free()
+		custom_join_ui = null
+		print(\"GameManager: Custom join UI closed (ESC)\")
+
+func _toggle_device_binding_ui():
+	if device_binding_ui:
+		# Close if already open
+		device_binding_ui.queue_free()
+		device_binding_ui = null
+		print(\"GameManager: Device binding UI closed (F1 toggle)\")
+	else:
+		# Open if not already open
+		_show_device_binding_ui()
+
+func _toggle_registration_ui():
+	if registration_ui:
+		# Close if already open
+		registration_ui.queue_free()
+		registration_ui = null
+		print(\"GameManager: Registration UI closed (F2 toggle)\")
+	else:
+		# Open if not already open
+		_show_registration_ui()
+
+func _toggle_custom_join_ui():
+	if custom_join_ui:
+		# Close if already open
+		custom_join_ui.queue_free()
+		custom_join_ui = null
+		print(\"GameManager: Custom join UI closed (F3 toggle)\")
+	else:
+		# Open if not already open
+		_show_custom_join_ui()
 
 func _show_custom_join_ui():
 	# Create custom IP join UI
-	var ui_container = ColorRect.new()
-	ui_container.name = \"CustomJoinUI\"
-	ui_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	ui_container.color = Color(0, 0, 0, 0.7)  # Semi-transparent background
+	custom_join_ui = ColorRect.new()
+	custom_join_ui.name = \"CustomJoinUI\"
+	custom_join_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	custom_join_ui.color = Color(0, 0, 0, 0.7)  # Semi-transparent background
 	
 	# Background panel
 	var bg_panel = Panel.new()
@@ -183,12 +239,12 @@ func _show_custom_join_ui():
 	bg_panel.add_child(connect_btn)
 	bg_panel.add_child(cancel_btn)
 	
-	ui_container.add_child(bg_panel)
-	get_parent().add_child(ui_container)
+	custom_join_ui.add_child(bg_panel)
+	get_parent().add_child(custom_join_ui)
 	
 	# Connect button signals
-	connect_btn.pressed.connect(_on_custom_connect_pressed.bind(ui_container))
-	cancel_btn.pressed.connect(_on_custom_join_cancel.bind(ui_container))
+	connect_btn.pressed.connect(_on_custom_connect_pressed.bind(custom_join_ui))
+	cancel_btn.pressed.connect(_on_custom_join_cancel.bind(custom_join_ui))
 	
 	print(\"GameManager: Showing custom join UI (F3)\")
 
@@ -215,12 +271,14 @@ func _on_custom_connect_pressed(ui_container: Control):
 	
 	# Close UI
 	ui_container.queue_free()
+	custom_join_ui = null
 	
 	# Connect to custom server
 	_connect_to_custom_server(ip, port)
 
 func _on_custom_join_cancel(ui_container: Control):
 	ui_container.queue_free()
+	custom_join_ui = null
 	print(\"GameManager: Custom join cancelled\")
 
 func _connect_to_custom_server(ip: String, port: int):
