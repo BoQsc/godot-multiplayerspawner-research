@@ -31,6 +31,9 @@ class_name WorldManager
 @export var test_editor_display: bool = false : set = _on_test_editor_display
 @export var cleanup_duplicate_players: bool = false : set = _on_cleanup_duplicates
 @export var reset_all_players: bool = false : set = _on_reset_all_players
+@export_group("Editor Player Visibility")
+@export var toggle_players_visible: bool = false : set = _on_toggle_players_visible
+@export var editor_players_visible: bool = true
 
 var game_manager: Node
 var is_loading: bool = false
@@ -388,6 +391,15 @@ func _on_save_world_now(value: bool):
 		save_world_now = false
 
 func _input(event):
+	# Editor keyboard shortcuts (only in editor)
+	if Engine.is_editor_hint() and event is InputEventKey and event.pressed:
+		if event.keycode == KEY_H and event.ctrl_pressed:
+			editor_players_visible = !editor_players_visible
+			print("⌨️ Keyboard shortcut: Toggling editor players to ", "VISIBLE" if editor_players_visible else "HIDDEN")
+			toggle_editor_players_visibility()
+			return
+	
+	# Terrain modification (only when enabled)
 	if not enable_terrain_modification:
 		return
 		
@@ -996,3 +1008,39 @@ func reset_all_players_data():
 	print("  Client mappings: ", world_data.client_to_player_mapping.size())
 	print("  Peer mappings: ", world_data.peer_to_client_mapping.size())
 	print("🔄 All player data has been cleared. Next run will create fresh players starting from player_1")
+
+func _on_toggle_players_visible(value: bool):
+	if Engine.is_editor_hint() and value:
+		editor_players_visible = !editor_players_visible
+		print("👁️ WorldManager: Toggling editor players visibility to ", "VISIBLE" if editor_players_visible else "HIDDEN")
+		toggle_editor_players_visibility()
+		# Reset the button
+		toggle_players_visible = false
+
+func toggle_editor_players_visibility():
+	if not Engine.is_editor_hint() or not spawn_container:
+		return
+	
+	var affected_count = 0
+	
+	# Toggle visibility for all EditorPlayer nodes
+	for child in spawn_container.get_children():
+		if child.name.begins_with("EditorPlayer_"):
+			child.visible = editor_players_visible
+			affected_count += 1
+	
+	# Also update the tracked editor players
+	for player_id in editor_players.keys():
+		var player_node = editor_players[player_id]
+		if is_instance_valid(player_node):
+			player_node.visible = editor_players_visible
+	
+	if affected_count > 0:
+		var status = "VISIBLE" if editor_players_visible else "HIDDEN"
+		print("✅ Updated visibility for ", affected_count, " editor players - now ", status)
+		if not editor_players_visible:
+			print("💡 TIP: Click 'Toggle Players Visible' again to show them")
+	else:
+		print("ℹ️ No editor players found to toggle")
+
+# Keyboard shortcut: Ctrl+H to toggle player visibility
