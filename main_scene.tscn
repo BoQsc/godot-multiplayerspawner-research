@@ -29,6 +29,23 @@ var device_binding_ui: Control = null
 var registration_ui: Control = null
 var custom_join_ui: Control = null
 var player_list_ui: Control = null
+var reconnection_ui: Control = null
+
+# Connection and reconnection tracking
+enum ConnectionState { DISCONNECTED, CONNECTING, CONNECTED, RECONNECTING }
+var connection_state: ConnectionState = ConnectionState.DISCONNECTED
+var last_server_ip: String = \"127.0.0.1\"
+var last_server_port: int = 4443
+var reconnection_attempts: int = 0
+var max_reconnection_attempts: int = 10
+var reconnection_delay: float = 3.0
+var reconnection_timer: float = 0.0
+var is_client_mode: bool = false
+
+# Connection monitoring
+var connection_timeout: float = 10.0  # 10 seconds timeout
+var last_heartbeat_time: float = 0.0
+var heartbeat_interval: float = 2.0   # Send heartbeat every 2 seconds
 
 func _ready() -> void:
 	# Find NetworkManager, WorldManager, ClientIdentity, and AuthSystem
@@ -44,6 +61,7 @@ func _ready() -> void:
 	
 	if \"--server\" in OS.get_cmdline_args():
 		print(\"Creating server\")
+		connection_state = ConnectionState.CONNECTED
 		var peer = ENetMultiplayerPeer.new()
 		peer.create_server(PORT)
 		multiplayer.multiplayer_peer = peer
@@ -71,6 +89,7 @@ func _ready() -> void:
 			print(\"Warning: ClientIdentity not found, using fallback spawn\")
 	else:
 		print(\"Creating Client\")
+		is_client_mode = true
 		
 		# Check device binding access for client too
 		if client_identity and not client_identity.can_access_current_uuid():
@@ -79,9 +98,7 @@ func _ready() -> void:
 			_show_access_denied_message()
 			return
 		
-		var peer = ENetMultiplayerPeer.new()
-		peer.create_client(\"127.0.0.1\", PORT)
-		multiplayer.multiplayer_peer = peer
+		_connect_to_server(last_server_ip, last_server_port)
 
 func _process(delta):
 	# Auto-save player positions periodically
@@ -89,6 +106,16 @@ func _process(delta):
 	if save_timer >= save_interval:
 		_auto_save_all_player_positions()
 		save_timer = 0.0
+	
+	# Handle reconnection logic for clients
+	if is_client_mode and connection_state == ConnectionState.RECONNECTING:
+		reconnection_timer -= delta
+		if reconnection_timer <= 0.0:
+			_attempt_reconnection()
+	
+	# Connection monitoring for clients
+	if is_client_mode and connection_state == ConnectionState.CONNECTED:
+		_monitor_connection(delta)
 
 func _unhandled_key_input(event):
 	# Handle UI toggles
@@ -153,6 +180,11 @@ func _close_all_ui_windows():
 		player_list_ui.queue_free()
 		player_list_ui = null
 		print(\"GameManager: Player list UI closed (ESC)\")
+	
+	if reconnection_ui:
+		reconnection_ui.queue_free()
+		reconnection_ui = null
+		print(\"GameManager: Reconnection UI closed (ESC)\")
 
 func _toggle_device_binding_ui():
 	if device_binding_ui:
@@ -304,24 +336,7 @@ func _on_custom_join_cancel(ui_container: Control):
 
 func _connect_to_custom_server(ip: String, port: int):
 	print(\"Connecting to custom server: \", ip, \":\", port)
-	
-	# Check device binding access for client
-	if client_identity and not client_identity.can_access_current_uuid():
-		print(\"ERROR: Cannot access UUID player - bound to different device\")
-		print(\"Use F1 to open device binding settings and transfer if needed\")
-		_show_access_denied_message()
-		return
-	
-	# Create client connection
-	var peer = ENetMultiplayerPeer.new()
-	var result = peer.create_client(ip, port)
-	
-	if result != OK:
-		print(\"Failed to create client connection to \", ip, \":\", port)
-		return
-	
-	multiplayer.multiplayer_peer = peer
-	print(\"Client connecting to \", ip, \":\", port)
+	_connect_to_server(ip, port)
 
 func _show_player_list_ui():
 	# Create player list UI
@@ -452,6 +467,248 @@ func _on_player_list_close():
 		player_list_ui.queue_free()
 		player_list_ui = null
 		print(\"GameManager: Player list UI closed\")
+
+func _show_reconnection_ui():
+	# Don't show multiple reconnection UIs
+	if reconnection_ui:
+		return
+	
+	# Create reconnection UI
+	reconnection_ui = ColorRect.new()
+	reconnection_ui.name = \"ReconnectionUI\"
+	reconnection_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	reconnection_ui.color = Color(0, 0, 0, 0.8)  # Solid dark background
+	
+	# Background panel
+	var bg_panel = Panel.new()
+	bg_panel.name = \"Panel\"
+	bg_panel.position = Vector2(get_viewport().size.x / 2 - 250, get_viewport().size.y / 2 - 100)
+	bg_panel.size = Vector2(500, 200)
+	bg_panel.modulate = Color(0.15, 0.15, 0.15, 1.0)  # Solid dark panel
+	
+	# Title label
+	var title_label = Label.new()
+	title_label.text = \"Connection Lost\"
+	title_label.position = Vector2(200, 20)
+	title_label.add_theme_font_size_override(\"font_size\", 20)
+	title_label.modulate = Color(1.0, 0.2, 0.2, 1.0)  # Red text
+	
+	# Status label
+	var status_label = Label.new()
+	status_label.name = \"StatusLabel\"
+	status_label.text = \"Connection to the server is lost, reconnecting...\"
+	status_label.position = Vector2(50, 70)
+	status_label.size = Vector2(400, 30)
+	status_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # White text
+	
+	# Attempts label
+	var attempts_label = Label.new()
+	attempts_label.name = \"AttemptsLabel\"
+	attempts_label.text = \"Attempt 1 of \" + str(max_reconnection_attempts)
+	attempts_label.position = Vector2(50, 100)
+	attempts_label.size = Vector2(400, 30)
+	attempts_label.modulate = Color(0.8, 0.8, 0.8, 1.0)  # Light gray text
+	
+	# Cancel button
+	var cancel_btn = Button.new()
+	cancel_btn.text = \"Give Up\"
+	cancel_btn.position = Vector2(200, 140)
+	cancel_btn.size = Vector2(100, 30)
+	
+	# Add all elements to panel
+	bg_panel.add_child(title_label)
+	bg_panel.add_child(status_label)
+	bg_panel.add_child(attempts_label)
+	bg_panel.add_child(cancel_btn)
+	
+	reconnection_ui.add_child(bg_panel)
+	get_parent().add_child(reconnection_ui)
+	
+	# Connect cancel button
+	cancel_btn.pressed.connect(_on_reconnection_cancel)
+	
+	print(\"GameManager: Showing reconnection UI\")
+
+func _update_reconnection_ui():
+	if reconnection_ui:
+		var status_label = reconnection_ui.get_node(\"Panel/StatusLabel\")
+		var attempts_label = reconnection_ui.get_node(\"Panel/AttemptsLabel\")
+		
+		if connection_state == ConnectionState.CONNECTING:
+			status_label.text = \"Attempting to reconnect...\"
+		elif connection_state == ConnectionState.RECONNECTING:
+			var time_left = int(reconnection_timer)
+			status_label.text = \"Reconnecting in \" + str(time_left + 1) + \" seconds...\"
+		
+		attempts_label.text = \"Attempt \" + str(reconnection_attempts + 1) + \" of \" + str(max_reconnection_attempts)
+
+func _on_reconnection_cancel():
+	if reconnection_ui:
+		reconnection_ui.queue_free()
+		reconnection_ui = null
+	
+	# Stop reconnection attempts
+	connection_state = ConnectionState.DISCONNECTED
+	reconnection_attempts = 0
+	
+	# Disconnect from server
+	if multiplayer.multiplayer_peer:
+		multiplayer.multiplayer_peer.close()
+		multiplayer.multiplayer_peer = null
+	
+	print(\"GameManager: Reconnection cancelled by user\")
+
+func _connect_to_server(ip: String, port: int):
+	print(\"Connecting to server: \", ip, \":\", port)
+	
+	# Store server details for reconnection
+	last_server_ip = ip
+	last_server_port = port
+	connection_state = ConnectionState.CONNECTING
+	
+	# Check device binding access
+	if client_identity and not client_identity.can_access_current_uuid():
+		print(\"ERROR: Cannot access UUID player - bound to different device\")
+		print(\"Use F1 to open device binding settings and transfer if needed\")
+		_show_access_denied_message()
+		connection_state = ConnectionState.DISCONNECTED
+		return
+	
+	# Create client connection
+	var peer = ENetMultiplayerPeer.new()
+	var result = peer.create_client(ip, port)
+	
+	if result != OK:
+		print(\"Failed to create client connection to \", ip, \":\", port)
+		connection_state = ConnectionState.DISCONNECTED
+		_start_reconnection()
+		return
+	
+	multiplayer.multiplayer_peer = peer
+	
+	# Connect multiplayer signals for connection monitoring
+	multiplayer.peer_connected.connect(_on_client_connected_to_server)
+	multiplayer.peer_disconnected.connect(_on_client_disconnected_from_server)
+	multiplayer.connection_failed.connect(_on_client_connection_failed)
+	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	
+	print(\"Client attempting connection to \", ip, \":\", port)
+
+func _attempt_reconnection():
+	if reconnection_attempts >= max_reconnection_attempts:
+		print(\"Max reconnection attempts reached, giving up\")
+		connection_state = ConnectionState.DISCONNECTED
+		_update_reconnection_ui()
+		return
+	
+	reconnection_attempts += 1
+	print(\"Reconnection attempt \", reconnection_attempts, \" of \", max_reconnection_attempts)
+	
+	# Close existing connection if any
+	if multiplayer.multiplayer_peer:
+		multiplayer.multiplayer_peer.close()
+		multiplayer.multiplayer_peer = null
+	
+	# Try to reconnect
+	connection_state = ConnectionState.CONNECTING
+	_update_reconnection_ui()
+	
+	var peer = ENetMultiplayerPeer.new()
+	var result = peer.create_client(last_server_ip, last_server_port)
+	
+	if result != OK:
+		print(\"Reconnection failed to create client\")
+		_schedule_next_reconnection()
+		return
+	
+	multiplayer.multiplayer_peer = peer
+	print(\"Attempting reconnection to \", last_server_ip, \":\", last_server_port)
+
+func _start_reconnection():
+	if not is_client_mode or connection_state == ConnectionState.RECONNECTING:
+		return
+	
+	print(\"Starting reconnection process...\")
+	connection_state = ConnectionState.RECONNECTING
+	reconnection_attempts = 0
+	reconnection_timer = reconnection_delay
+	
+	# Show reconnection UI
+	_show_reconnection_ui()
+	_update_reconnection_ui()
+
+func _schedule_next_reconnection():
+	connection_state = ConnectionState.RECONNECTING
+	reconnection_timer = reconnection_delay
+	_update_reconnection_ui()
+
+func _on_client_connected_to_server(peer_id):
+	if peer_id == 1:  # Connected to server
+		print(\"Successfully connected to server!\")
+		connection_state = ConnectionState.CONNECTED
+		reconnection_attempts = 0
+		last_heartbeat_time = 0.0  # Reset heartbeat timer
+		
+		# Close reconnection UI if it's open
+		if reconnection_ui:
+			reconnection_ui.queue_free()
+			reconnection_ui = null
+
+func _on_client_disconnected_from_server(peer_id):
+	if peer_id == 1:  # Disconnected from server
+		print(\"Disconnected from server\")
+		_handle_server_disconnection()
+
+func _on_client_connection_failed():
+	print(\"Failed to connect to server\")
+	_handle_connection_failure()
+
+func _on_server_disconnected():
+	print(\"Server disconnected unexpectedly\")
+	_handle_server_disconnection()
+
+func _handle_server_disconnection():
+	if not is_client_mode:
+		return
+	
+	print(\"Server connection lost, starting reconnection...\")
+	_start_reconnection()
+
+func _handle_connection_failure():
+	if not is_client_mode:
+		return
+	
+	print(\"Connection failed, scheduling reconnection...\")
+	_schedule_next_reconnection()
+
+func _monitor_connection(delta: float):
+	# Check if we've received any communication from server recently
+	var current_time = Time.get_ticks_msec() / 1000.0
+	
+	# Send periodic heartbeat to server
+	last_heartbeat_time += delta
+	if last_heartbeat_time >= heartbeat_interval:
+		_send_heartbeat()
+		last_heartbeat_time = 0.0
+	
+	# Check for connection timeout (simplified approach)
+	# In a real implementation, you'd track when you last received data from server
+	var peer = multiplayer.multiplayer_peer
+	if peer and peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		print(\"Connection status changed, detected disconnection\")
+		_handle_server_disconnection()
+
+func _send_heartbeat():
+	# Send a lightweight heartbeat RPC to server
+	if multiplayer.is_connected() and multiplayer.get_unique_id() != 1:
+		rpc_unreliable_id(1, \"client_heartbeat\", multiplayer.get_unique_id())
+
+@rpc(\"any_peer\", \"call_remote\", \"unreliable\")
+func client_heartbeat(peer_id: int):
+	# Server receives heartbeat from client
+	if multiplayer.is_server():
+		# Simply acknowledge the heartbeat (could update last seen time)
+		pass
 
 func _show_access_denied_message():
 	# Simple access denied message
