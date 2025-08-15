@@ -199,25 +199,27 @@ func _show_custom_join_ui():
 	custom_join_ui = ColorRect.new()
 	custom_join_ui.name = \"CustomJoinUI\"
 	custom_join_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	custom_join_ui.color = Color(0, 0, 0, 0.7)  # Semi-transparent background
+	custom_join_ui.color = Color(0, 0, 0, 0.8)  # Solid dark background
 	
 	# Background panel
 	var bg_panel = Panel.new()
 	bg_panel.name = \"Panel\"
 	bg_panel.position = Vector2(get_viewport().size.x / 2 - 200, get_viewport().size.y / 2 - 150)
 	bg_panel.size = Vector2(400, 300)
-	bg_panel.modulate = Color(0.2, 0.2, 0.2, 0.9)
+	bg_panel.modulate = Color(0.15, 0.15, 0.15, 1.0)  # Solid dark panel
 	
 	# Title label
 	var title_label = Label.new()
 	title_label.text = \"Join Custom Server\"
 	title_label.position = Vector2(150, 20)
 	title_label.add_theme_font_size_override(\"font_size\", 20)
+	title_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Solid white text
 	
 	# IP input
 	var ip_label = Label.new()
 	ip_label.text = \"Server IP:\"
 	ip_label.position = Vector2(50, 70)
+	ip_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Solid white text
 	
 	var ip_input = LineEdit.new()
 	ip_input.name = \"IPInput\"
@@ -229,6 +231,7 @@ func _show_custom_join_ui():
 	var port_label = Label.new()
 	port_label.text = \"Port:\"
 	port_label.position = Vector2(50, 140)
+	port_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Solid white text
 	
 	var port_input = LineEdit.new()
 	port_input.name = \"PortInput\"
@@ -325,20 +328,21 @@ func _show_player_list_ui():
 	player_list_ui = ColorRect.new()
 	player_list_ui.name = \"PlayerListUI\"
 	player_list_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	player_list_ui.color = Color(0, 0, 0, 0.7)  # Semi-transparent background
+	player_list_ui.color = Color(0, 0, 0, 0.8)  # Solid dark background
 	
 	# Background panel
 	var bg_panel = Panel.new()
 	bg_panel.name = \"Panel\"
 	bg_panel.position = Vector2(get_viewport().size.x / 2 - 250, get_viewport().size.y / 2 - 200)
 	bg_panel.size = Vector2(500, 400)
-	bg_panel.modulate = Color(0.2, 0.2, 0.2, 0.9)
+	bg_panel.modulate = Color(0.15, 0.15, 0.15, 1.0)  # Solid dark panel
 	
 	# Title label
 	var title_label = Label.new()
 	title_label.text = \"Online Players\"
 	title_label.position = Vector2(200, 20)
 	title_label.add_theme_font_size_override(\"font_size\", 20)
+	title_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Solid white text
 	
 	# Scroll container for player list
 	var scroll_container = ScrollContainer.new()
@@ -389,6 +393,7 @@ func _populate_player_list(container: VBoxContainer):
 	var header_label = Label.new()
 	header_label.text = \"Connected Players (\" + str(players.size()) + \"):\"
 	header_label.add_theme_font_size_override(\"font_size\", 16)
+	header_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Solid white text
 	container.add_child(header_label)
 	
 	# Add separator
@@ -403,30 +408,33 @@ func _populate_player_list(container: VBoxContainer):
 		var id_label = Label.new()
 		id_label.text = \"ID: \" + str(peer_id)
 		id_label.custom_minimum_size = Vector2(80, 0)
+		id_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Solid white text
 		
 		# Player persistent ID
 		var persistent_id = player_persistent_ids.get(peer_id, \"Unknown\")
 		var persistent_label = Label.new()
 		persistent_label.text = \"Player: \" + persistent_id
 		persistent_label.custom_minimum_size = Vector2(150, 0)
+		persistent_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Solid white text
 		
 		# Player position
 		var pos = players[peer_id].position
 		var pos_label = Label.new()
 		pos_label.text = \"Pos: (\" + str(int(pos.x)) + \", \" + str(int(pos.y)) + \")\"
 		pos_label.custom_minimum_size = Vector2(120, 0)
+		pos_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Solid white text
 		
 		# Connection status
 		var status_label = Label.new()
 		if peer_id == 1:
 			status_label.text = \"[SERVER]\"
-			status_label.modulate = Color.CYAN
+			status_label.modulate = Color(0.0, 1.0, 1.0, 1.0)  # Solid cyan
 		elif peer_id == multiplayer.get_unique_id():
 			status_label.text = \"[YOU]\"
-			status_label.modulate = Color.GREEN
+			status_label.modulate = Color(0.0, 1.0, 0.0, 1.0)  # Solid green
 		else:
 			status_label.text = \"[CLIENT]\"
-			status_label.modulate = Color.WHITE
+			status_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Solid white
 		
 		player_info.add_child(id_label)
 		player_info.add_child(persistent_label)
@@ -819,7 +827,7 @@ player_to_move = "player_4"
 new_position = Vector2(158.905, 300)
 
 [node name="WorldTileMapLayer" type="TileMapLayer" parent="WorldManager"]
-tile_map_data = PackedByteArray("AAD//wUAAQADAAQAAAAAAAUAAQADAAQAAAABAAUAAQADAAQAAAACAAUAAQADAAQAAAADAAUAAQADAAQAAAAEAAUAAQADAAQAAAD//wQAAQACAAQAAAAAAAQAAQACAAQAAAABAAQAAQAAAAAAAAACAAQAAQAAAAAAAAADAAQAAQAAAAAAAAAEAAQAAQAAAAAAAAAAAAIAAQAAAAAAAAAAAAMAAQAAAAAAAAAEAAMAAQAAAAAAAAADAAMAAQAAAAAAAAAEAAIAAQAAAAAAAAA=")
+tile_map_data = PackedByteArray("AAD//wUAAQADAAQAAAAAAAUAAQADAAQAAAABAAUAAQADAAQAAAACAAUAAQADAAQAAAADAAUAAQADAAQAAAAEAAUAAQADAAQAAAD//wQAAQACAAQAAAAAAAQAAQACAAQAAAABAAQAAQAAAAAAAAACAAQAAQAAAAAAAAADAAQAAQAAAAAAAAAEAAQAAQAAAAAAAAAAAAIAAQAAAAAAAAAAAAMAAQAAAAAAAAAEAAMAAQAAAAAAAAADAAMAAQAAAAAAAAAEAAIAAQAAAAAAAAAFAAMAAQAAAAAAAAA=")
 tile_set = SubResource("TileSet_hq1ik")
 rendering_quadrant_size = 128
 
