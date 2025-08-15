@@ -16,7 +16,9 @@
       "Bash(move main_scene_clean.tscn main_scene.tscn)",
       "Bash(mv main_scene.tscn main_scene_old.tscn)",
       "Bash(mv main_scene_clean.tscn main_scene.tscn)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(move:*)",
+      "Bash(mv:*)"
     ],
     "deny": [],
     "ask": [],

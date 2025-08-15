@@ -3,7 +3,7 @@ class_name DeviceBindingUI
 
 # Simple in-game UI for device binding settings (anonymous players only)
 
-var client_identity: ClientIdentity
+var login_identity: LoginIdentity
 var device_binding_panel: Panel
 var binding_checkbox: CheckBox
 var info_label: Label
@@ -87,25 +87,25 @@ func _unhandled_key_input(event):
 		if event.keycode == KEY_ESCAPE:
 			close_ui()
 
-func set_client_identity(identity: ClientIdentity):
+func set_login_identity(identity: LoginIdentity):
 	"""Set the client identity reference"""
-	client_identity = identity
+	login_identity = identity
 	update_ui()
 
 func update_ui():
 	"""Update UI elements based on current state"""
-	if not client_identity:
+	if not login_identity:
 		return
 	
-	var binding_info = client_identity.get_device_binding_info()
-	var can_access = client_identity.can_access_current_uuid()
+	var binding_info = login_identity.get_device_binding_info()
+	var can_access = login_identity.can_access_current_uuid()
 	
 	# Update checkbox state
-	binding_checkbox.set_pressed_no_signal(client_identity.is_uuid_device_binding_enabled())
+	binding_checkbox.set_pressed_no_signal(login_identity.is_uuid_device_binding_enabled())
 	
 	# Update info text
 	var info_text = ""
-	info_text += "UUID Player: " + client_identity.get_uuid_player_id() + "\n"
+	info_text += "UUID Player: " + login_identity.get_uuid_player_id() + "\n"
 	info_text += "Device: " + binding_info.get("short_fingerprint", "Unknown") + "\n\n"
 	
 	if binding_info.get("bound", false):
@@ -133,14 +133,14 @@ func update_ui():
 
 func _on_binding_toggled(pressed: bool):
 	"""Handle device binding checkbox toggle"""
-	if client_identity:
-		client_identity.enable_uuid_device_binding(pressed)
+	if login_identity:
+		login_identity.enable_uuid_device_binding(pressed)
 		update_ui()
 
 func _on_transfer_pressed():
 	"""Handle transfer to this device button"""
-	if client_identity:
-		client_identity.transfer_uuid_to_this_device()
+	if login_identity:
+		login_identity.transfer_uuid_to_this_device()
 		update_ui()
 
 func _on_close_pressed():
@@ -164,10 +164,10 @@ func hide_ui():
 	visible = false
 
 # Static function to create and show device binding UI
-static func show_device_binding_ui(parent: Node, client_id: ClientIdentity) -> DeviceBindingUI:
+static func show_device_binding_ui(parent: Node, login_id: LoginIdentity) -> DeviceBindingUI:
 	"""Create and show device binding UI"""
 	var ui = DeviceBindingUI.new()
 	parent.get_node("UILayer").add_child(ui)
-	ui.set_client_identity(client_id)
+	ui.set_login_identity(login_id)
 	ui.show_ui()
 	return ui

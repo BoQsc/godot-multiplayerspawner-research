@@ -2,8 +2,8 @@
 
 [ext_resource type="Texture2D" uid="uid://bxoyje2pq7nna" path="res://icon.svg" id="1_0f027"]
 [ext_resource type="Script" uid="uid://dyanuw3ckhq8o" path="res://network_manager.gd" id="1_2c62f"]
-[ext_resource type="Script" uid="uid://py7ricfw5std" path="res://registration_system.gd" id="2_auth"]
-[ext_resource type="Script" uid="uid://y1c5pk60il2c" path="res://client_identity.gd" id="2_client"]
+[ext_resource type="Script" uid="uid://bko6dnxu0jeeo" path="res://Account/register_system.gd" id="2_auth"]
+[ext_resource type="Script" uid="uid://u0s71hohni3s" path="res://Account/login_identity.gd" id="2_client"]
 [ext_resource type="Resource" path="user://world_data.tres" id="3_8mm7a"]
 [ext_resource type="Texture2D" uid="uid://bbkxfau70a8fc" path="res://kenney_voxel-pack/Spritesheets/spritesheet_tiles.png" id="3_d5x1h"]
 [ext_resource type="Script" uid="uid://plwytekgsub" path="res://world_manager.gd" id="3_world"]
@@ -184,13 +184,13 @@ sources/1 = SubResource("TileSetAtlasSource_8mm7a")
 
 [node name="Node2D" type="Node2D"]
 
-[node name="NetworkManager" type="Node" parent="."]
+[node name="NetworkManager" type="Node" parent="." groups=["network_manager"]]
 script = ExtResource("1_2c62f")
 
-[node name="ClientIdentity" type="Node" parent="." groups=["client_identity"]]
+[node name="LoginIdentity" type="Node" parent="." groups=["client_identity"]]
 script = ExtResource("2_client")
 
-[node name="AuthenticationSystem" type="Node" parent="." groups=["auth_system"]]
+[node name="RegisterSystem" type="Node" parent="." groups=["auth_system"]]
 script = ExtResource("2_auth")
 
 [node name="GameManager" type="Node" parent="." groups=["game_manager"]]

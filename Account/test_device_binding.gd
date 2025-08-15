@@ -97,32 +97,32 @@ func test_access_control():
 	
 	device_binding.queue_free()
 
-func test_client_identity_integration():
+func test_login_identity_integration():
 	print("\n--- Testing Client Identity Integration ---")
 	
-	var client_identity = ClientIdentity.new()
-	add_child(client_identity)
+	var login_identity = LoginIdentity.new()
+	add_child(login_identity)
 	
 	# Wait for initialization
 	await get_tree().process_frame
 	
-	var uuid_player = client_identity.get_uuid_player_id()
+	var uuid_player = login_identity.get_uuid_player_id()
 	print("✓ UUID Player ID: ", uuid_player)
 	
 	# Test device binding toggle
-	client_identity.enable_uuid_device_binding(true)
-	if client_identity.is_uuid_device_binding_enabled():
+	login_identity.enable_uuid_device_binding(true)
+	if login_identity.is_uuid_device_binding_enabled():
 		print("✓ Client identity device binding enabled")
 	else:
 		print("✗ Client identity device binding not enabled!")
 	
 	# Test access
-	if client_identity.can_access_current_uuid():
+	if login_identity.can_access_current_uuid():
 		print("✓ Can access current UUID through client identity")
 	else:
 		print("✗ Should be able to access current UUID!")
 	
-	client_identity.queue_free()
+	login_identity.queue_free()
 
 func _exit_tree():
 	print("Device binding tests completed.")

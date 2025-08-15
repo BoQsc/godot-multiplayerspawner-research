@@ -1,5 +1,5 @@
 extends Node
-class_name AuthenticationSystem
+class_name RegisterSystem
 
 # Phase 2: Simple Username + Password Registration System
 # No email required - just username and password for cross-device access
@@ -18,7 +18,7 @@ class PlayerAccount:
 
 var accounts: Dictionary = {}  # username -> PlayerAccount
 var current_logged_in_user: String = ""  # Currently logged in username
-var client_identity: ClientIdentity  # Reference to client identity
+var login_identity: LoginIdentity  # Reference to client identity
 
 # Signals for UI updates
 signal registration_success(username: String)
@@ -29,7 +29,7 @@ signal logout_complete()
 
 func _ready():
 	load_accounts()
-	print("AuthenticationSystem: Loaded ", accounts.size(), " registered accounts")
+	print("RegisterSystem: Loaded ", accounts.size(), " registered accounts")
 
 # Load existing accounts from file
 func load_accounts():
@@ -74,12 +74,12 @@ func register_current_player(username: String, password: String) -> bool:
 		registration_failed.emit("Username already taken")
 		return false
 	
-	if not client_identity:
+	if not login_identity:
 		registration_failed.emit("No client identity available")
 		return false
 	
 	# Get current UUID player
-	var uuid_player = client_identity.get_uuid_player_id()
+	var uuid_player = login_identity.get_uuid_player_id()
 	if uuid_player == "":
 		registration_failed.emit("No UUID player found")
 		return false
@@ -98,9 +98,9 @@ func register_current_player(username: String, password: String) -> bool:
 	save_accounts()
 	
 	# Disable device binding (no longer needed)
-	client_identity.disable_device_binding_after_registration()
+	login_identity.disable_device_binding_after_registration()
 	
-	print("AuthenticationSystem: Registered ", username, " -> ", uuid_player)
+	print("RegisterSystem: Registered ", username, " -> ", uuid_player)
 	registration_success.emit(username)
 	return true
 
@@ -120,7 +120,7 @@ func login_user(username: String, password: String) -> bool:
 		login_failed.emit("Invalid password")
 		return false
 	
-	if not client_identity:
+	if not login_identity:
 		login_failed.emit("No client identity available")
 		return false
 	
@@ -131,9 +131,9 @@ func login_user(username: String, password: String) -> bool:
 	save_accounts()
 	
 	# Disable device binding (no longer needed)
-	client_identity.disable_device_binding_after_registration()
+	login_identity.disable_device_binding_after_registration()
 	
-	print("AuthenticationSystem: Login successful ", username, " -> ", account.uuid_player_id)
+	print("RegisterSystem: Login successful ", username, " -> ", account.uuid_player_id)
 	login_success.emit(username, account.uuid_player_id)
 	return true
 
@@ -142,7 +142,7 @@ func logout_current_user():
 	if current_logged_in_user != "" and current_logged_in_user in accounts:
 		accounts[current_logged_in_user].is_logged_in = false
 		save_accounts()
-		print("AuthenticationSystem: Logged out ", current_logged_in_user)
+		print("RegisterSystem: Logged out ", current_logged_in_user)
 	
 	current_logged_in_user = ""
 	logout_complete.emit()
