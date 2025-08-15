@@ -494,10 +494,10 @@ func sync_editor_players_from_world_data():
 	for i in range(filtered_players.size()):
 		var player_info = filtered_players[i]
 		var player_id = player_info["player_id"]
-		var position = player_info["position"]
+		var player_position = player_info["position"]
 		var rank = i  # 0 = most recent, higher = older
 		
-		spawn_editor_player_with_styling(player_id, position, player_info, rank, filtered_players.size())
+		spawn_editor_player_with_styling(player_id, player_position, player_info, rank, filtered_players.size())
 	
 	print("WorldManager: Spawned ", editor_players.size(), " editor players")
 	if editor_players.size() > 0:
@@ -1314,7 +1314,7 @@ func spawn_editor_player_with_styling(player_id: String, spawn_pos: Vector2, pla
 		last_seen = float(last_seen_raw)
 	
 	var current_time = Time.get_unix_time_from_system()
-	var hours_ago = int((current_time - last_seen) / 3600)
+	var hours_ago = int((current_time - last_seen) / 3600.0)
 	
 	var status_text = ""
 	if is_lost:
@@ -1324,7 +1324,7 @@ func spawn_editor_player_with_styling(player_id: String, spawn_pos: Vector2, pla
 	elif hours_ago < 24:
 		status_text += " (" + str(hours_ago) + "h ago)"
 	else:
-		var days_ago = int(hours_ago / 24)
+		var days_ago = int(hours_ago / 24.0)
 		status_text += " (" + str(days_ago) + "d ago)"
 	
 	label.text = player_id + " L" + str(level) + status_text
