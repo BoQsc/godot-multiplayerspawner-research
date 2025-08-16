@@ -11,6 +11,7 @@ var network_manager: NetworkManager
 var persistent_id: String = ""
 var player_camera: Camera2D
 var last_sent_position: Vector2
+var network_update_timer: Timer
 
 # Connection quality monitoring
 var network_samples: Array = []
@@ -44,6 +45,14 @@ func _ready():
 	# Initialize network variables
 	last_sent_position = position
 	
+	# Setup network timer for local players
+	if is_local_player:
+		network_update_timer = Timer.new()
+		network_update_timer.wait_time = 0.016  # ~60Hz
+		network_update_timer.timeout.connect(_send_network_update)
+		add_child(network_update_timer)
+		network_update_timer.start()
+	
 	# Update the player label
 	update_player_label()
 
@@ -62,7 +71,7 @@ func set_persistent_id(new_persistent_id: String):
 	update_player_label()
 
 func _physics_process(delta: float) -> void:
-	# Only handle input for local player
+	# Only handle input for local player - NO NETWORK OPERATIONS HERE
 	if is_local_player:
 		# Add gravity
 		if not is_on_floor():
@@ -79,17 +88,21 @@ func _physics_process(delta: float) -> void:
 		else:
 			velocity.x = move_toward(velocity.x, 0, speed * 3 * delta)
 		
-		# Move and slide
+		# Move and slide - ONLY LOCAL MOVEMENT, NO NETWORK
 		move_and_slide()
+
+func _send_network_update():
+	"""Called by timer - separate from physics for smooth movement"""
+	if not is_local_player:
+		return
 		
-		# Direct RPC with connection quality monitoring
-		if game_manager and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
-			var distance_moved = position.distance_to(last_sent_position)
-			if distance_moved > 0.05:  # Very small threshold for high precision
-				var current_time = Time.get_ticks_msec() / 1000.0
-				game_manager.rpc("update_player_position", player_id, position, current_time)
-				last_sent_position = position
-				last_network_time = current_time
+	if game_manager and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		var distance_moved = position.distance_to(last_sent_position)
+		if distance_moved > 0.05:  # Very small threshold for high precision
+			var current_time = Time.get_ticks_msec() / 1000.0
+			game_manager.rpc("update_player_position", player_id, position, current_time)
+			last_sent_position = position
+			last_network_time = current_time
 
 func receive_network_position(pos: Vector2, timestamp: float):
 	"""Called when receiving position update with latency measurement"""
