@@ -283,7 +283,7 @@ func _process(delta):
 		_check_for_tilemap_changes()
 		# Check if editor players were moved
 		_check_for_editor_player_movement()
-	elif multiplayer.is_server():
+	elif multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_DISCONNECTED and multiplayer.is_server():
 		auto_save_timer += delta
 		if auto_save_timer >= auto_save_interval:
 			print("WorldManager: Auto-saving world data (", world_data.get_tile_count(), " tiles, ", world_data.get_player_count(), " players)")

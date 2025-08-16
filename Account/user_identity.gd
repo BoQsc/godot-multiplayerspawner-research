@@ -25,7 +25,7 @@ func _ready():
 	# Check for manual player selection first
 	var chosen_player = get_chosen_player_from_args()
 	if chosen_player != -1:
-		# User manually chose which player to be
+		# User manually chose which player to be - server will validate device binding
 		if is_server_role:
 			user_identity_file = "user://server_player_" + str(chosen_player) + ".dat"
 		else:
@@ -138,6 +138,12 @@ func get_chosen_player_number() -> int:
 	# Return the chosen player number if one was specified
 	return get_chosen_player_from_args()
 
+func get_device_fingerprint() -> String:
+	# Get the device fingerprint for server validation
+	if device_binding:
+		return device_binding.get_device_fingerprint()
+	return ""
+
 # Device binding functions for anonymous players
 func setup_device_binding_for_uuid():
 	"""Setup device binding for the current UUID player"""
@@ -150,11 +156,15 @@ func setup_device_binding_for_uuid():
 	# Check if device binding is enabled for this UUID
 	device_binding_enabled = device_binding.is_device_binding_enabled(uuid_player_id)
 	
-	# AUTO-ENABLE device binding for new anonymous players
+	# AUTO-ENABLE device binding for new players (including --player specified ones)
 	if not device_binding_enabled:
 		device_binding.enable_device_binding(uuid_player_id, true)
 		device_binding_enabled = true
-		print("UserIdentity: Auto-enabled device binding for new anonymous player")
+		var chosen_player = get_chosen_player_from_args()
+		if chosen_player != -1:
+			print("UserIdentity: Auto-bound --player ", chosen_player, " to this device")
+		else:
+			print("UserIdentity: Auto-enabled device binding for new anonymous player")
 	
 	print("UserIdentity: UUID player ID: ", uuid_player_id)
 	print("UserIdentity: Device binding enabled: ", device_binding_enabled)

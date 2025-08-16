@@ -32,6 +32,10 @@ var reconnection_timer: float = 0.0
 var is_client_mode: bool = false
 var last_rpc_debug_time: float = 0.0
 
+# Server-side device binding validation
+var server_device_bindings: Dictionary = {}  # player_id -> device_fingerprint
+const SERVER_DEVICE_BINDINGS_FILE = "user://server_device_bindings.json"
+
 # Connection monitoring
 var connection_timeout: float = 10.0  # 10 seconds timeout
 var last_heartbeat_time: float = 0.0
@@ -58,6 +62,10 @@ func _ready() -> void:
 	if "--server" in OS.get_cmdline_args():
 		print("Creating server")
 		connection_state = ConnectionState.CONNECTED
+		
+		# Load server device bindings
+		_load_server_device_bindings()
+		
 		var peer = ENetMultiplayerPeer.new()
 		peer.create_server(PORT)
 		multiplayer.multiplayer_peer = peer
@@ -69,15 +77,28 @@ func _ready() -> void:
 		await get_tree().process_frame
 		# Wait for user identity to be ready
 		if user_identity:
-			# Check device binding access for anonymous players
-			if not user_identity.can_access_current_uuid():
-				print("ERROR: Cannot access UUID player - bound to different device")
-				print("Use F1 to open device binding settings and transfer if needed")
-				_show_access_denied_message()
-				return
+			# SERVER DEVICE BINDING VALIDATION
+			var server_chosen_num = user_identity.get_chosen_player_number()
+			if server_chosen_num != -1:
+				var player_id = "player_" + str(server_chosen_num)
+				var server_device_fingerprint = user_identity.get_device_fingerprint()
+				
+				# Check if this player is already bound to a different device
+				if player_id in server_device_bindings:
+					var bound_device = server_device_bindings[player_id]
+					if bound_device != server_device_fingerprint:
+						print("ERROR: Server cannot use player ", server_chosen_num, " - bound to different device")
+						print("Bound device: ", bound_device.substr(0, 16), "...")
+						print("Server device: ", server_device_fingerprint.substr(0, 16), "...")
+						get_tree().quit()
+						return
+				else:
+					# First time using this player number - bind to server device
+					server_device_bindings[player_id] = server_device_fingerprint
+					_save_server_device_bindings()
+					print("SERVER: Bound player ", server_chosen_num, " to server device ", server_device_fingerprint.substr(0, 16), "...")
 			
 			var server_client_id = user_identity.get_client_id()
-			var server_chosen_num = user_identity.get_chosen_player_number()
 			var server_persistent_id = _register_player_with_client_id(1, server_client_id, server_chosen_num)
 			var server_spawn_pos = _get_player_spawn_position(server_persistent_id)
 			_spawn_player(1, server_spawn_pos, server_persistent_id)
@@ -802,7 +823,7 @@ func _send_heartbeat():
 @rpc("any_peer", "call_remote", "unreliable")
 func client_heartbeat(_peer_id: int):
 	# Server receives heartbeat from client
-	if multiplayer.is_server():
+	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_DISCONNECTED and multiplayer.is_server():
 		# Simply acknowledge the heartbeat (could update last seen time)
 		pass
 
@@ -821,7 +842,7 @@ func _notification(what):
 		_emergency_save_all_positions()
 
 func _auto_save_all_player_positions():
-	if multiplayer.is_server() and world_manager and world_manager.world_data:
+	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_DISCONNECTED and multiplayer.is_server() and world_manager and world_manager.world_data:
 		var saved_count = 0
 		for peer_id in players.keys():
 			var persistent_id = player_persistent_ids.get(peer_id, "")
@@ -852,7 +873,8 @@ func _on_player_connected(id):
 		if user_identity:
 			var my_client_id = user_identity.get_client_id()
 			var my_chosen_player_num = user_identity.get_chosen_player_number()
-			rpc_id(1, "receive_client_id", id, my_client_id, my_chosen_player_num)
+			var my_device_fingerprint = user_identity.get_device_fingerprint()
+			rpc_id(1, "receive_client_id", id, my_client_id, my_chosen_player_num, my_device_fingerprint)
 		
 func _on_player_disconnected(id):
 	print("Player disconnected: ", id)
@@ -895,6 +917,13 @@ func despawn_player(id: int):
 	if not multiplayer.is_server():
 		_despawn_player(id)
 
+@rpc("authority", "call_remote", "reliable")
+func connection_rejected(reason: String):
+	# Client receives rejection from server
+	print("CONNECTION REJECTED: ", reason)
+	print("Shutting down...")
+	get_tree().quit()
+
 @rpc("any_peer", "call_remote", "unreliable")
 func update_player_position(id: int, pos: Vector2, timestamp: float = 0.0):
 	# Direct position update with latency tracking
@@ -927,12 +956,33 @@ func request_client_id():
 		var my_client_id = user_identity.get_client_id()
 		var my_peer_id = multiplayer.get_unique_id()
 		var my_chosen_player_num = user_identity.get_chosen_player_number()
-		rpc_id(1, "receive_client_id", my_peer_id, my_client_id, my_chosen_player_num)
+		var my_device_fingerprint = user_identity.get_device_fingerprint()
+		rpc_id(1, "receive_client_id", my_peer_id, my_client_id, my_chosen_player_num, my_device_fingerprint)
 
 @rpc("any_peer", "call_remote", "reliable")
-func receive_client_id(peer_id: int, client_id: String, chosen_player_num: int = -1):
+func receive_client_id(peer_id: int, client_id: String, chosen_player_num: int = -1, device_fingerprint: String = ""):
 	# Server receives client ID from connecting player
 	if multiplayer.is_server():
+		
+		# SERVER-SIDE DEVICE BINDING VALIDATION
+		if chosen_player_num != -1:
+			var player_id = "player_" + str(chosen_player_num)
+			
+			# Check if this player is already bound to a different device
+			if player_id in server_device_bindings:
+				var bound_device = server_device_bindings[player_id]
+				if bound_device != device_fingerprint:
+					print("SERVER: REJECTING - Player ", chosen_player_num, " is bound to different device")
+					print("SERVER: Bound device: ", bound_device.substr(0, 16), "...")
+					print("SERVER: Requesting device: ", device_fingerprint.substr(0, 16), "...")
+					rpc_id(peer_id, "connection_rejected", "Player " + str(chosen_player_num) + " is bound to a different device")
+					multiplayer.disconnect_peer(peer_id)
+					return
+			else:
+				# First time using this player number - bind to this device
+				server_device_bindings[player_id] = device_fingerprint
+				_save_server_device_bindings()
+				print("SERVER: Bound player ", chosen_player_num, " to device ", device_fingerprint.substr(0, 16), "...")
 		
 		# Clean up any stale/disconnected players first
 		_cleanup_stale_connections()
@@ -993,6 +1043,37 @@ func _get_player_spawn_position(persistent_id: String) -> Vector2:
 		# Fallback to default spawn if no world data
 		print("No persistent data found for player ", persistent_id, ", using default spawn")
 		return Vector2(100, 100)
+
+func _load_server_device_bindings():
+	"""Load server device bindings from file"""
+	if FileAccess.file_exists(SERVER_DEVICE_BINDINGS_FILE):
+		var file = FileAccess.open(SERVER_DEVICE_BINDINGS_FILE, FileAccess.READ)
+		if file:
+			var json_string = file.get_as_text()
+			file.close()
+			
+			var json = JSON.new()
+			var parse_result = json.parse(json_string)
+			if parse_result == OK:
+				server_device_bindings = json.data
+				print("GameManager: Loaded ", server_device_bindings.size(), " server device bindings")
+			else:
+				print("GameManager: Failed to parse server device bindings JSON")
+		else:
+			print("GameManager: Failed to read server device bindings file")
+	else:
+		print("GameManager: No existing server device bindings file")
+
+func _save_server_device_bindings():
+	"""Save server device bindings to file"""
+	var file = FileAccess.open(SERVER_DEVICE_BINDINGS_FILE, FileAccess.WRITE)
+	if file:
+		var json_string = JSON.stringify(server_device_bindings)
+		file.store_string(json_string)
+		file.close()
+		print("GameManager: Saved ", server_device_bindings.size(), " server device bindings")
+	else:
+		print("GameManager: Failed to save server device bindings")
 
 func _save_player_data(peer_id: int):
 	if world_manager and world_manager.world_data and peer_id in players and peer_id in player_persistent_ids:
