@@ -3,10 +3,10 @@ class_name NetworkManager
 
 # Rate limiting settings
 @export var update_rate: float = 25.0
-@export var movement_threshold: float = 1.0
+@export var movement_threshold: float = 0.1
 
 # Smoothing settings  
-@export var interpolation_speed: float = 15.0
+@export var interpolation_speed: float = 8.0
 @export var snap_distance: float = 100.0
 
 # Player tracking
@@ -43,7 +43,7 @@ func register_player(player: Node2D, player_id: int):
 	if player_data.is_local:
 		last_sent_position = player.position
 	
-	print("NetworkManager: Registered player ", player_id)
+	print("NetworkManager: Registered player ", player_id, " (local: ", player_data.is_local, ")")
 
 func unregister_player(player_id: int):
 	"""Unregister a player from network management"""
@@ -66,8 +66,13 @@ func report_local_movement(new_position: Vector2):
 
 func receive_remote_position(player_id: int, new_position: Vector2):
 	"""Called when receiving position update for remote player"""
-	if player_id in tracked_players and player_id != local_player_id:
+	if player_id in tracked_players:
 		var player_data = tracked_players[player_id]
+		
+		# Skip updating local player's position (they handle their own movement)
+		if player_id == local_player_id:
+			return
+		
 		var current_pos = player_data.entity.position
 		var distance = current_pos.distance_to(new_position)
 		

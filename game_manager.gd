@@ -30,6 +30,7 @@ var max_reconnection_attempts: int = 10
 var reconnection_delay: float = 3.0
 var reconnection_timer: float = 0.0
 var is_client_mode: bool = false
+var last_rpc_debug_time: float = 0.0
 
 # Connection monitoring
 var connection_timeout: float = 10.0  # 10 seconds timeout
@@ -896,13 +897,9 @@ func despawn_player(id: int):
 
 @rpc("any_peer", "call_remote", "unreliable")
 func update_player_position(id: int, pos: Vector2):
-	# Forward position update to NetworkManager for handling
-	if network_manager:
-		network_manager.receive_remote_position(id, pos)
-	else:
-		# Fallback: direct position update if no NetworkManager (skip server's own updates)
-		if id in players and not (multiplayer.is_server() and id == 1):
-			players[id].position = pos
+	# Update with smooth interpolation
+	if id in players:
+		players[id].set_network_position(pos)
 	
 	# Update persistent world data (server only, periodically) 
 	if multiplayer.is_server() and world_manager and world_manager.world_data:
