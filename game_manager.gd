@@ -896,10 +896,10 @@ func despawn_player(id: int):
 		_despawn_player(id)
 
 @rpc("any_peer", "call_remote", "unreliable")
-func update_player_position(id: int, pos: Vector2):
-	# Update with smooth interpolation
+func update_player_position(id: int, pos: Vector2, timestamp: float = 0.0):
+	# Direct position update with latency tracking
 	if id in players:
-		players[id].set_network_position(pos)
+		players[id].receive_network_position(pos, timestamp)
 	
 	# Update persistent world data (server only, periodically) 
 	if multiplayer.is_server() and world_manager and world_manager.world_data:

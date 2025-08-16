@@ -10,13 +10,12 @@ var game_manager: Node
 var network_manager: NetworkManager
 var persistent_id: String = ""
 var player_camera: Camera2D
-var last_network_send: float = 0.0
 var last_sent_position: Vector2
 
-# Interpolation for remote players
-var target_position: Vector2
-var is_interpolating: bool = false
-var interpolation_speed: float = 30.0
+# Connection quality monitoring
+var network_samples: Array = []
+var last_network_time: float = 0.0
+var connection_quality: String = "GOOD"
 
 func _ready():
 	player_id = int(name)
@@ -44,7 +43,6 @@ func _ready():
 	
 	# Initialize network variables
 	last_sent_position = position
-	target_position = position
 	
 	# Update the player label
 	update_player_label()
@@ -64,64 +62,81 @@ func set_persistent_id(new_persistent_id: String):
 	update_player_label()
 
 func _physics_process(delta: float) -> void:
+	# Only handle input for local player
 	if is_local_player:
-		# Local player - handle input and movement
-		_handle_local_movement(delta)
-	else:
-		# Remote player - handle interpolation
-		_handle_remote_interpolation(delta)
-
-func _handle_local_movement(delta: float):
-	# Add gravity
-	if not is_on_floor():
-		velocity.y += gravity * delta
-	
-	# Handle jump
-	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
-		velocity.y = jump_velocity
-	
-	# Handle horizontal movement
-	var direction = Input.get_axis("ui_left", "ui_right")
-	if direction != 0:
-		velocity.x = direction * speed
-	else:
-		velocity.x = move_toward(velocity.x, 0, speed * 3 * delta)
-	
-	# Move and slide
-	move_and_slide()
-	
-	# Direct RPC with rate limiting
-	if game_manager and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
-		var current_time = Time.get_ticks_msec() / 1000.0
-		var distance_moved = position.distance_to(last_sent_position)
+		# Add gravity
+		if not is_on_floor():
+			velocity.y += gravity * delta
 		
-		# Send update if movement detected (high frequency for local testing)
-		if distance_moved > 0.1:  # Only movement threshold, no rate limiting for local testing
-			game_manager.rpc("update_player_position", player_id, position)
-			last_sent_position = position
-
-func _handle_remote_interpolation(delta: float):
-	# Smooth interpolation for remote players
-	if is_interpolating:
-		var distance_to_target = position.distance_to(target_position)
+		# Handle jump
+		if Input.is_action_just_pressed("ui_accept") and is_on_floor():
+			velocity.y = jump_velocity
 		
-		if distance_to_target > 100.0:
-			# Snap if too far (teleport/major desync)
-			position = target_position
-			is_interpolating = false
-		elif distance_to_target > 0.1:
-			# Fast interpolation for local testing
-			position = position.lerp(target_position, interpolation_speed * delta)
+		# Handle horizontal movement
+		var direction = Input.get_axis("ui_left", "ui_right")
+		if direction != 0:
+			velocity.x = direction * speed
 		else:
-			# Snap to target immediately
-			position = target_position
-			is_interpolating = false
+			velocity.x = move_toward(velocity.x, 0, speed * 3 * delta)
+		
+		# Move and slide
+		move_and_slide()
+		
+		# Direct RPC with connection quality monitoring
+		if game_manager and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+			var distance_moved = position.distance_to(last_sent_position)
+			if distance_moved > 0.05:  # Very small threshold for high precision
+				var current_time = Time.get_ticks_msec() / 1000.0
+				game_manager.rpc("update_player_position", player_id, position, current_time)
+				last_sent_position = position
+				last_network_time = current_time
 
-func set_network_position(new_position: Vector2):
-	"""Called when receiving network position update"""
+func receive_network_position(pos: Vector2, timestamp: float):
+	"""Called when receiving position update with latency measurement"""
 	if not is_local_player:
-		target_position = new_position
-		is_interpolating = true
+		position = pos
+		
+		# Measure network quality
+		var current_time = Time.get_ticks_msec() / 1000.0
+		var latency = current_time - timestamp
+		
+		# Track latency samples (keep last 10)
+		network_samples.append(latency)
+		if network_samples.size() > 10:
+			network_samples.pop_front()
+		
+		# Evaluate connection quality
+		_evaluate_connection_quality()
+
+func _evaluate_connection_quality():
+	"""Evaluate if connection meets our standards"""
+	if network_samples.size() < 5:
+		return
+	
+	var avg_latency = 0.0
+	var max_latency = 0.0
+	
+	for sample in network_samples:
+		avg_latency += sample
+		max_latency = max(max_latency, sample)
+	
+	avg_latency /= network_samples.size()
+	
+	# Strict quality standards
+	if avg_latency > 0.050 or max_latency > 0.100:  # 50ms avg, 100ms max
+		connection_quality = "POOR"
+		if is_local_player:
+			print("WARNING: Your connection is too poor for this server (avg: ", int(avg_latency * 1000), "ms, max: ", int(max_latency * 1000), "ms)")
+			print("Required: <50ms average, <100ms maximum latency")
+	elif avg_latency > 0.025 or max_latency > 0.075:  # 25ms avg, 75ms max
+		connection_quality = "MARGINAL"
+		if is_local_player:
+			print("NOTICE: Connection quality is marginal (avg: ", int(avg_latency * 1000), "ms, max: ", int(max_latency * 1000), "ms)")
+	else:
+		connection_quality = "GOOD"
+
+func get_connection_quality() -> String:
+	return connection_quality
 
 func _exit_tree():
 	# Unregister from NetworkManager when player leaves
