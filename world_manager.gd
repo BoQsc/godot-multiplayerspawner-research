@@ -97,6 +97,8 @@ func _ready():
 				# Normal mode: load persistent data
 				apply_world_data_to_tilemap()
 				print("WorldManager: Editor refreshed with ", world_data.get_tile_count(), " tiles from persistent data")
+				# Mark scene as modified to show the refreshed state
+				update_scene_with_merged_data()
 			else:
 				# Priority mode: merge and display the combined result
 				var editor_had_changes = world_tile_map_layer.get_used_cells().size() > 0
@@ -106,10 +108,14 @@ func _ready():
 					# Apply the merged result back to the tilemap for visual update
 					apply_world_data_to_tilemap()
 					print("WorldManager: Displaying merged tilemap (", world_data.get_tile_count(), " tiles)")
+					# Mark scene as modified so editor shows the merged state
+					update_scene_with_merged_data()
 				else:
 					# No editor changes, just load the persistent data
 					apply_world_data_to_tilemap()
 					print("WorldManager: Loading server data (no editor changes to preserve)")
+					# Still mark scene as modified if there were server changes
+					update_scene_with_merged_data()
 			
 			# Initialize baseline tracking for future merges
 			initialize_editor_baseline()
@@ -283,6 +289,54 @@ func initialize_editor_baseline():
 		}
 	
 	print("WorldManager: Initialized editor baseline with ", editor_baseline_tiles.size(), " tiles")
+
+func update_scene_with_merged_data():
+	if not Engine.is_editor_hint():
+		return
+	
+	# Use a deferred call to update after the current frame
+	call_deferred("_deferred_scene_update")
+
+func _deferred_scene_update():
+	if not Engine.is_editor_hint() or not world_data or not world_tile_map_layer:
+		return
+	
+	print("WorldManager: Deferred scene update with merged data...")
+	
+	# Force a complete refresh of the tilemap
+	var tiles_data = world_data.get_all_tiles()
+	
+	# Clear and rebuild the tilemap
+	world_tile_map_layer.clear()
+	
+	for coords in tiles_data.keys():
+		var tile_info = tiles_data[coords]
+		world_tile_map_layer.set_cell(
+			coords,
+			tile_info.source_id,
+			tile_info.atlas_coords,
+			tile_info.alternative_tile
+		)
+	
+	# Multiple attempts to force editor recognition
+	if get_tree() and get_tree().edited_scene_root:
+		# Try multiple notification methods
+		world_tile_map_layer.set_notify_transform(true)
+		world_tile_map_layer.notify_property_list_changed()
+		
+		# Mark scene as modified
+		var scene_root = get_tree().edited_scene_root
+		if scene_root:
+			scene_root.set_edited(true)
+			get_tree().set_edited_scene_root(scene_root)
+		
+		# Force a property update
+		world_tile_map_layer.queue_redraw()
+	
+	print("✅ Deferred scene update complete - ", tiles_data.size(), " tiles applied")
+	print("🔄 If editor still shows old state after stopping project:")
+	print("   → Click 'Refresh From File' button in WorldManager inspector")
+	print("   → Or reload the scene manually")
 
 func modify_terrain(coords: Vector2i, source_id: int = -1, atlas_coords: Vector2i = Vector2i(-1, -1), alternative_tile: int = 0):
 	if not enable_terrain_modification or not world_tile_map_layer or not world_data:
