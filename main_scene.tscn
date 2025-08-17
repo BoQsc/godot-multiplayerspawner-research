@@ -206,7 +206,6 @@ world_tile_map_layer = NodePath("WorldTileMapLayer")
 world_data = ExtResource("3_8mm7a")
 player_to_move = "player_4"
 new_position = Vector2(158.905, 300)
-max_recent_players = 3
 hide_insignificant_players = false
 use_transparency_gradient = false
 
