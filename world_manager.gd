@@ -9,6 +9,7 @@ class_name WorldManager
 @export var world_data: WorldData : set = set_world_data
 @export var world_save_path: String = "user://world_data.tres"
 @export_group("Editor Tools")
+@export var editor_priority_mode: bool = true : set = _on_editor_priority_mode_changed
 @export var refresh_from_file: bool = false : set = _on_refresh_from_file
 @export var export_to_scene: bool = false : set = _on_export_to_scene
 @export var sync_scene_to_world: bool = false : set = _on_sync_scene_to_world
@@ -300,14 +301,19 @@ func _check_for_external_changes():
 		return
 	
 	if file_time > last_file_modified_time:
-		print("WorldManager: Detected external changes to world data, auto-refreshing editor...")
 		last_file_modified_time = file_time
-		load_world_data()
-		if world_data and world_tile_map_layer:
-			apply_world_data_to_tilemap()
-			print("WorldManager: Editor auto-refreshed with ", world_data.get_tile_count(), " tiles")
-		# Also sync editor players
-		sync_editor_players_from_world_data()
+		
+		# Only apply external changes if editor priority mode is disabled
+		if not editor_priority_mode:
+			print("WorldManager: Detected external changes to world data, auto-refreshing editor...")
+			load_world_data()
+			if world_data and world_tile_map_layer:
+				apply_world_data_to_tilemap()
+				print("WorldManager: Editor auto-refreshed with ", world_data.get_tile_count(), " tiles")
+			# Also sync editor players
+			sync_editor_players_from_world_data()
+		else:
+			print("WorldManager: External changes detected but editor priority mode is ON - preserving editor state")
 
 func _check_for_tilemap_changes():
 	if not world_tile_map_layer or not world_data:
@@ -322,11 +328,17 @@ func _check_for_tilemap_changes():
 	
 	# Detect changes in tilemap
 	if current_cell_count != last_tilemap_cell_count:
-		print("WorldManager: Detected tilemap changes in editor (", current_cell_count, " cells), auto-syncing to persistent world...")
-		sync_tilemap_to_world_data()
-		save_world_data()
+		print("WorldManager: Detected tilemap changes in editor (", current_cell_count, " cells)")
+		
+		# Always sync editor changes to world data when editor priority mode is enabled
+		if editor_priority_mode:
+			sync_tilemap_to_world_data()
+			save_world_data()
+			print("✅ Editor changes automatically saved to persistent world data (Editor Priority Mode ON)")
+		else:
+			print("⚠️ Editor changes detected but not auto-saving (Editor Priority Mode OFF)")
+		
 		last_tilemap_cell_count = current_cell_count
-		print("✅ Editor changes automatically saved to persistent world data")
 
 func _on_refresh_from_file(value: bool):
 	if Engine.is_editor_hint() and value:
@@ -1368,3 +1380,16 @@ func _on_refresh_filters(value: bool):
 		print("🔄 Refreshing display filters...")
 		sync_editor_players_from_world_data()
 		refresh_display_filters = false
+
+func _on_editor_priority_mode_changed(value: bool):
+	editor_priority_mode = value
+	if Engine.is_editor_hint():
+		var status = "ON" if editor_priority_mode else "OFF"
+		print("🎯 WorldManager: Editor Priority Mode ", status)
+		
+		if editor_priority_mode:
+			print("✅ Editor changes will now take priority over server updates")
+			print("💡 TIP: Paint tiles in the editor - they will override server changes automatically")
+		else:
+			print("⚠️ Editor will now sync with server updates")
+			print("💡 TIP: Server changes will overwrite editor tilemap when detected")
