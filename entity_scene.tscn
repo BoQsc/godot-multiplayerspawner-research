@@ -168,8 +168,10 @@ size = Vector2(50, 50)
 size = Vector2(50, 50)
 
 [sub_resource type="LabelSettings" id="LabelSettings_p7nlk"]
-outline_size = 1
-outline_color = Color(0, 0, 0, 1)
+font_size = 20
+outline_size = 3
+outline_color = Color(0.138649, 0.257315, 0.183197, 1)
+shadow_color = Color(0, 0, 0, 0.372549)
 
 [node name="entity_scene" type="CharacterBody2D"]
 script = ExtResource("1_k8x9n")
@@ -188,10 +190,10 @@ texture = SubResource("PlaceholderTexture2D_qsx0g")
 shape = SubResource("RectangleShape2D_player")
 
 [node name="PlayerLabel" type="Label" parent="."]
-offset_left = -51.0
-offset_top = -231.0
-offset_right = 49.0
-offset_bottom = -67.0
+offset_left = -80.0
+offset_top = -238.355
+offset_right = 20.0
+offset_bottom = -74.355
 text = "Player"
 label_settings = SubResource("LabelSettings_p7nlk")
 horizontal_alignment = 3
