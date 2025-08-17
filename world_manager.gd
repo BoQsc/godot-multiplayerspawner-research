@@ -90,11 +90,29 @@ func _ready():
 	# Always load from external file to ensure editor and runtime sync
 	load_world_data()
 	
-	# In editor: always apply world data to override scene's tile_map_data
+	# In editor: apply world data but preserve editor changes when priority mode is on
 	if Engine.is_editor_hint():
 		if world_data and world_tile_map_layer:
-			apply_world_data_to_tilemap()
-			print("WorldManager: Editor refreshed with ", world_data.get_tile_count(), " tiles from persistent data")
+			if not editor_priority_mode:
+				# Normal mode: load persistent data
+				apply_world_data_to_tilemap()
+				print("WorldManager: Editor refreshed with ", world_data.get_tile_count(), " tiles from persistent data")
+			else:
+				# Priority mode: merge and display the combined result
+				var editor_had_changes = world_tile_map_layer.get_used_cells().size() > 0
+				if editor_had_changes:
+					print("WorldManager: Editor Priority Mode ON - merging editor and server changes")
+					merge_editor_changes_to_world_data()
+					# Apply the merged result back to the tilemap for visual update
+					apply_world_data_to_tilemap()
+					print("WorldManager: Displaying merged tilemap (", world_data.get_tile_count(), " tiles)")
+				else:
+					# No editor changes, just load the persistent data
+					apply_world_data_to_tilemap()
+					print("WorldManager: Loading server data (no editor changes to preserve)")
+			
+			# Initialize baseline tracking for future merges
+			initialize_editor_baseline()
 		# Sync editor players from world data
 		sync_editor_players_from_world_data()
 	else:
@@ -180,6 +198,91 @@ func sync_tilemap_to_world_data():
 		world_data.set_tile(coords, source_id, atlas_coords, alternative_tile)
 	
 	print("WorldManager: Synced ", used_cells.size(), " tiles to world data")
+
+var editor_baseline_tiles: Dictionary = {}  # Track what editor had before server changes
+
+func merge_editor_changes_to_world_data():
+	if not world_tile_map_layer or not world_data:
+		return
+	
+	# Store current editor state before loading server changes
+	var current_editor_cells = world_tile_map_layer.get_used_cells()
+	var current_editor_tiles = {}
+	
+	for coords in current_editor_cells:
+		var source_id = world_tile_map_layer.get_cell_source_id(coords)
+		var atlas_coords = world_tile_map_layer.get_cell_atlas_coords(coords)
+		var alternative_tile = world_tile_map_layer.get_cell_alternative_tile(coords)
+		current_editor_tiles[coords] = {
+			"source_id": source_id,
+			"atlas_coords": atlas_coords,
+			"alternative_tile": alternative_tile
+		}
+	
+	# Reload the latest world data to get any server changes
+	var pre_merge_world_tiles = world_data.get_all_tiles().duplicate()
+	load_world_data()
+	var server_tiles = world_data.get_all_tiles()
+	
+	print("WorldManager: Merging - Editor has ", current_editor_tiles.size(), " tiles, Server has ", server_tiles.size(), " tiles")
+	
+	# Create merged result: start with server data, then apply editor changes
+	var merged_tiles = server_tiles.duplicate()
+	var editor_additions = 0
+	var editor_modifications = 0
+	var editor_deletions = 0
+	
+	# Apply editor additions/modifications
+	for coords in current_editor_tiles.keys():
+		var editor_tile = current_editor_tiles[coords]
+		var server_has_tile = server_tiles.has(coords)
+		var baseline_had_tile = editor_baseline_tiles.has(coords)
+		
+		if not server_has_tile and not baseline_had_tile:
+			# Editor added a new tile
+			editor_additions += 1
+		elif server_has_tile:
+			# Editor modified an existing tile (editor priority)
+			editor_modifications += 1
+		
+		merged_tiles[coords] = editor_tile
+	
+	# Handle editor deletions (only if the tile existed in baseline)
+	for coords in editor_baseline_tiles.keys():
+		if not current_editor_tiles.has(coords) and merged_tiles.has(coords):
+			# Editor deleted a tile that existed in baseline
+			merged_tiles.erase(coords)
+			editor_deletions += 1
+	
+	# Apply merged result to world data
+	world_data.clear_all_tiles()
+	for coords in merged_tiles.keys():
+		var tile_info = merged_tiles[coords]
+		world_data.set_tile(coords, tile_info.source_id, tile_info.atlas_coords, tile_info.alternative_tile)
+	
+	# Update baseline for next merge
+	editor_baseline_tiles = current_editor_tiles.duplicate()
+	
+	print("WorldManager: Merge complete - Added: ", editor_additions, ", Modified: ", editor_modifications, ", Deleted: ", editor_deletions, " (Total: ", merged_tiles.size(), " tiles)")
+
+func initialize_editor_baseline():
+	if not Engine.is_editor_hint() or not world_tile_map_layer:
+		return
+	
+	editor_baseline_tiles.clear()
+	var current_cells = world_tile_map_layer.get_used_cells()
+	
+	for coords in current_cells:
+		var source_id = world_tile_map_layer.get_cell_source_id(coords)
+		var atlas_coords = world_tile_map_layer.get_cell_atlas_coords(coords)
+		var alternative_tile = world_tile_map_layer.get_cell_alternative_tile(coords)
+		editor_baseline_tiles[coords] = {
+			"source_id": source_id,
+			"atlas_coords": atlas_coords,
+			"alternative_tile": alternative_tile
+		}
+	
+	print("WorldManager: Initialized editor baseline with ", editor_baseline_tiles.size(), " tiles")
 
 func modify_terrain(coords: Vector2i, source_id: int = -1, atlas_coords: Vector2i = Vector2i(-1, -1), alternative_tile: int = 0):
 	if not enable_terrain_modification or not world_tile_map_layer or not world_data:
@@ -332,9 +435,9 @@ func _check_for_tilemap_changes():
 		
 		# Always sync editor changes to world data when editor priority mode is enabled
 		if editor_priority_mode:
-			sync_tilemap_to_world_data()
+			merge_editor_changes_to_world_data()
 			save_world_data()
-			print("✅ Editor changes automatically saved to persistent world data (Editor Priority Mode ON)")
+			print("✅ Editor changes merged and saved to persistent world data (Editor Priority Mode ON)")
 		else:
 			print("⚠️ Editor changes detected but not auto-saving (Editor Priority Mode OFF)")
 		
