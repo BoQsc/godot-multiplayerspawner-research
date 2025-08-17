@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=3 uid="uid://dr6s3jr1rx25d"]
+[gd_scene load_steps=26 format=3 uid="uid://dr6s3jr1rx25d"]
 
 [ext_resource type="Script" uid="uid://omd8hqvjxq2" path="res://entity_scene.gd" id="1_k8x9n"]
 [ext_resource type="Texture2D" uid="uid://6qglu8s2ayqg" path="res://resourcesfromotherprojectsToStudyLearn/kenney_platformer-art-deluxe/Base pack/Player/p1_stand.png" id="2_fodn5"]
@@ -167,6 +167,10 @@ size = Vector2(50, 50)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
 size = Vector2(50, 50)
 
+[sub_resource type="LabelSettings" id="LabelSettings_p7nlk"]
+outline_size = 1
+outline_color = Color(0, 0, 0, 1)
+
 [node name="entity_scene" type="CharacterBody2D"]
 script = ExtResource("1_k8x9n")
 
@@ -189,11 +193,13 @@ offset_top = -231.0
 offset_right = 49.0
 offset_bottom = -67.0
 text = "Player"
+label_settings = SubResource("LabelSettings_p7nlk")
 horizontal_alignment = 3
 vertical_alignment = 2
 
 [node name="PlayerCamera" type="Camera2D" parent="."]
 enabled = false
+zoom = Vector2(0.8, 0.8)
 
 [node name="Sprite2D2" type="Sprite2D" parent="."]
 visible = false
