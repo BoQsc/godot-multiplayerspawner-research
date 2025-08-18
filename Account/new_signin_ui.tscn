@@ -23,7 +23,10 @@ layout_mode = 2
 layout_mode = 2
 text = "Annonymous Player Device Binding"
 
-[node name="CheckBox" type="CheckBox" parent="PanelContainer/HFlowContainer"]
+[node name="Protect this character" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
+layout_mode = 2
+
+[node name="CheckBox" type="CheckBox" parent="PanelContainer/HFlowContainer/Protect this character"]
 layout_mode = 2
 text = "Protect this character on this device."
 
