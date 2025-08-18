@@ -9,9 +9,10 @@ class_name WorldManager
 @export var world_data: WorldData : set = set_world_data
 @export var world_save_path: String = "user://world_data.tres"
 @export_group("Editor Tools")
-@export var editor_priority_mode: bool = true : set = _on_editor_priority_mode_changed
+@export var auto_export_on_stop: bool = true
 @export var refresh_from_file: bool = false : set = _on_refresh_from_file
 @export var export_to_scene: bool = false : set = _on_export_to_scene
+@export var force_scene_update: bool = false : set = _on_force_scene_update
 @export var sync_scene_to_world: bool = false : set = _on_sync_scene_to_world
 @export var show_world_info: bool = false : set = _on_show_world_info
 @export var save_world_now: bool = false : set = _on_save_world_now
@@ -48,6 +49,13 @@ class_name WorldManager
 @export var use_transparency_gradient: bool = true
 @export var oldest_player_alpha: float = 0.3 # How transparent the oldest players become
 @export var refresh_display_filters: bool = false : set = _on_refresh_filters
+@export_group("Live Editor Mode") 
+@export var enable_live_mode: bool = false : set = _on_toggle_live_mode
+@export var live_mode_status: String = "Disconnected" : get = get_live_status
+@export_group("Debug Scene vs Persistent")
+@export var compare_scene_vs_persistent: bool = false : set = _on_compare_data
+@export var test_simple_editor_change: bool = false : set = _on_test_simple_change
+@export var show_editor_priority_status: bool = false : set = _on_show_priority_status
 
 var game_manager: Node
 var is_loading: bool = false
@@ -58,6 +66,14 @@ var last_tilemap_cell_count: int = 0
 var editor_players: Dictionary = {}  # player_id -> player_node
 var spawn_container: Node2D
 
+# Prevent infinite save loops
+var scene_save_in_progress: bool = false
+var last_scene_modification_time: int = 0
+
+# Live Editor Mode - file-based communication
+var live_mode_active: bool = false
+var live_mode_timer: Timer
+
 # Focus mode state
 var focused_players: Array[String] = []  # List of player IDs currently focused
 var is_focus_mode_active: bool = false
@@ -66,6 +82,8 @@ signal terrain_modified(coords: Vector2i, source_id: int, atlas_coords: Vector2i
 signal world_data_changed()
 
 func _ready():
+	print("🚀 WorldManager._ready() called - Editor mode: ", Engine.is_editor_hint())
+	
 	if not Engine.is_editor_hint():
 		game_manager = get_tree().get_first_node_in_group("game_manager")
 	
@@ -73,7 +91,16 @@ func _ready():
 		world_tile_map_layer = get_node_or_null("WorldTileMapLayer")
 	
 	if world_tile_map_layer:
-		print("WorldManager: Initialized with TileMapLayer")
+		var initial_tiles = world_tile_map_layer.get_used_cells()
+		print("WorldManager: Initialized with TileMapLayer (", initial_tiles.size(), " tiles)")
+		
+		# Debug: Show some tile positions from the scene
+		if Engine.is_editor_hint() and initial_tiles.size() > 0:
+			print("🔍 Scene initially has tiles at these positions:")
+			for i in range(min(5, initial_tiles.size())):
+				print("  Scene tile at: ", initial_tiles[i])
+			if initial_tiles.size() > 5:
+				print("  ... and ", initial_tiles.size() - 5, " more")
 	else:
 		print("WorldManager: No TileMapLayer found")
 	
@@ -88,37 +115,69 @@ func _ready():
 		print("WorldManager: SpawnContainer not found")
 	
 	# Always load from external file to ensure editor and runtime sync
+	print("📁 Loading world data from file...")
 	load_world_data()
 	
-	# In editor: apply world data but preserve editor changes when priority mode is on
+	# In editor: merge scene tiles with runtime data, then save (but prevent infinite loops)
 	if Engine.is_editor_hint():
-		if world_data and world_tile_map_layer:
-			if not editor_priority_mode:
-				# Normal mode: load persistent data
-				apply_world_data_to_tilemap()
-				print("WorldManager: Editor refreshed with ", world_data.get_tile_count(), " tiles from persistent data")
-				# Mark scene as modified to show the refreshed state
-				update_scene_with_merged_data()
-			else:
-				# Priority mode: merge and display the combined result
-				var editor_had_changes = world_tile_map_layer.get_used_cells().size() > 0
-				if editor_had_changes:
-					print("WorldManager: Editor Priority Mode ON - merging editor and server changes")
-					merge_editor_changes_to_world_data()
-					# Apply the merged result back to the tilemap for visual update
-					apply_world_data_to_tilemap()
-					print("WorldManager: Displaying merged tilemap (", world_data.get_tile_count(), " tiles)")
-					# Mark scene as modified so editor shows the merged state
-					update_scene_with_merged_data()
-				else:
-					# No editor changes, just load the persistent data
-					apply_world_data_to_tilemap()
-					print("WorldManager: Loading server data (no editor changes to preserve)")
-					# Still mark scene as modified if there were server changes
-					update_scene_with_merged_data()
+		if world_data and world_tile_map_layer and auto_export_on_stop and not scene_save_in_progress:
 			
-			# Initialize baseline tracking for future merges
-			initialize_editor_baseline()
+			# Check if we just saved the scene recently to prevent loops
+			var scene_path = get_tree().edited_scene_root.scene_file_path if get_tree().edited_scene_root else ""
+			if scene_path != "" and FileAccess.file_exists(scene_path):
+				var current_mod_time = FileAccess.get_modified_time(scene_path)
+				var time_since_last_save = current_mod_time - last_scene_modification_time
+				
+				if time_since_last_save < 2:  # Less than 2 seconds since last save
+					print("⚠️ WorldManager: Skipping auto-save to prevent infinite loop (saved ", time_since_last_save, " seconds ago)")
+					sync_editor_players_from_world_data()
+					return
+				
+				last_scene_modification_time = current_mod_time
+			
+			print("WorldManager: Merging scene tiles with runtime data...")
+			scene_save_in_progress = true
+			
+			# Capture current scene tiles BEFORE loading runtime data
+			var scene_tiles = capture_current_tilemap_state()
+			print("🔍 Scene has ", scene_tiles.size(), " tiles, Runtime data has ", world_data.get_tile_count(), " tiles")
+			
+			# Show some sample positions from each source
+			if scene_tiles.size() > 0:
+				var scene_positions = scene_tiles.keys()
+				print("🔍 Scene tile examples: ", scene_positions.slice(0, 5))
+			if world_data.get_tile_count() > 0:
+				var runtime_positions = world_data.get_all_tiles().keys()
+				print("🔍 Runtime tile examples: ", runtime_positions.slice(0, 5))
+			
+			# Merge: Keep scene tiles, add runtime tiles that don't conflict
+			var merged_count = 0
+			for coords in world_data.get_all_tiles().keys():
+				if not scene_tiles.has(coords):
+					# Runtime has a tile where scene doesn't - add it
+					var tile_info = world_data.get_tile(coords)
+					world_tile_map_layer.set_cell(
+						coords,
+						tile_info.source_id,
+						tile_info.atlas_coords,
+						tile_info.alternative_tile
+					)
+					merged_count += 1
+			
+			print("🔧 Merged ", merged_count, " runtime tiles with ", scene_tiles.size(), " scene tiles")
+			print("📊 Total tiles now: ", world_tile_map_layer.get_used_cells().size())
+			
+			# Update world_data to match the merged tilemap
+			sync_tilemap_to_world_data()
+			save_world_data()
+			
+			# CRITICAL: Save the merged result to scene file
+			print("💾 Auto-saving merged scene file...")
+			save_scene_with_current_data()
+			print("💡 Scene file updated with merged data!")
+			
+			scene_save_in_progress = false
+		
 		# Sync editor players from world data
 		sync_editor_players_from_world_data()
 	else:
@@ -146,6 +205,18 @@ func load_world_data():
 	if FileAccess.file_exists(world_save_path):
 		world_data = load(world_save_path) as WorldData
 		print("WorldManager: Loaded world data from ", world_save_path)
+		
+		# Debug: Show what's in the persistent file
+		if Engine.is_editor_hint() and world_data:
+			var file_tiles = world_data.get_all_tiles()
+			print("🔍 Persistent file has ", file_tiles.size(), " tiles:")
+			var count = 0
+			for coords in file_tiles.keys():
+				if count < 5:
+					print("  File tile at: ", coords)
+				count += 1
+			if count > 5:
+				print("  ... and ", count - 5, " more")
 	else:
 		world_data = WorldData.new()
 		world_data.world_name = "New World"
@@ -154,12 +225,63 @@ func load_world_data():
 	is_loading = false
 
 func save_world_data():
-	if world_data:
-		var result = ResourceSaver.save(world_data, world_save_path)
-		if result == OK:
-			print("WorldManager: Saved world data to ", world_save_path)
-		else:
-			print("WorldManager: Failed to save world data, error: ", result)
+	if not world_data:
+		return
+	
+	# Thread-safe save with reload-merge for coordination
+	save_mutex.lock()
+	
+	# Before saving, reload and merge any concurrent changes
+	if FileAccess.file_exists(world_save_path):
+		var current_time = FileAccess.get_modified_time(world_save_path)
+		if current_time > last_file_modified_time:
+			print("WorldManager: Concurrent changes detected, merging before save...")
+			merge_before_save()
+	
+	var result = ResourceSaver.save(world_data, world_save_path)
+	if result == OK:
+		last_file_modified_time = FileAccess.get_modified_time(world_save_path)
+		var tiles_count = world_data.get_tile_count()
+		var save_source = "SERVER" if multiplayer.is_server() else "EDITOR"
+		print("WorldManager: [", save_source, "] Saved ", tiles_count, " tiles to ", world_save_path)
+		
+		# Clear pending changes since they're now saved
+		if Engine.is_editor_hint():
+			pending_editor_changes.clear()
+	else:
+		print("WorldManager: Failed to save world data, error: ", result)
+	
+	save_mutex.unlock()
+
+func merge_before_save():
+	# Load the current file data
+	var file_data = load(world_save_path) as WorldData
+	if not file_data:
+		return
+	
+	var our_tiles = world_data.get_all_tiles()
+	var file_tiles = file_data.get_all_tiles()
+	
+	# If we're the server auto-save and file has FEWER tiles, it means editor deleted some
+	# In that case, use the file's data (editor changes take priority)
+	if file_tiles.size() != our_tiles.size():
+		print("WorldManager: File has different tile count (", file_tiles.size(), " vs our ", our_tiles.size(), ") - using file data")
+		# Replace our data with file data completely
+		world_data.clear_all_tiles()
+		for coords in file_tiles.keys():
+			var tile_info = file_tiles[coords]
+			world_data.set_tile(coords, tile_info.source_id, tile_info.atlas_coords, tile_info.alternative_tile)
+		return
+	
+	# Normal merge: add non-conflicting tiles
+	for coords in file_tiles.keys():
+		if not our_tiles.has(coords):
+			var tile_info = file_tiles[coords]
+			world_data.set_tile(coords, tile_info.source_id, tile_info.atlas_coords, tile_info.alternative_tile)
+	
+	print("WorldManager: Merged ", our_tiles.size(), " our tiles with ", file_tiles.size(), " file tiles")
+
+# Removed complex priority system - using simple merge instead
 
 func apply_world_data_to_tilemap():
 	if not world_tile_map_layer or not world_data:
@@ -205,7 +327,12 @@ func sync_tilemap_to_world_data():
 	
 	print("WorldManager: Synced ", used_cells.size(), " tiles to world data")
 
+# Removed complex priority functions - using simple sync instead
+
 var editor_baseline_tiles: Dictionary = {}  # Track what editor had before server changes
+var save_mutex: Mutex = Mutex.new()  # Prevent concurrent saves
+var pending_editor_changes: Dictionary = {}  # Track unsaved editor changes
+var last_editor_save_time: float = 0.0  # Track when editor last saved
 
 func merge_editor_changes_to_world_data():
 	if not world_tile_map_layer or not world_data:
@@ -290,6 +417,53 @@ func initialize_editor_baseline():
 	
 	print("WorldManager: Initialized editor baseline with ", editor_baseline_tiles.size(), " tiles")
 
+func capture_current_tilemap_state() -> Dictionary:
+	var tiles = {}
+	if not world_tile_map_layer:
+		return tiles
+	
+	var used_cells = world_tile_map_layer.get_used_cells()
+	for coords in used_cells:
+		var source_id = world_tile_map_layer.get_cell_source_id(coords)
+		var atlas_coords = world_tile_map_layer.get_cell_atlas_coords(coords)
+		var alternative_tile = world_tile_map_layer.get_cell_alternative_tile(coords)
+		tiles[coords] = {
+			"source_id": source_id,
+			"atlas_coords": atlas_coords,
+			"alternative_tile": alternative_tile
+		}
+	return tiles
+
+func smart_merge_preserving_editor_changes():
+	if not world_data or not world_tile_map_layer:
+		return
+	
+	# Get current editor state (what we want to preserve)
+	var editor_tiles = capture_current_tilemap_state()
+	
+	# Get server data (already loaded in world_data)
+	var server_tiles = world_data.get_all_tiles()
+	
+	print("WorldManager: Smart merge - Editor: ", editor_tiles.size(), " tiles, Server: ", server_tiles.size(), " tiles")
+	
+	# Strategy: Keep editor tiles, add server tiles that don't conflict
+	var added_from_server = 0
+	for coords in server_tiles.keys():
+		if not editor_tiles.has(coords):
+			# Server added a tile where editor has none - add it to world_data
+			var server_tile = server_tiles[coords]
+			world_data.set_tile(coords, server_tile.source_id, server_tile.atlas_coords, server_tile.alternative_tile)
+			added_from_server += 1
+	
+	# Update world_data with editor tiles (editor priority)
+	var editor_preserved = 0
+	for coords in editor_tiles.keys():
+		var editor_tile = editor_tiles[coords]
+		world_data.set_tile(coords, editor_tile.source_id, editor_tile.atlas_coords, editor_tile.alternative_tile)
+		editor_preserved += 1
+	
+	print("WorldManager: Preserved ", editor_preserved, " editor tiles, added ", added_from_server, " server tiles")
+
 func update_scene_with_merged_data():
 	if not Engine.is_editor_hint():
 		return
@@ -298,17 +472,30 @@ func update_scene_with_merged_data():
 	call_deferred("_deferred_scene_update")
 
 func _deferred_scene_update():
+	print("🔄 _deferred_scene_update() called")
+	print("🔍 Engine.is_editor_hint(): ", Engine.is_editor_hint())
+	print("🔍 world_data exists: ", world_data != null)
+	print("🔍 world_tile_map_layer exists: ", world_tile_map_layer != null)
+	print("🔍 auto_export_on_stop: ", auto_export_on_stop)
+	
 	if not Engine.is_editor_hint() or not world_data or not world_tile_map_layer:
+		print("❌ _deferred_scene_update: Missing requirements, aborting")
 		return
 	
 	print("WorldManager: Deferred scene update with merged data...")
 	
 	# Force a complete refresh of the tilemap
 	var tiles_data = world_data.get_all_tiles()
+	print("🔍 world_data has ", tiles_data.size(), " tiles to apply")
+	
+	# Show current tilemap state before clearing
+	var current_tiles = world_tile_map_layer.get_used_cells()
+	print("🔍 Tilemap currently has ", current_tiles.size(), " tiles before update")
 	
 	# Clear and rebuild the tilemap
 	world_tile_map_layer.clear()
 	
+	var applied_count = 0
 	for coords in tiles_data.keys():
 		var tile_info = tiles_data[coords]
 		world_tile_map_layer.set_cell(
@@ -317,6 +504,9 @@ func _deferred_scene_update():
 			tile_info.atlas_coords,
 			tile_info.alternative_tile
 		)
+		applied_count += 1
+	
+	print("🔍 Applied ", applied_count, " tiles to tilemap")
 	
 	# Multiple attempts to force editor recognition
 	if get_tree() and get_tree().edited_scene_root:
@@ -324,19 +514,100 @@ func _deferred_scene_update():
 		world_tile_map_layer.set_notify_transform(true)
 		world_tile_map_layer.notify_property_list_changed()
 		
-		# Mark scene as modified
+		# Mark scene as modified using the correct method
 		var scene_root = get_tree().edited_scene_root
 		if scene_root:
-			scene_root.set_edited(true)
+			# Use the correct method to mark scene as modified
 			get_tree().set_edited_scene_root(scene_root)
 		
 		# Force a property update
 		world_tile_map_layer.queue_redraw()
 	
 	print("✅ Deferred scene update complete - ", tiles_data.size(), " tiles applied")
+	
+	# CRITICAL: Save the scene file to prevent Auto-Reloader from reverting changes
+	if auto_export_on_stop:
+		print("🚀 auto_export_on_stop is enabled, calling save_scene_with_current_data()...")
+		save_scene_with_current_data()
+	else:
+		print("⚠️ auto_export_on_stop is disabled, skipping automatic scene save")
+	
 	print("🔄 If editor still shows old state after stopping project:")
 	print("   → Click 'Refresh From File' button in WorldManager inspector")
 	print("   → Or reload the scene manually")
+
+func save_scene_with_current_data():
+	if not Engine.is_editor_hint():
+		print("🚫 save_scene_with_current_data: Not in editor mode")
+		return
+	
+	if scene_save_in_progress:
+		print("⚠️ save_scene_with_current_data: Save already in progress, skipping")
+		return
+	
+	print("💾 WorldManager: Automatically saving scene to prevent Auto-Reloader reversion...")
+	print("🔍 Current tilemap has ", world_tile_map_layer.get_used_cells().size(), " tiles")
+	
+	# Get the current scene root
+	var scene_root = get_tree().edited_scene_root
+	if not scene_root:
+		print("❌ No edited scene root found")
+		print("🔍 get_tree() = ", get_tree())
+		return
+	
+	print("✅ Scene root found: ", scene_root.name, " (", scene_root.get_class(), ")")
+	
+	# Get the current scene file path
+	var scene_file_path = scene_root.scene_file_path
+	if scene_file_path == "":
+		print("❌ Scene has no file path (unsaved scene)")
+		print("🔍 scene_root.scene_file_path = '", scene_file_path, "'")
+		return
+	
+	print("📁 Scene file path: ", scene_file_path)
+	
+	# Debug: Check if the file exists and when it was last modified
+	if FileAccess.file_exists(scene_file_path):
+		var mod_time = FileAccess.get_modified_time(scene_file_path)
+		print("📅 Current scene file modified time: ", mod_time)
+	else:
+		print("⚠️ Scene file doesn't exist at path: ", scene_file_path)
+	
+	# Create a PackedScene from the current scene
+	var packed_scene = PackedScene.new()
+	print("🔧 Creating PackedScene and packing scene root...")
+	var result = packed_scene.pack(scene_root)
+	
+	if result != OK:
+		print("❌ Failed to pack scene, error code: ", result)
+		return
+	
+	print("✅ Scene packed successfully")
+	
+	# Save the packed scene
+	print("💾 Saving packed scene to file...")
+	var save_result = ResourceSaver.save(packed_scene, scene_file_path)
+	if save_result == OK:
+		print("✅ Scene automatically saved! Runtime changes are now permanent")
+		print("🎉 Scene file updated with ", world_tile_map_layer.get_used_cells().size(), " tiles")
+		
+		# Verify the save worked
+		if FileAccess.file_exists(scene_file_path):
+			var new_mod_time = FileAccess.get_modified_time(scene_file_path)
+			print("📅 New scene file modified time: ", new_mod_time)
+			print("🚀 SUCCESS: Scene Auto-Reloader will now load updated data!")
+		else:
+			print("⚠️ Warning: Scene file doesn't exist after save attempt")
+		
+	else:
+		print("❌ Failed to save scene file, error code: ", save_result)
+		print("🔍 ResourceSaver error codes: OK=0, FAILED=1, INVALID_PARAMETER=2, UNAUTHORIZED=3, CANT_OPEN=4, CANT_CREATE=5")
+		print("🔍 Possible issues: File permissions, Godot editor restrictions, or invalid scene structure")
+		
+		# Try alternative approach - mark scene as dirty so user gets save prompt
+		if get_tree() and get_tree().edited_scene_root:
+			print("🔄 Fallback: Marking scene as modified for manual save")
+			get_tree().set_edited_scene_root(get_tree().edited_scene_root)
 
 func modify_terrain(coords: Vector2i, source_id: int = -1, atlas_coords: Vector2i = Vector2i(-1, -1), alternative_tile: int = 0):
 	if not enable_terrain_modification or not world_tile_map_layer or not world_data:
@@ -347,8 +618,14 @@ func modify_terrain(coords: Vector2i, source_id: int = -1, atlas_coords: Vector2
 		world_tile_map_layer.set_cell(coords, source_id, atlas_coords, alternative_tile)
 		world_data.set_tile(coords, source_id, atlas_coords, alternative_tile)
 		terrain_modified.emit(coords, source_id, atlas_coords)
-		# Auto-save in editor
+		
+		# Auto-save in editor (in live mode this syncs to server)
 		save_world_data()
+		
+		# CRITICAL: Also save scene file so changes persist after project restart
+		if auto_export_on_stop and not scene_save_in_progress:
+			print("💾 LIVE MODE: Saving editor change to scene file for persistence")
+			save_scene_with_current_data()
 	elif multiplayer.is_server():
 		# Server: Apply change to both tilemap and world data, then sync
 		world_tile_map_layer.set_cell(coords, source_id, atlas_coords, alternative_tile)
@@ -460,17 +737,44 @@ func _check_for_external_changes():
 	if file_time > last_file_modified_time:
 		last_file_modified_time = file_time
 		
-		# Only apply external changes if editor priority mode is disabled
-		if not editor_priority_mode:
-			print("WorldManager: Detected external changes to world data, auto-refreshing editor...")
+		# Don't override editor changes immediately after editor saved, 
+		# but allow updates if it's clearly from server (different tile count)
+		var time_since_editor_save = Time.get_unix_time_from_system() - last_editor_save_time
+		if time_since_editor_save < 2.0:
+			# Load the file to check if it's significantly different
+			var temp_data = load(world_save_path) as WorldData
+			if temp_data and abs(temp_data.get_tile_count() - world_data.get_tile_count()) > 0:
+				print("WorldManager: Allowing external update despite recent editor save (tile count changed)")
+			else:
+				print("WorldManager: External changes detected but ignoring (recent editor save, no significant change)")
+				return
+		
+		if auto_export_on_stop:
+			print("WorldManager: Detected external changes, updating editor immediately...")
+			
+			# Load latest server changes and apply to editor
 			load_world_data()
 			if world_data and world_tile_map_layer:
 				apply_world_data_to_tilemap()
-				print("WorldManager: Editor auto-refreshed with ", world_data.get_tile_count(), " tiles")
-			# Also sync editor players
+				print("WorldManager: Editor updated with ", world_data.get_tile_count(), " tiles")
+				
+				# CRITICAL: Multiple visual refresh attempts for immediate display
+				world_tile_map_layer.notify_property_list_changed()
+				world_tile_map_layer.queue_redraw()
+				world_tile_map_layer.force_update_transform()
+				
+				# Force the entire tilemap to be redrawn
+				if world_tile_map_layer.has_method("update_internals"):
+					world_tile_map_layer.update_internals()
+				
+				# Force scene update
+				if get_tree() and get_tree().edited_scene_root:
+					get_tree().edited_scene_root.set_notify_transform(true)
+					get_tree().set_edited_scene_root(get_tree().edited_scene_root)
+				
+				print("✅ LIVE MODE: Editor visual forced to refresh - changes should be visible NOW")
+			
 			sync_editor_players_from_world_data()
-		else:
-			print("WorldManager: External changes detected but editor priority mode is ON - preserving editor state")
 
 func _check_for_tilemap_changes():
 	if not world_tile_map_layer or not world_data:
@@ -478,24 +782,51 @@ func _check_for_tilemap_changes():
 	
 	var current_cell_count = world_tile_map_layer.get_used_cells().size()
 	
-	# Initialize the count on first check
 	if last_tilemap_cell_count == 0:
 		last_tilemap_cell_count = current_cell_count
 		return
 	
-	# Detect changes in tilemap
 	if current_cell_count != last_tilemap_cell_count:
-		print("WorldManager: Detected tilemap changes in editor (", current_cell_count, " cells)")
+		print("🎨 Editor tilemap changed: ", last_tilemap_cell_count, " → ", current_cell_count, " tiles")
+		print("💾 Saving editor changes...")
 		
-		# Always sync editor changes to world data when editor priority mode is enabled
-		if editor_priority_mode:
-			merge_editor_changes_to_world_data()
-			save_world_data()
-			print("✅ Editor changes merged and saved to persistent world data (Editor Priority Mode ON)")
-		else:
-			print("⚠️ Editor changes detected but not auto-saving (Editor Priority Mode OFF)")
+		# Save current editor state to world data and scene file
+		sync_tilemap_to_world_data()
+		save_world_data()
 		
+		# CRITICAL: Save scene file so changes persist through project restarts
+		if auto_export_on_stop and not scene_save_in_progress:
+			print("💾 Auto-saving scene file to persist editor changes...")
+			save_scene_with_current_data()
+		
+		last_editor_save_time = Time.get_unix_time_from_system()
 		last_tilemap_cell_count = current_cell_count
+		print("✅ Editor changes saved and will persist!")
+
+func simple_sync_editor_to_world():
+	if not world_tile_map_layer or not world_data:
+		return
+	
+	# Capture current editor state
+	var editor_tiles = capture_current_tilemap_state()
+	
+	# Don't clear all tiles - instead merge editor changes with existing world data
+	# This preserves any server changes that might have happened
+	for coords in editor_tiles.keys():
+		var tile_info = editor_tiles[coords]
+		world_data.set_tile(coords, tile_info.source_id, tile_info.atlas_coords, tile_info.alternative_tile)
+		# Track this as a pending editor change
+		pending_editor_changes[coords] = tile_info
+	
+	# Also handle deletions - if baseline had a tile but editor doesn't, it was deleted
+	if editor_baseline_tiles.size() > 0:
+		for coords in editor_baseline_tiles.keys():
+			if not editor_tiles.has(coords):
+				# Editor deleted this tile
+				world_data.set_tile(coords, -1, Vector2i(-1, -1), 0)
+				pending_editor_changes[coords] = {"deleted": true}
+	
+	print("WorldManager: Synced ", editor_tiles.size(), " editor tiles to world data (preserving server changes)")
 
 func _on_refresh_from_file(value: bool):
 	if Engine.is_editor_hint() and value:
@@ -1538,15 +1869,213 @@ func _on_refresh_filters(value: bool):
 		sync_editor_players_from_world_data()
 		refresh_display_filters = false
 
-func _on_editor_priority_mode_changed(value: bool):
-	editor_priority_mode = value
-	if Engine.is_editor_hint():
-		var status = "ON" if editor_priority_mode else "OFF"
-		print("🎯 WorldManager: Editor Priority Mode ", status)
+func _on_compare_data(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("🔍 === COMPARING SCENE vs PERSISTENT DATA ===")
 		
-		if editor_priority_mode:
-			print("✅ Editor changes will now take priority over server updates")
-			print("💡 TIP: Paint tiles in the editor - they will override server changes automatically")
+		# Current scene tilemap
+		var scene_tiles = capture_current_tilemap_state()
+		print("📄 SCENE has ", scene_tiles.size(), " tiles")
+		if scene_tiles.size() > 0:
+			var scene_positions = scene_tiles.keys()
+			print("   Examples: ", scene_positions.slice(0, 10))
+		
+		# Persistent world data
+		if world_data:
+			var persistent_tiles = world_data.get_all_tiles()
+			print("💾 PERSISTENT has ", persistent_tiles.size(), " tiles")
+			if persistent_tiles.size() > 0:
+				var persistent_positions = persistent_tiles.keys()
+				print("   Examples: ", persistent_positions.slice(0, 10))
 		else:
-			print("⚠️ Editor will now sync with server updates")
-			print("💡 TIP: Server changes will overwrite editor tilemap when detected")
+			print("💾 PERSISTENT: No world data loaded")
+		
+		# Check for conflicts
+		var conflicts = 0
+		var scene_only = 0
+		var persistent_only = 0
+		
+		if world_data:
+			var persistent_tiles = world_data.get_all_tiles()
+			
+			for coords in scene_tiles.keys():
+				if not persistent_tiles.has(coords):
+					scene_only += 1
+			
+			for coords in persistent_tiles.keys():
+				if not scene_tiles.has(coords):
+					persistent_only += 1
+				else:
+					conflicts += 1
+		
+		print("📊 ANALYSIS:")
+		print("   Scene-only tiles: ", scene_only)
+		print("   Persistent-only tiles: ", persistent_only)
+		print("   Overlapping positions: ", conflicts)
+		
+		compare_scene_vs_persistent = false
+
+func _on_test_simple_change(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("🧪 === TESTING SIMPLE EDITOR CHANGE ===")
+		
+		# Add a test tile at a specific position
+		var test_pos = Vector2i(100, 100)
+		print("🎨 Adding test tile at ", test_pos)
+		
+		world_tile_map_layer.set_cell(test_pos, default_tile_source, default_tile_coords)
+		
+		# Check if it appears in tilemap
+		var tilemap_tiles = world_tile_map_layer.get_used_cells()
+		if test_pos in tilemap_tiles:
+			print("✅ Test tile appears in tilemap")
+		else:
+			print("❌ Test tile NOT in tilemap")
+		
+		# Sync to world data and save
+		sync_tilemap_to_world_data()
+		save_world_data()
+		
+		# Check if it appears in world data
+		if world_data and world_data.get_all_tiles().has(test_pos):
+			print("✅ Test tile saved to persistent data")
+		else:
+			print("❌ Test tile NOT in persistent data")
+		
+		# Try to save scene
+		if auto_export_on_stop:
+			print("💾 Auto-saving scene with test tile...")
+			save_scene_with_current_data()
+		
+		print("🧪 Test complete. Check if tile persists after stopping project.")
+		test_simple_editor_change = false
+
+func _on_show_priority_status(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("🔍 === WORLD MANAGER STATUS ===")
+		
+		# Show tilemap state
+		if world_tile_map_layer:
+			var scene_tiles = world_tile_map_layer.get_used_cells()
+			print("📄 Scene tilemap has ", scene_tiles.size(), " tiles")
+		
+		# Show persistent data state
+		if world_data:
+			print("💾 Persistent data has ", world_data.get_tile_count(), " tiles")
+		
+		print("🎯 auto_export_on_stop: ", auto_export_on_stop)
+		print("🔄 Simple sync system: ACTIVE")
+		
+		show_editor_priority_status = false
+
+func _on_toggle_live_mode(value: bool):
+	if not Engine.is_editor_hint():
+		enable_live_mode = false
+		return
+	
+	if value:
+		print("🔴 LIVE MODE: Starting file-based live sync")
+		start_live_mode()
+	else:
+		print("⚫ LIVE MODE: Stopping live sync")
+		stop_live_mode()
+
+func get_live_status() -> String:
+	if not Engine.is_editor_hint():
+		return "Editor Only"
+	elif live_mode_active:
+		return "🟢 Active"
+	else:
+		return "⚫ Inactive"
+
+func start_live_mode():
+	if not Engine.is_editor_hint() or live_mode_active:
+		return
+	
+	print("🚀 Starting Live Editor Mode (File-based sync)...")
+	live_mode_active = true
+	
+	# Create a timer for rapid file-based sync
+	live_mode_timer = Timer.new()
+	live_mode_timer.wait_time = 0.2  # Check for changes 5 times per second
+	live_mode_timer.timeout.connect(_on_live_mode_update)
+	add_child(live_mode_timer)
+	live_mode_timer.start()
+	
+	print("✅ LIVE MODE: Active - monitoring world changes in real-time")
+
+func stop_live_mode():
+	if not live_mode_active:
+		return
+	
+	print("🛑 Stopping Live Editor Mode...")
+	
+	if live_mode_timer:
+		live_mode_timer.queue_free()
+		live_mode_timer = null
+	
+	live_mode_active = false
+	enable_live_mode = false
+
+func _on_live_mode_update():
+	if not live_mode_active:
+		return
+	
+	# In live mode, check for external changes more frequently
+	_check_for_external_changes()
+	
+	# Additional visual refresh for live mode
+	if world_tile_map_layer:
+		world_tile_map_layer.queue_redraw()
+
+func _on_force_scene_update(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("🔧 WorldManager: FORCE updating scene with runtime data...")
+		
+		if not world_data or not world_tile_map_layer:
+			print("❌ No world data or tilemap available")
+			force_scene_update = false
+			return
+		
+		# Load latest data first
+		load_world_data()
+		
+		print("📋 Runtime data has: ", world_data.get_tile_count(), " tiles")
+		print("📋 Scene currently has: ", world_tile_map_layer.get_used_cells().size(), " tiles")
+		
+		# Clear and apply runtime data
+		world_tile_map_layer.clear()
+		
+		var applied_count = 0
+		for coords in world_data.get_all_tiles().keys():
+			var tile_info = world_data.get_tile(coords)
+			world_tile_map_layer.set_cell(
+				coords,
+				tile_info.source_id,
+				tile_info.atlas_coords,
+				tile_info.alternative_tile
+			)
+			applied_count += 1
+		
+		print("✅ Applied ", applied_count, " tiles from runtime data to scene")
+		
+		# Debug: Show exactly which tiles are now in the scene
+		var scene_tiles = world_tile_map_layer.get_used_cells()
+		print("🔍 Scene now has tiles at these ", scene_tiles.size(), " positions:")
+		for i in range(min(10, scene_tiles.size())):  # Show first 10 positions
+			var pos = scene_tiles[i]
+			print("  Tile at: ", pos)
+		if scene_tiles.size() > 10:
+			print("  ... and ", scene_tiles.size() - 10, " more tiles")
+			
+		print("💾 Now SAVE THE SCENE (Ctrl+S) to make these changes permanent!")
+		print("⚠️ If you don't save, changes will be lost when you reload the scene")
+		
+		# Try multiple ways to mark scene as modified
+		if get_tree() and get_tree().edited_scene_root:
+			var scene = get_tree().edited_scene_root
+			if scene.has_method("set_edited"):
+				scene.set_edited(true)
+			get_tree().set_edited_scene_root(scene)
+		
+		force_scene_update = false
