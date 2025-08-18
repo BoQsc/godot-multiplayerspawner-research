@@ -16,28 +16,43 @@ offset_bottom = 40.0
 [node name="HFlowContainer" type="HFlowContainer" parent="PanelContainer"]
 layout_mode = 2
 
-[node name="VSplitContainer" type="VSplitContainer" parent="PanelContainer/HFlowContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="PanelContainer/HFlowContainer"]
+[node name="Title" type="Label" parent="PanelContainer/HFlowContainer/VBoxContainer"]
 layout_mode = 2
 text = "Annonymous Player Device Binding"
 
-[node name="CheckBox" type="CheckBox" parent="PanelContainer/HFlowContainer"]
+[node name="CheckBox" type="CheckBox" parent="PanelContainer/HFlowContainer/VBoxContainer"]
 layout_mode = 2
 text = "Protect this character on this device."
 
-[node name="UUID Player" type="Label" parent="PanelContainer/HFlowContainer"]
+[node name="VBoxContainer2" type="HBoxContainer" parent="PanelContainer/HFlowContainer"]
+layout_mode = 2
+
+[node name="UUID Player" type="Label" parent="PanelContainer/HFlowContainer/VBoxContainer2"]
 layout_mode = 2
 text = "UUID Player:"
 
-[node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer"]
+[node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/VBoxContainer2"]
 layout_mode = 2
 
-[node name="Label2" type="Label" parent="PanelContainer/HFlowContainer"]
+[node name="VBoxContainer4" type="HBoxContainer" parent="PanelContainer/HFlowContainer"]
+layout_mode = 2
+
+[node name="UUID Player" type="Label" parent="PanelContainer/HFlowContainer/VBoxContainer4"]
 layout_mode = 2
 text = "Device: 
+"
 
-🔐 This character is automatically protected on this device.
+[node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/VBoxContainer4"]
+layout_mode = 2
+
+[node name="VBoxContainer3" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
+layout_mode = 2
+
+[node name="Label2" type="Label" parent="PanelContainer/HFlowContainer/VBoxContainer3"]
+layout_mode = 2
+text = "🔐 This character is automatically protected on this device.
 Others cannot access it from different computers.
 Device binding will be disabled if you register an account."
