@@ -64,8 +64,27 @@ func _ready():
 	call_deferred("grab_focus")
 
 func setup_fonts():
-	# Get default system font
-	base_font = ThemeDB.fallback_font
+	# Get the actual editor interface theme and code editor font
+	var editor_interface = Engine.get_singleton("EditorInterface")
+	var editor_theme = editor_interface.get_editor_theme() if editor_interface else null
+	
+	if editor_theme:
+		# Try to get the code editor font
+		base_font = editor_theme.get_font("source", "EditorFonts")
+		if not base_font:
+			# Fallback to main editor font
+			base_font = editor_theme.get_font("main", "EditorFonts")
+		if not base_font:
+			# Final fallback
+			base_font = ThemeDB.fallback_font
+		
+		# Get font size from editor settings
+		font_size = editor_theme.get_font_size("source_size", "EditorFonts")
+		if font_size <= 0:
+			font_size = 16  # Fallback size
+	else:
+		base_font = ThemeDB.fallback_font
+		font_size = 16
 	
 	# Create variations for different styles
 	# Note: In a real implementation, you'd load actual bold/italic font files
