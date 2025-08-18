@@ -276,11 +276,12 @@ var auto_save_timer: float = 0.0
 var auto_save_interval: float = 300.0  # 5 minutes
 
 func _process(delta):
+	# Check if tilemap was modified in editor (direct painting) - ALWAYS run this
+	_check_for_tilemap_changes()
+	
 	if Engine.is_editor_hint():
 		# Check if world data file was modified externally (by runtime)
 		_check_for_external_changes()
-		# Check if tilemap was modified in editor (direct painting)
-		_check_for_tilemap_changes()
 		# Check if editor players were moved
 		_check_for_editor_player_movement()
 	elif multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_DISCONNECTED and multiplayer.is_server():
