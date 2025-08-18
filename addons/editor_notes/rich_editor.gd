@@ -101,9 +101,19 @@ func _draw():
 	draw_cursor()  # Draw cursor on top
 
 func draw_background():
-	# Draw editor background
-	draw_rect(Rect2(Vector2.ZERO, size), Color.WHITE)
-	draw_rect(Rect2(Vector2.ZERO, size), Color.BLACK, false, 1.0)
+	# Draw editor background using Godot editor theme
+	var bg_color = get_theme_color("base_color", "Editor")
+	if bg_color == Color.BLACK:  # Fallback if theme color not available
+		bg_color = Color(0.2, 0.23, 0.31)  # Default Godot dark theme color
+	
+	draw_rect(Rect2(Vector2.ZERO, size), bg_color)
+	
+	# Draw border
+	var border_color = get_theme_color("font_color", "Editor")
+	if border_color == Color.BLACK:  # Fallback
+		border_color = Color(0.4, 0.4, 0.4)
+	border_color.a = 0.3  # Make border subtle
+	draw_rect(Rect2(Vector2.ZERO, size), border_color, false, 1.0)
 
 func draw_text_segments():
 	var pos = margin
@@ -149,16 +159,29 @@ func get_segment_font(segment: TextSegment) -> Font:
 
 func get_segment_color(segment: TextSegment) -> Color:
 	if segment.code:
-		return Color.DARK_GREEN
+		# Use a themed color for code text
+		var code_color = get_theme_color("font_color", "Editor")
+		if code_color == Color.BLACK:  # Fallback
+			code_color = Color.LIGHT_GREEN
+		else:
+			code_color = code_color.lerp(Color.GREEN, 0.3)  # Tint towards green
+		return code_color
 	else:
-		return Color.BLACK
+		# Use editor theme font color
+		var text_color = get_theme_color("font_color", "Editor")
+		if text_color == Color.BLACK:  # Fallback if theme color not available
+			text_color = Color(0.9, 0.9, 0.9)  # Light gray for dark theme
+		return text_color
 
 func draw_cursor():
 	if not cursor_visible:
 		return
 		
 	var cursor_pos = get_visual_position(cursor_position)
-	draw_line(cursor_pos, cursor_pos + Vector2(0, line_height), Color.BLACK, 2.0)
+	var cursor_color = get_theme_color("font_color", "Editor")
+	if cursor_color == Color.BLACK:  # Fallback
+		cursor_color = Color.WHITE
+	draw_line(cursor_pos, cursor_pos + Vector2(0, line_height), cursor_color, 2.0)
 
 func draw_selection():
 	if selection_start == -1 or selection_end == -1:
