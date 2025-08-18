@@ -38,15 +38,16 @@ func toggle_formatting(format_type: String):
 	if not rich_editor:
 		return
 	
+	# Toggle the specific formatting type
 	match format_type:
 		"bold":
-			rich_editor.apply_formatting(true, false, false, false)
+			rich_editor.toggle_formatting_type("bold")
 		"italic":
-			rich_editor.apply_formatting(false, true, false, false)
+			rich_editor.toggle_formatting_type("italic")
 		"underline":
-			rich_editor.apply_formatting(false, false, true, false)
+			rich_editor.toggle_formatting_type("underline")
 		"code":
-			rich_editor.apply_formatting(false, false, false, true)
+			rich_editor.toggle_formatting_type("code")
 
 func _clear_all():
 	if rich_editor:

@@ -169,7 +169,36 @@ func draw_text_segments():
 			if line.length() > 0:
 				# Draw text with baseline offset - this aligns text with cursor
 				var text_pos = Vector2(pos.x, pos.y + font.get_ascent(font_size))
-				font.draw_string(get_canvas_item(), text_pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+				
+				# Draw background for code segments
+				if segment.code:
+					var line_size = font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+					var code_bg_color = color.lerp(Color.BLACK, 0.3)
+					code_bg_color.a = 0.2
+					draw_rect(Rect2(Vector2(pos.x - 2, pos.y), Vector2(line_size.x + 4, line_height)), code_bg_color)
+				
+				# Draw the text with styling effects
+				if segment.bold and not segment.code:
+					# Simulate bold by drawing text multiple times with slight offset
+					font.draw_string(get_canvas_item(), text_pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+					font.draw_string(get_canvas_item(), text_pos + Vector2(0.5, 0), line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+					if segment.italic:
+						# Also add italic effect with skew simulation
+						font.draw_string(get_canvas_item(), text_pos + Vector2(1, 0), line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+				elif segment.italic and not segment.code:
+					# Simulate italic with slight color variation and offset
+					var italic_color = color.lerp(Color.WHITE, 0.1)
+					font.draw_string(get_canvas_item(), text_pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, italic_color)
+				else:
+					# Normal text
+					font.draw_string(get_canvas_item(), text_pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+				
+				# Draw underline if needed
+				if segment.underline and not segment.code:
+					var line_size = font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+					var underline_y = text_pos.y + 2
+					draw_line(Vector2(pos.x, underline_y), Vector2(pos.x + line_size.x, underline_y), color, 1.0)
+				
 				pos.x += font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 			
 			# Move to next line if there's a newline
@@ -314,9 +343,9 @@ func get_visual_position(text_pos: int) -> Vector2:
 	return pos
 
 func _process(delta):
-	# Handle cursor blinking
+	# Handle cursor blinking - faster blink rate
 	cursor_blink_time += delta
-	if cursor_blink_time >= 1.0:
+	if cursor_blink_time >= 0.5:  # Changed from 1.0 to 0.5 for faster blinking
 		cursor_visible = not cursor_visible
 		cursor_blink_time = 0.0
 		queue_redraw()
@@ -545,6 +574,143 @@ func apply_formatting(bold: bool = false, italic: bool = false, underline: bool 
 	if selection_start != -1 and selection_end != -1:
 		apply_formatting_to_selection(bold, italic, underline, code)
 	
+	queue_redraw()
+
+func toggle_formatting_type(format_type: String):
+	if not has_selection():
+		# No selection - just toggle current format for new text
+		match format_type:
+			"bold":
+				current_format.bold = not current_format.bold
+			"italic":
+				current_format.italic = not current_format.italic
+			"underline":
+				current_format.underline = not current_format.underline
+			"code":
+				current_format.code = not current_format.code
+				# Code formatting is exclusive
+				if current_format.code:
+					current_format.bold = false
+					current_format.italic = false
+					current_format.underline = false
+		return
+	
+	# Has selection - check current state and toggle
+	var start_pos = min(selection_start, selection_end)
+	var end_pos = max(selection_start, selection_end)
+	
+	# Check if selected text already has this formatting
+	var has_formatting = check_selection_has_formatting(format_type)
+	
+	# Apply opposite formatting
+	match format_type:
+		"bold":
+			toggle_specific_formatting_in_selection("bold", not has_formatting)
+		"italic":
+			toggle_specific_formatting_in_selection("italic", not has_formatting)
+		"underline":
+			toggle_specific_formatting_in_selection("underline", not has_formatting)
+		"code":
+			apply_formatting_to_selection(false, false, false, not has_formatting)
+	
+	queue_redraw()
+
+func check_selection_has_formatting(format_type: String) -> bool:
+	if not has_selection():
+		return false
+	
+	var start_pos = min(selection_start, selection_end)
+	var end_pos = max(selection_start, selection_end)
+	var current_pos = 0
+	
+	# Check if any part of selection has this formatting
+	for segment in segments:
+		var segment_start = current_pos
+		var segment_end = current_pos + segment.text.length()
+		
+		# Check if this segment overlaps with selection
+		if segment_end > start_pos and segment_start < end_pos:
+			match format_type:
+				"bold":
+					if segment.bold:
+						return true
+				"italic":
+					if segment.italic:
+						return true
+				"underline":
+					if segment.underline:
+						return true
+				"code":
+					if segment.code:
+						return true
+		
+		current_pos += segment.text.length()
+	
+	return false
+
+func toggle_specific_formatting_in_selection(format_type: String, enable: bool):
+	if not has_selection():
+		return
+	
+	var start_pos = min(selection_start, selection_end)
+	var end_pos = max(selection_start, selection_end)
+	
+	var new_segments: Array[TextSegment] = []
+	var current_pos = 0
+	
+	for segment in segments:
+		var segment_start = current_pos
+		var segment_end = current_pos + segment.text.length()
+		
+		if segment_end <= start_pos or segment_start >= end_pos:
+			# Segment is outside selection - keep unchanged
+			new_segments.append(segment.copy())
+		elif segment_start >= start_pos and segment_end <= end_pos:
+			# Segment is completely within selection - toggle specific formatting
+			var new_segment = segment.copy()
+			match format_type:
+				"bold":
+					new_segment.bold = enable
+				"italic":
+					new_segment.italic = enable
+				"underline":
+					new_segment.underline = enable
+			new_segments.append(new_segment)
+		else:
+			# Segment is partially within selection - split it
+			if segment_start < start_pos:
+				# Part before selection
+				var before_segment = segment.copy()
+				before_segment.text = segment.text.substr(0, start_pos - segment_start)
+				new_segments.append(before_segment)
+			
+			# Part within selection
+			var selection_start_in_segment = max(0, start_pos - segment_start)
+			var selection_end_in_segment = min(segment.text.length(), end_pos - segment_start)
+			var selected_text = segment.text.substr(selection_start_in_segment, selection_end_in_segment - selection_start_in_segment)
+			
+			if selected_text.length() > 0:
+				var selected_segment = segment.copy()
+				selected_segment.text = selected_text
+				match format_type:
+					"bold":
+						selected_segment.bold = enable
+					"italic":
+						selected_segment.italic = enable
+					"underline":
+						selected_segment.underline = enable
+				new_segments.append(selected_segment)
+			
+			if segment_end > end_pos:
+				# Part after selection
+				var after_segment = segment.copy()
+				after_segment.text = segment.text.substr(end_pos - segment_start)
+				new_segments.append(after_segment)
+		
+		current_pos += segment.text.length()
+	
+	segments = new_segments
+	text_changed.emit()
 	queue_redraw()
 
 func apply_formatting_to_selection(bold: bool, italic: bool, underline: bool, code: bool):
