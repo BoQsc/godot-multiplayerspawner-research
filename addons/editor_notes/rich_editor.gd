@@ -482,9 +482,9 @@ func _process(delta):
 			cursor_blink_time = 0.0
 			queue_redraw()
 	else:
-		# When not focused, show cursor as solid (not blinking)
-		if cursor_visible != true:
-			cursor_visible = true
+		# When not focused, hide cursor completely
+		if cursor_visible != false:
+			cursor_visible = false
 			queue_redraw()
 
 func _gui_input(event):
