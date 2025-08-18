@@ -32,7 +32,6 @@ func create_ui():
 	"""Create the registration/login UI elements"""
 	# Main panel
 	main_panel = Panel.new()
-	main_panel.size = Vector2(450, 400)
 	main_panel.position = Vector2(30, 10)  # F2 - Top-left corner, slight offset from F1
 	add_child(main_panel)
 	

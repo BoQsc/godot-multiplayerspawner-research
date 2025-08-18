@@ -252,7 +252,6 @@ func _show_custom_join_ui():
 	var bg_panel = Panel.new()
 	bg_panel.name = "Panel"
 	bg_panel.position = Vector2(50, 10)  # F3 - Top-left corner, offset from F1/F2
-	bg_panel.size = Vector2(400, 300)
 	custom_join_ui.add_child(bg_panel)
 	
 	# VBox container for layout
@@ -386,7 +385,6 @@ func _show_player_list_ui():
 	var bg_panel = Panel.new()
 	bg_panel.name = "Panel"
 	bg_panel.position = Vector2(70, 10)  # F4 - Top-left corner, offset from F1/F2/F3
-	bg_panel.size = Vector2(500, 400)
 	player_list_ui.add_child(bg_panel)
 	
 	# VBox container for layout

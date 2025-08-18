@@ -20,7 +20,6 @@ func create_ui():
 	"""Create the device binding UI elements"""
 	# Main panel
 	device_binding_panel = Panel.new()
-	device_binding_panel.size = Vector2(400, 300)
 	device_binding_panel.position = Vector2(10, 10)  # F1 - Top-left corner
 	add_child(device_binding_panel)
 	
