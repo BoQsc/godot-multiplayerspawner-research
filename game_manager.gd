@@ -245,76 +245,95 @@ func _toggle_player_list_ui():
 
 func _show_custom_join_ui():
 	# Create custom IP join UI
-	custom_join_ui = ColorRect.new()
+	custom_join_ui = Control.new()
 	custom_join_ui.name = "CustomJoinUI"
-	custom_join_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	custom_join_ui.color = Color(0, 0, 0, 0.8)  # Solid dark background
 	
 	# Background panel
 	var bg_panel = Panel.new()
 	bg_panel.name = "Panel"
 	bg_panel.position = Vector2(50, 10)  # F3 - Top-left corner, offset from F1/F2
 	bg_panel.size = Vector2(400, 300)
-	bg_panel.modulate = Color(0.15, 0.15, 0.15, 1.0)  # Solid dark panel
+	custom_join_ui.add_child(bg_panel)
+	
+	# VBox container for layout
+	var vbox = VBoxContainer.new()
+	vbox.position = Vector2(20, 20)
+	vbox.size = Vector2(360, 260)
+	bg_panel.add_child(vbox)
 	
 	# Title label
 	var title_label = Label.new()
 	title_label.text = "Join Custom Server"
-	title_label.position = Vector2(150, 20)
-	title_label.add_theme_font_size_override("font_size", 20)
-	title_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Solid white text
+	title_label.add_theme_font_size_override("font_size", 18)
+	vbox.add_child(title_label)
+	
+	# Spacing
+	var spacer1 = Control.new()
+	spacer1.custom_minimum_size = Vector2(0, 20)
+	vbox.add_child(spacer1)
 	
 	# IP input
 	var ip_label = Label.new()
 	ip_label.text = "Server IP:"
-	ip_label.position = Vector2(50, 70)
-	ip_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Solid white text
+	vbox.add_child(ip_label)
 	
 	var ip_input = LineEdit.new()
 	ip_input.name = "IPInput"
 	ip_input.text = "192.168.0.90"
-	ip_input.position = Vector2(50, 95)
-	ip_input.size = Vector2(300, 30)
+	ip_input.placeholder_text = "Enter server IP address"
+	ip_input.custom_minimum_size = Vector2(360, 35)
+	vbox.add_child(ip_input)
+	
+	# Spacing
+	var spacer2 = Control.new()
+	spacer2.custom_minimum_size = Vector2(0, 10)
+	vbox.add_child(spacer2)
 	
 	# Port input
 	var port_label = Label.new()
 	port_label.text = "Port:"
-	port_label.position = Vector2(50, 140)
-	port_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Solid white text
+	vbox.add_child(port_label)
 	
 	var port_input = LineEdit.new()
 	port_input.name = "PortInput"
 	port_input.text = "4443"
-	port_input.position = Vector2(50, 165)
-	port_input.size = Vector2(300, 30)
+	port_input.placeholder_text = "Enter port number"
+	port_input.custom_minimum_size = Vector2(360, 35)
+	vbox.add_child(port_input)
+	
+	# Spacing
+	var spacer3 = Control.new()
+	spacer3.custom_minimum_size = Vector2(0, 20)
+	vbox.add_child(spacer3)
+	
+	# Button container
+	var button_hbox = HBoxContainer.new()
+	vbox.add_child(button_hbox)
 	
 	# Connect button
 	var connect_btn = Button.new()
 	connect_btn.text = "Connect"
-	connect_btn.position = Vector2(50, 220)
-	connect_btn.size = Vector2(100, 40)
+	connect_btn.custom_minimum_size = Vector2(120, 35)
+	button_hbox.add_child(connect_btn)
 	
 	# Cancel button
 	var cancel_btn = Button.new()
 	cancel_btn.text = "Cancel"
-	cancel_btn.position = Vector2(250, 220)
-	cancel_btn.size = Vector2(100, 40)
+	cancel_btn.custom_minimum_size = Vector2(120, 35)
+	button_hbox.add_child(cancel_btn)
 	
-	# Add all elements to panel
-	bg_panel.add_child(title_label)
-	bg_panel.add_child(ip_label)
-	bg_panel.add_child(ip_input)
-	bg_panel.add_child(port_label)
-	bg_panel.add_child(port_input)
-	bg_panel.add_child(connect_btn)
-	bg_panel.add_child(cancel_btn)
-	
-	custom_join_ui.add_child(bg_panel)
 	get_parent().get_node("UILayer").add_child(custom_join_ui)
 	
 	# Connect button signals
 	connect_btn.pressed.connect(_on_custom_connect_pressed.bind(custom_join_ui))
 	cancel_btn.pressed.connect(_on_custom_join_cancel.bind(custom_join_ui))
+	
+	# Handle enter key for quick connect
+	ip_input.text_submitted.connect(_on_custom_connect_enter.bind(custom_join_ui))
+	port_input.text_submitted.connect(_on_custom_connect_enter.bind(custom_join_ui))
+	
+	# Set focus to IP input
+	ip_input.grab_focus()
 	
 	print("GameManager: Showing custom join UI (F3)")
 
@@ -351,35 +370,47 @@ func _on_custom_join_cancel(ui_container: Control):
 	custom_join_ui = null
 	print("GameManager: Custom join cancelled")
 
+func _on_custom_connect_enter(ui_container: Control):
+	"""Handle enter key in input fields"""
+	_on_custom_connect_pressed(ui_container)
+
 func _connect_to_custom_server(ip: String, port: int):
 	print("Connecting to custom server: ", ip, ":", port)
 	_connect_to_server(ip, port)
 
 func _show_player_list_ui():
 	# Create player list UI
-	player_list_ui = ColorRect.new()
+	player_list_ui = Control.new()
 	player_list_ui.name = "PlayerListUI"
-	player_list_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	player_list_ui.color = Color(0, 0, 0, 0.8)  # Solid dark background
 	
 	# Background panel
 	var bg_panel = Panel.new()
 	bg_panel.name = "Panel"
 	bg_panel.position = Vector2(70, 10)  # F4 - Top-left corner, offset from F1/F2/F3
 	bg_panel.size = Vector2(500, 400)
-	bg_panel.modulate = Color(0.15, 0.15, 0.15, 1.0)  # Solid dark panel
+	player_list_ui.add_child(bg_panel)
+	
+	# VBox container for layout
+	var vbox = VBoxContainer.new()
+	vbox.position = Vector2(20, 20)
+	vbox.size = Vector2(460, 360)
+	bg_panel.add_child(vbox)
 	
 	# Title label
 	var title_label = Label.new()
 	title_label.text = "Online Players"
-	title_label.position = Vector2(200, 20)
-	title_label.add_theme_font_size_override("font_size", 20)
-	title_label.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Solid white text
+	title_label.add_theme_font_size_override("font_size", 18)
+	vbox.add_child(title_label)
+	
+	# Spacing
+	var spacer1 = Control.new()
+	spacer1.custom_minimum_size = Vector2(0, 15)
+	vbox.add_child(spacer1)
 	
 	# Scroll container for player list
 	var scroll_container = ScrollContainer.new()
-	scroll_container.position = Vector2(20, 60)
-	scroll_container.size = Vector2(460, 280)
+	scroll_container.custom_minimum_size = Vector2(460, 280)
+	vbox.add_child(scroll_container)
 	
 	# VBoxContainer to hold player entries
 	var player_list_container = VBoxContainer.new()
@@ -389,25 +420,32 @@ func _show_player_list_ui():
 	# Populate player list
 	_populate_player_list(player_list_container)
 	
+	# Spacing
+	var spacer2 = Control.new()
+	spacer2.custom_minimum_size = Vector2(0, 15)
+	vbox.add_child(spacer2)
+	
+	# Button container
+	var button_hbox = HBoxContainer.new()
+	vbox.add_child(button_hbox)
+	
 	# Refresh button
 	var refresh_btn = Button.new()
 	refresh_btn.text = "Refresh"
-	refresh_btn.position = Vector2(50, 350)
-	refresh_btn.size = Vector2(100, 30)
+	refresh_btn.custom_minimum_size = Vector2(120, 35)
+	button_hbox.add_child(refresh_btn)
+	
+	# Spacer between buttons
+	var button_spacer = Control.new()
+	button_spacer.custom_minimum_size = Vector2(20, 0)
+	button_hbox.add_child(button_spacer)
 	
 	# Close button
 	var close_btn = Button.new()
 	close_btn.text = "Close"
-	close_btn.position = Vector2(350, 350)
-	close_btn.size = Vector2(100, 30)
+	close_btn.custom_minimum_size = Vector2(120, 35)
+	button_hbox.add_child(close_btn)
 	
-	# Add all elements to panel
-	bg_panel.add_child(title_label)
-	bg_panel.add_child(scroll_container)
-	bg_panel.add_child(refresh_btn)
-	bg_panel.add_child(close_btn)
-	
-	player_list_ui.add_child(bg_panel)
 	get_parent().get_node("UILayer").add_child(player_list_ui)
 	
 	# Connect button signals
