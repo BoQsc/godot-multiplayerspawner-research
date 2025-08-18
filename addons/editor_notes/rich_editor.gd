@@ -341,11 +341,11 @@ func draw_selection():
 	var start_pos = min(selection_start, selection_end)
 	var end_pos = max(selection_start, selection_end)
 	
-	# Check if this is an empty line selection (selection contains only a newline)
+	# Check if this is an empty line selection (selection contains only a newline character)
 	if end_pos - start_pos == 1:
 		var text_content = get_text()
 		if start_pos < text_content.length() and text_content[start_pos] == '\n':
-			# This is a selection of just a newline (empty line) - show space character highlight
+			# This is an empty line - show space character highlight instead of newline selection
 			var cursor_visual = get_visual_position(start_pos)
 			var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 			draw_rect(Rect2(cursor_visual, Vector2(space_width, line_height)), Color(0.3, 0.6, 1.0, 0.3))
@@ -553,9 +553,14 @@ func handle_mouse_input(event: InputEventMouseButton):
 				select_entire_line(line_number)
 				queue_redraw()
 				return
-			# Single click on line number - just focus for now
-			queue_redraw()
-			return
+			elif event.pressed:
+				# Single click on line number - clear any existing selection and don't start new drag
+				clear_selection()
+				queue_redraw()
+				return
+			else:
+				# Mouse release in line number area - do nothing
+				return
 		
 		# Regular text area click handling
 		var click_pos = get_text_position_at(event.position)
@@ -580,8 +585,12 @@ func handle_mouse_input(event: InputEventMouseButton):
 		context_menu.popup()
 
 func handle_mouse_motion(event: InputEventMouseMotion):
-	# Handle drag selection
+	# Handle drag selection - but only if we're in the text area
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and selection_start != -1:
+		# Don't allow drag selection if mouse is in line number area
+		if event.position.x < line_number_width:
+			return
+		
 		var drag_pos = get_text_position_at(event.position)
 		selection_end = drag_pos
 		cursor_position = drag_pos
@@ -1089,9 +1098,8 @@ func is_word_char(char: String) -> bool:
 
 func get_line_number_at_y(y_pos: float) -> int:
 	# Convert Y position to line number (1-based)
-	# Use the same calculation method as text positioning
-	var adjusted_y = y_pos - text_margin.y + (line_height * 0.5)  # Add half line height for better center detection
-	var line_index = int(adjusted_y / line_height)
+	# Simple calculation that matches how line numbers are drawn
+	var line_index = int((y_pos - text_margin.y) / line_height)
 	return max(1, line_index + 1)
 
 func select_entire_line(line_number: int):
