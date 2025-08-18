@@ -101,19 +101,33 @@ func _draw():
 	draw_cursor()  # Draw cursor on top
 
 func draw_background():
-	# Draw editor background using standard Godot editor interface color
-	# This is the same color used for console, scene tree, and other editor panels
-	var bg_color = get_theme_color("dark_color_2", "Editor")
-	if bg_color == Color.BLACK:  # Fallback if theme color not available
-		bg_color = Color(0.19, 0.22, 0.27)  # Default Godot editor panel color
+	# Get the actual editor interface theme
+	var editor_interface = Engine.get_singleton("EditorInterface")
+	var editor_theme = editor_interface.get_editor_theme() if editor_interface else null
+	
+	var bg_color: Color
+	if editor_theme:
+		# Use the darker panel/input background color like console and scene tree
+		bg_color = editor_theme.get_color("dark_color_2", "Editor")
+		if bg_color == Color.BLACK:  # Try alternative darker color
+			bg_color = editor_theme.get_color("dark_color_1", "Editor")
+		if bg_color == Color.BLACK:  # Try LineEdit background
+			bg_color = editor_theme.get_color("base_color", "LineEdit")
+		if bg_color == Color.BLACK:  # Final fallback
+			bg_color = Color(0.14, 0.17, 0.22)  # Darker editor panel color
+	else:
+		bg_color = Color(0.14, 0.17, 0.22)  # Fallback
 	
 	draw_rect(Rect2(Vector2.ZERO, size), bg_color)
 	
-	# Draw subtle border using editor accent color
-	var border_color = get_theme_color("accent_color", "Editor")
-	if border_color == Color.BLACK:  # Fallback
-		border_color = Color(0.35, 0.35, 0.35)
-	border_color.a = 0.2  # Very subtle border
+	# Draw subtle border
+	var border_color: Color
+	if editor_theme:
+		border_color = editor_theme.get_color("font_color", "Editor")
+		border_color.a = 0.1  # Very subtle
+	else:
+		border_color = Color(0.35, 0.35, 0.35, 0.1)
+	
 	draw_rect(Rect2(Vector2.ZERO, size), border_color, false, 1.0)
 
 func draw_text_segments():
@@ -159,19 +173,26 @@ func get_segment_font(segment: TextSegment) -> Font:
 		return base_font
 
 func get_segment_color(segment: TextSegment) -> Color:
+	# Get the actual editor theme
+	var editor_interface = Engine.get_singleton("EditorInterface")
+	var editor_theme = editor_interface.get_editor_theme() if editor_interface else null
+	
 	if segment.code:
 		# Use a themed color for code text
-		var code_color = get_theme_color("font_color", "Editor")
-		if code_color == Color.BLACK:  # Fallback
-			code_color = Color.LIGHT_GREEN
-		else:
+		var code_color: Color
+		if editor_theme:
+			code_color = editor_theme.get_color("font_color", "Editor")
 			code_color = code_color.lerp(Color.GREEN, 0.3)  # Tint towards green
+		else:
+			code_color = Color.LIGHT_GREEN  # Fallback
 		return code_color
 	else:
 		# Use editor theme font color
-		var text_color = get_theme_color("font_color", "Editor")
-		if text_color == Color.BLACK:  # Fallback if theme color not available
-			text_color = Color(0.9, 0.9, 0.9)  # Light gray for dark theme
+		var text_color: Color
+		if editor_theme:
+			text_color = editor_theme.get_color("font_color", "Editor")
+		else:
+			text_color = Color(0.9, 0.9, 0.9)  # Fallback
 		return text_color
 
 func draw_cursor():
@@ -179,9 +200,16 @@ func draw_cursor():
 		return
 		
 	var cursor_pos = get_visual_position(cursor_position)
-	var cursor_color = get_theme_color("font_color", "Editor")
-	if cursor_color == Color.BLACK:  # Fallback
-		cursor_color = Color.WHITE
+	
+	# Get cursor color from editor theme
+	var editor_interface = Engine.get_singleton("EditorInterface")
+	var editor_theme = editor_interface.get_editor_theme() if editor_interface else null
+	var cursor_color: Color
+	if editor_theme:
+		cursor_color = editor_theme.get_color("font_color", "Editor")
+	else:
+		cursor_color = Color.WHITE  # Fallback
+	
 	draw_line(cursor_pos, cursor_pos + Vector2(0, line_height), cursor_color, 2.0)
 
 func draw_selection():
