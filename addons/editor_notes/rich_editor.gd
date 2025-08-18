@@ -44,9 +44,13 @@ var cursor_visible: bool = true
 # Signals
 signal text_changed()
 
+# Context menu
+var context_menu: PopupMenu
+
 func _ready():
 	setup_fonts()
 	setup_initial_text()
+	setup_context_menu()
 	
 	# Enable input handling
 	set_process_input(true)
@@ -77,6 +81,18 @@ func setup_initial_text():
 	# Start with a single empty segment
 	segments = [TextSegment.new("")]
 	cursor_position = 0
+
+func setup_context_menu():
+	context_menu = PopupMenu.new()
+	add_child(context_menu)
+	
+	context_menu.add_item("Cut", 0)
+	context_menu.add_item("Copy", 1)
+	context_menu.add_item("Paste", 2)
+	context_menu.add_separator()
+	context_menu.add_item("Select All", 3)
+	
+	context_menu.id_pressed.connect(_on_context_menu_item_pressed)
 
 func _draw():
 	draw_background()
@@ -301,15 +317,24 @@ func handle_mouse_input(event: InputEventMouseButton):
 		grab_focus()
 		var click_pos = get_text_position_at(event.position)
 		if event.pressed:
-			cursor_position = click_pos
-			# Start selection on mouse down
-			selection_start = click_pos
-			selection_end = click_pos
+			# Check for double-click
+			if event.double_click:
+				select_word_at_position(click_pos)
+			else:
+				cursor_position = click_pos
+				# Start selection on mouse down
+				selection_start = click_pos
+				selection_end = click_pos
 		else:
 			# End selection on mouse up
 			if selection_start == selection_end:
 				clear_selection()
 		queue_redraw()
+	elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+		grab_focus()
+		# Show context menu at mouse position
+		context_menu.position = global_position + event.position
+		context_menu.popup()
 
 func handle_mouse_motion(event: InputEventMouseMotion):
 	# Handle drag selection
@@ -436,9 +461,63 @@ func apply_formatting(bold: bool = false, italic: bool = false, underline: bool 
 	queue_redraw()
 
 func apply_formatting_to_selection(bold: bool, italic: bool, underline: bool, code: bool):
-	# This would split segments and apply formatting to the selected range
-	# Complex implementation needed for proper selection formatting
-	pass
+	if not has_selection():
+		return
+	
+	var start_pos = min(selection_start, selection_end)
+	var end_pos = max(selection_start, selection_end)
+	
+	var new_segments: Array[TextSegment] = []
+	var current_pos = 0
+	
+	for segment in segments:
+		var segment_start = current_pos
+		var segment_end = current_pos + segment.text.length()
+		
+		if segment_end <= start_pos or segment_start >= end_pos:
+			# Segment is outside selection - keep unchanged
+			new_segments.append(segment.copy())
+		elif segment_start >= start_pos and segment_end <= end_pos:
+			# Segment is completely within selection - apply formatting
+			var new_segment = segment.copy()
+			new_segment.bold = bold
+			new_segment.italic = italic
+			new_segment.underline = underline
+			new_segment.code = code
+			new_segments.append(new_segment)
+		else:
+			# Segment is partially within selection - split it
+			if segment_start < start_pos:
+				# Part before selection
+				var before_segment = segment.copy()
+				before_segment.text = segment.text.substr(0, start_pos - segment_start)
+				new_segments.append(before_segment)
+			
+			# Part within selection
+			var selection_start_in_segment = max(0, start_pos - segment_start)
+			var selection_end_in_segment = min(segment.text.length(), end_pos - segment_start)
+			var selected_text = segment.text.substr(selection_start_in_segment, selection_end_in_segment - selection_start_in_segment)
+			
+			if selected_text.length() > 0:
+				var selected_segment = segment.copy()
+				selected_segment.text = selected_text
+				selected_segment.bold = bold
+				selected_segment.italic = italic
+				selected_segment.underline = underline
+				selected_segment.code = code
+				new_segments.append(selected_segment)
+			
+			if segment_end > end_pos:
+				# Part after selection
+				var after_segment = segment.copy()
+				after_segment.text = segment.text.substr(end_pos - segment_start)
+				new_segments.append(after_segment)
+		
+		current_pos += segment.text.length()
+	
+	segments = new_segments
+	text_changed.emit()
+	queue_redraw()
 
 func get_text() -> String:
 	var result = ""
@@ -579,3 +658,45 @@ func _can_drop_data(position, data):
 
 func _drop_data(position, data):
 	pass
+
+func _on_context_menu_item_pressed(id: int):
+	match id:
+		0: # Cut
+			cut_selection()
+		1: # Copy
+			copy_selection()
+		2: # Paste
+			paste_from_clipboard()
+		3: # Select All
+			select_all()
+
+func select_word_at_position(pos: int):
+	var text_content = get_text()
+	if text_content.is_empty():
+		return
+	
+	pos = clamp(pos, 0, text_content.length())
+	
+	# Find word boundaries
+	var word_start = pos
+	var word_end = pos
+	
+	# Find start of word
+	while word_start > 0 and is_word_char(text_content[word_start - 1]):
+		word_start -= 1
+	
+	# Find end of word
+	while word_end < text_content.length() and is_word_char(text_content[word_end]):
+		word_end += 1
+	
+	# Select the word
+	if word_start < word_end:
+		selection_start = word_start
+		selection_end = word_end
+		cursor_position = word_end
+		queue_redraw()
+
+func is_word_char(char: String) -> bool:
+	# Consider alphanumeric characters and underscore as word characters
+	var code = char.unicode_at(0)
+	return (code >= 65 and code <= 90) or (code >= 97 and code <= 122) or (code >= 48 and code <= 57) or code == 95
