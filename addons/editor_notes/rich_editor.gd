@@ -37,7 +37,9 @@ var code_font: Font
 # Visual properties
 var font_size: int = 16
 var line_height: float = 20.0
+var line_number_width: float = 40.0  # Width of line number sidebar
 var margin: Vector2 = Vector2(10, 10)
+var text_margin: Vector2 = Vector2(50, 10)  # Text starts after line numbers
 var cursor_blink_time: float = 0.0
 var cursor_visible: bool = true
 
@@ -59,6 +61,9 @@ func _ready():
 	
 	# Make sure we can receive focus
 	focus_mode = Control.FOCUS_ALL
+	
+	# Set mouse cursor to text edit cursor
+	mouse_default_cursor_shape = Control.CURSOR_IBEAM
 	
 	# Auto-focus when ready
 	call_deferred("grab_focus")
@@ -115,6 +120,7 @@ func setup_context_menu():
 
 func _draw():
 	draw_background()
+	draw_line_numbers()
 	draw_selection()  # Draw selection behind text
 	draw_text_segments()
 	draw_cursor()  # Draw cursor on top
@@ -125,6 +131,7 @@ func draw_background():
 	var editor_theme = editor_interface.get_editor_theme() if editor_interface else null
 	
 	var bg_color: Color
+	var line_number_bg_color: Color
 	if editor_theme:
 		# Use the darker panel/input background color like console and scene tree
 		bg_color = editor_theme.get_color("dark_color_2", "Editor")
@@ -134,10 +141,28 @@ func draw_background():
 			bg_color = editor_theme.get_color("base_color", "LineEdit")
 		if bg_color == Color.BLACK:  # Final fallback
 			bg_color = Color(0.14, 0.17, 0.22)  # Darker editor panel color
+		
+		# Line number background should be slightly darker
+		line_number_bg_color = bg_color.darkened(0.1)
 	else:
 		bg_color = Color(0.14, 0.17, 0.22)  # Fallback
+		line_number_bg_color = Color(0.12, 0.15, 0.20)  # Darker fallback
 	
-	draw_rect(Rect2(Vector2.ZERO, size), bg_color)
+	# Draw main text area background
+	draw_rect(Rect2(Vector2(line_number_width, 0), Vector2(size.x - line_number_width, size.y)), bg_color)
+	
+	# Draw line number area background
+	draw_rect(Rect2(Vector2.ZERO, Vector2(line_number_width, size.y)), line_number_bg_color)
+	
+	# Draw separator line between line numbers and text
+	var separator_color: Color
+	if editor_theme:
+		separator_color = editor_theme.get_color("font_color", "Editor")
+		separator_color.a = 0.2
+	else:
+		separator_color = Color(0.4, 0.4, 0.4, 0.2)
+	
+	draw_line(Vector2(line_number_width, 0), Vector2(line_number_width, size.y), separator_color, 1.0)
 	
 	# Draw subtle border
 	var border_color: Color
@@ -149,8 +174,40 @@ func draw_background():
 	
 	draw_rect(Rect2(Vector2.ZERO, size), border_color, false, 1.0)
 
+func draw_line_numbers():
+	# Get the actual editor interface theme
+	var editor_interface = Engine.get_singleton("EditorInterface")
+	var editor_theme = editor_interface.get_editor_theme() if editor_interface else null
+	
+	var line_number_color: Color
+	if editor_theme:
+		line_number_color = editor_theme.get_color("font_color", "Editor")
+		line_number_color.a = 0.5  # Make line numbers more subtle
+	else:
+		line_number_color = Color(0.6, 0.6, 0.6, 0.5)
+	
+	# Count lines in text
+	var text_content = get_text()
+	var line_count = 1
+	for i in range(text_content.length()):
+		if text_content[i] == '\n':
+			line_count += 1
+	
+	# Ensure at least one line number is shown
+	line_count = max(1, line_count)
+	
+	# Draw line numbers
+	var line_number_font = base_font
+	for line_num in range(1, line_count + 1):
+		var y_pos = text_margin.y + (line_num - 1) * line_height + line_number_font.get_ascent(font_size)
+		var line_text = str(line_num)
+		var text_width = line_number_font.get_string_size(line_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		var x_pos = line_number_width - text_width - 5  # Right-align with 5px margin
+		
+		line_number_font.draw_string(get_canvas_item(), Vector2(x_pos, y_pos), line_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, line_number_color)
+
 func draw_text_segments():
-	var pos = margin
+	var pos = text_margin  # Use text_margin instead of margin
 	var current_pos = 0
 	
 	for segment in segments:
@@ -203,7 +260,7 @@ func draw_text_segments():
 			
 			# Move to next line if there's a newline
 			if line_idx < segment_lines.size() - 1:
-				pos.x = margin.x
+				pos.x = text_margin.x  # Use text_margin instead of margin
 				pos.y += line_height
 		
 		current_pos += segment.text.length()
@@ -319,7 +376,7 @@ func get_visual_position(text_pos: int) -> Vector2:
 	# Calculate position by rendering text segments up to cursor position
 	text_pos = clamp(text_pos, 0, get_total_text_length())
 	
-	var pos = margin
+	var pos = text_margin  # Use text_margin instead of margin
 	var current_pos = 0
 	
 	for segment in segments:
@@ -334,7 +391,7 @@ func get_visual_position(text_pos: int) -> Vector2:
 		for i in range(chars_to_process):
 			var char = segment_text[i]
 			if char == '\n':
-				pos.x = margin.x
+				pos.x = text_margin.x  # Use text_margin instead of margin
 				pos.y += line_height
 			else:
 				# Use same method as drawing for consistency
@@ -465,11 +522,11 @@ func handle_mouse_motion(event: InputEventMouseMotion):
 
 func get_text_position_at(visual_pos: Vector2) -> int:
 	# Convert visual position back to text position using same method as get_visual_position
-	var pos = margin
+	var pos = text_margin  # Use text_margin instead of margin
 	var text_pos = 0
 	
-	# If click is above text area, return position 0
-	if visual_pos.y < margin.y:
+	# If click is in line number area or above text area, return position 0
+	if visual_pos.x < text_margin.x or visual_pos.y < text_margin.y:
 		return 0
 	
 	for segment in segments:
@@ -499,7 +556,7 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 			
 			# Move to next character position
 			if char == '\n':
-				pos.x = margin.x
+				pos.x = text_margin.x  # Use text_margin instead of margin
 				pos.y += line_height
 			else:
 				var char_size = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
