@@ -27,6 +27,10 @@ var selection_start: int = -1
 var selection_end: int = -1
 var current_format: TextSegment = TextSegment.new()
 
+# Line number drag state
+var line_drag_active: bool = false
+var line_drag_start_line: int = -1
+
 # Fonts and styling
 var base_font: Font
 var bold_font: Font  
@@ -551,18 +555,24 @@ func handle_mouse_input(event: InputEventMouseButton):
 				# Double-click on line number - select entire line
 				var line_number = get_line_number_at_y(event.position.y)
 				select_entire_line(line_number)
+				line_drag_active = false  # Reset drag state
 				queue_redraw()
 				return
 			elif event.pressed:
-				# Single click on line number - clear any existing selection and don't start new drag
-				clear_selection()
+				# Single click on line number - start line drag selection
+				var line_number = get_line_number_at_y(event.position.y)
+				line_drag_active = true
+				line_drag_start_line = line_number
+				select_entire_line(line_number)
 				queue_redraw()
 				return
 			else:
-				# Mouse release in line number area - do nothing
+				# Mouse release in line number area - end line drag
+				line_drag_active = false
 				return
 		
 		# Regular text area click handling
+		line_drag_active = false  # Reset line drag state when clicking in text area
 		var click_pos = get_text_position_at(event.position)
 		if event.pressed:
 			# Check for double-click
@@ -585,16 +595,40 @@ func handle_mouse_input(event: InputEventMouseButton):
 		context_menu.popup()
 
 func handle_mouse_motion(event: InputEventMouseMotion):
-	# Handle drag selection - but only if we're in the text area
-	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and selection_start != -1:
-		# Don't allow drag selection if mouse is in line number area
-		if event.position.x < line_number_width:
-			return
-		
-		var drag_pos = get_text_position_at(event.position)
-		selection_end = drag_pos
-		cursor_position = drag_pos
-		queue_redraw()
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		if line_drag_active:
+			# Handle line number drag selection with improved accuracy
+			var current_line = get_line_number_at_y(event.position.y)
+			
+			# Only update if line actually changed to reduce flicker
+			var text_content = get_text()
+			var expected_start = min(line_drag_start_line, current_line)
+			var expected_end = max(line_drag_start_line, current_line)
+			
+			# Check if selection needs updating
+			var needs_update = false
+			if selection_start == -1 or selection_end == -1:
+				needs_update = true
+			else:
+				# Convert current selection back to line numbers to check if they changed
+				var current_start_line = get_line_at_position(selection_start)
+				var current_end_line = get_line_at_position(selection_end - 1) # -1 because selection_end is exclusive
+				
+				if current_start_line != expected_start or current_end_line != expected_end:
+					needs_update = true
+			
+			if needs_update:
+				select_line_range(line_drag_start_line, current_line)
+				queue_redraw()
+		elif selection_start != -1:
+			# Handle regular text drag selection - but only if we're in the text area
+			if event.position.x < line_number_width:
+				return
+			
+			var drag_pos = get_text_position_at(event.position)
+			selection_end = drag_pos
+			cursor_position = drag_pos
+			queue_redraw()
 
 func get_text_position_at(visual_pos: Vector2) -> int:
 	# Convert visual position back to text position using same method as get_visual_position
@@ -1098,9 +1132,36 @@ func is_word_char(char: String) -> bool:
 
 func get_line_number_at_y(y_pos: float) -> int:
 	# Convert Y position to line number (1-based)
-	# Simple calculation that matches how line numbers are drawn
+	# Handle edge cases and bounds properly
+	
+	# If above text area, return line 1
+	if y_pos < text_margin.y:
+		return 1
+	
+	# Calculate line based on position
 	var line_index = int((y_pos - text_margin.y) / line_height)
-	return max(1, line_index + 1)
+	var calculated_line = line_index + 1
+	
+	# Get actual line count to prevent going beyond available lines
+	var text_content = get_text()
+	var actual_line_count = 1
+	for i in range(text_content.length()):
+		if text_content[i] == '\n':
+			actual_line_count += 1
+	
+	# Clamp to valid range
+	return clamp(calculated_line, 1, actual_line_count)
+
+func get_line_at_position(text_pos: int) -> int:
+	# Convert text position to line number (1-based)
+	var text_content = get_text()
+	var line_number = 1
+	
+	for i in range(min(text_pos, text_content.length())):
+		if text_content[i] == '\n':
+			line_number += 1
+	
+	return line_number
 
 func select_entire_line(line_number: int):
 	# Select the entire line (1-based line number)
@@ -1144,3 +1205,66 @@ func select_entire_line(line_number: int):
 			selection_start = text_content.length()
 			selection_end = text_content.length()
 			cursor_position = text_content.length()
+
+func select_line_range(start_line: int, end_line: int):
+	# Select a range of lines (1-based line numbers)
+	var text_content = get_text()
+	if text_content.is_empty():
+		selection_start = 0
+		selection_end = 0
+		cursor_position = 0
+		return
+	
+	# Ensure valid line numbers
+	var max_lines = 1
+	for i in range(text_content.length()):
+		if text_content[i] == '\n':
+			max_lines += 1
+	
+	start_line = clamp(start_line, 1, max_lines)
+	end_line = clamp(end_line, 1, max_lines)
+	
+	# Determine direction
+	var first_line = min(start_line, end_line)
+	var last_line = max(start_line, end_line)
+	
+	# Find line positions more accurately
+	var line_positions = [0]  # Start positions of each line
+	var current_line = 1
+	
+	for i in range(text_content.length()):
+		if text_content[i] == '\n':
+			current_line += 1
+			if i + 1 < text_content.length():
+				line_positions.append(i + 1)
+			else:
+				line_positions.append(text_content.length())
+	
+	# Ensure we have position for the last line
+	if line_positions.size() < max_lines:
+		line_positions.append(text_content.length())
+	
+	# Get start and end positions
+	var range_start = line_positions[first_line - 1] if first_line - 1 < line_positions.size() else 0
+	var range_end = text_content.length()
+	
+	# Find end of last line (including newline if it exists)
+	if last_line < line_positions.size():
+		range_end = line_positions[last_line]
+	else:
+		# Last line - go to end
+		var pos = line_positions[last_line - 1] if last_line - 1 < line_positions.size() else 0
+		while pos < text_content.length() and text_content[pos] != '\n':
+			pos += 1
+		if pos < text_content.length() and text_content[pos] == '\n':
+			pos += 1
+		range_end = pos
+	
+	# Set the selection
+	selection_start = range_start
+	selection_end = range_end
+	
+	# Position cursor appropriately
+	cursor_position = range_end
+	if range_end > range_start and range_end <= text_content.length() and text_content[range_end - 1] == '\n':
+		cursor_position = range_end - 1
