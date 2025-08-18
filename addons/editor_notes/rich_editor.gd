@@ -534,6 +534,20 @@ func handle_key_input(event: InputEventKey):
 func handle_mouse_input(event: InputEventMouseButton):
 	if event.button_index == MOUSE_BUTTON_LEFT:
 		grab_focus()
+		
+		# Check if click is in line number area
+		if event.position.x < line_number_width:
+			if event.pressed and event.double_click:
+				# Double-click on line number - select entire line
+				var line_number = get_line_number_at_y(event.position.y)
+				select_entire_line(line_number)
+				queue_redraw()
+				return
+			# Single click on line number - just focus for now
+			queue_redraw()
+			return
+		
+		# Regular text area click handling
 		var click_pos = get_text_position_at(event.position)
 		if event.pressed:
 			# Check for double-click
@@ -1062,3 +1076,48 @@ func is_word_char(char: String) -> bool:
 	# Consider alphanumeric characters and underscore as word characters
 	var code = char.unicode_at(0)
 	return (code >= 65 and code <= 90) or (code >= 97 and code <= 122) or (code >= 48 and code <= 57) or code == 95
+
+func get_line_number_at_y(y_pos: float) -> int:
+	# Convert Y position to line number (1-based)
+	var line_index = int((y_pos - text_margin.y) / line_height)
+	return max(1, line_index + 1)
+
+func select_entire_line(line_number: int):
+	# Select the entire line (1-based line number)
+	var text_content = get_text()
+	var current_line = 1
+	var line_start = 0
+	var line_end = 0
+	
+	# Find the start and end positions of the target line
+	for i in range(text_content.length()):
+		if current_line == line_number:
+			line_start = i
+			# Find end of this line
+			line_end = i
+			while line_end < text_content.length() and text_content[line_end] != '\n':
+				line_end += 1
+			# Include the newline character if it exists
+			if line_end < text_content.length():
+				line_end += 1
+			break
+		elif text_content[i] == '\n':
+			current_line += 1
+			if current_line == line_number:
+				line_start = i + 1
+	
+	# If we're on the last line and it doesn't end with newline
+	if current_line == line_number and line_end <= line_start:
+		line_end = text_content.length()
+	
+	# Set selection to the entire line
+	if current_line == line_number:
+		selection_start = line_start
+		selection_end = line_end
+		cursor_position = line_end
+	else:
+		# Line number is beyond available lines - select last line
+		if text_content.length() > 0:
+			selection_start = text_content.length()
+			selection_end = text_content.length()
+			cursor_position = text_content.length()
