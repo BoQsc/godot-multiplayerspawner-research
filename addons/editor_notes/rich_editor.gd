@@ -373,16 +373,22 @@ func draw_selection():
 			while line_end_pos < text_content.length() and text_content[line_end_pos] != '\n':
 				line_end_pos += 1
 			
-			# Only draw if this line has content and ends before our selection end
-			if line_end_pos <= end_pos and line_start_pos < line_end_pos:
+			# Handle lines within selection
+			if line_start_pos < end_pos:
 				var line_start_visual = get_visual_position(line_start_pos)
-				var line_end_visual = get_visual_position(line_end_pos)
-				draw_rect(Rect2(line_start_visual, Vector2(line_end_visual.x - line_start_visual.x, line_height)), Color(0.3, 0.6, 1.0, 0.3))
-			elif line_start_pos < end_pos and line_end_pos > end_pos:
-				# This line extends beyond selection - partial selection
-				var line_start_visual = get_visual_position(line_start_pos)
-				draw_rect(Rect2(line_start_visual, Vector2(end_visual.x - line_start_visual.x, line_height)), Color(0.3, 0.6, 1.0, 0.3))
-				break
+				
+				if line_start_pos == line_end_pos:
+					# Empty line (just newline) - show small space character highlight like code editors
+					var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+					draw_rect(Rect2(line_start_visual, Vector2(space_width, line_height)), Color(0.3, 0.6, 1.0, 0.3))
+				elif line_end_pos <= end_pos:
+					# Line with content, completely within selection
+					var line_end_visual = get_visual_position(line_end_pos)
+					draw_rect(Rect2(line_start_visual, Vector2(line_end_visual.x - line_start_visual.x, line_height)), Color(0.3, 0.6, 1.0, 0.3))
+				else:
+					# Line extends beyond selection - partial selection
+					draw_rect(Rect2(line_start_visual, Vector2(end_visual.x - line_start_visual.x, line_height)), Color(0.3, 0.6, 1.0, 0.3))
+					break
 			
 			current_pos = line_end_pos + 1  # Move past the newline
 
