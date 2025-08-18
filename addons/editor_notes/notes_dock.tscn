@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://c4vqvk2f3mvl"]
+[gd_scene load_steps=3 format=3 uid="uid://c4vqvk2f3mvl"]
 
 [ext_resource type="Script" path="res://addons/editor_notes/notes_dock.gd" id="1_0v8xj"]
+[ext_resource type="Script" path="res://addons/editor_notes/rich_editor.gd" id="2_rich_editor"]
 
 [node name="Notes" type="Control"]
 layout_mode = 3
@@ -24,21 +25,8 @@ size_flags_horizontal = 3
 text = "Editor Notes"
 horizontal_alignment = 1
 
-[node name="ModeButton" type="Button" parent="VBoxContainer/Header"]
-layout_mode = 2
-focus_mode = 0
-text = "Render"
-tooltip_text = "Current mode: Render"
-
-[node name="EditButton" type="Button" parent="VBoxContainer/Header"]
-layout_mode = 2
-focus_mode = 0
-text = "Edit"
-tooltip_text = "Switch to edit mode"
-
 [node name="Toolbar" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
-visible = false
 
 [node name="BoldBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
@@ -75,43 +63,3 @@ focus_mode = 0
 text = "Clear"
 tooltip_text = "Clear all"
 
-[node name="Content" type="Control" parent="VBoxContainer"]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="RenderView" type="RichTextLabel" parent="VBoxContainer/Content"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-bbcode_enabled = true
-selection_enabled = true
-scroll_following = true
-
-[node name="EditView" type="HSplitContainer" parent="VBoxContainer/Content"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-visible = false
-
-[node name="EditField" type="TextEdit" parent="VBoxContainer/Content/EditView"]
-layout_mode = 2
-size_flags_horizontal = 3
-placeholder_text = "Type your notes here..."
-wrap_mode = 1
-
-[node name="LivePreview" type="RichTextLabel" parent="VBoxContainer/Content/EditView"]
-layout_mode = 2
-size_flags_horizontal = 3
-bbcode_enabled = true
-selection_enabled = true
-
-[node name="SourceField" type="TextEdit" parent="VBoxContainer/Content"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-visible = false
-placeholder_text = "Raw markdown editing..."
-wrap_mode = 1
