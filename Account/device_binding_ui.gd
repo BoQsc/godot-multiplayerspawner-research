@@ -50,7 +50,7 @@ func create_ui():
 	# Info label
 	info_label = Label.new()
 	info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	info_label.custom_minimum_size = Vector2(360, 100)
+	info_label.custom_minimum_size = Vector2(340, 100)
 	vbox.add_child(info_label)
 	
 	# Spacing

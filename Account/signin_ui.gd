@@ -52,7 +52,7 @@ func create_ui():
 	info_label = Label.new()
 	info_label.text = "Register to claim this character and enable cross-device access"
 	info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	info_label.custom_minimum_size = Vector2(410, 40)
+	info_label.custom_minimum_size = Vector2(390, 40)
 	vbox.add_child(info_label)
 	
 	# Spacing
@@ -67,7 +67,7 @@ func create_ui():
 	
 	username_input = LineEdit.new()
 	username_input.placeholder_text = "Enter username (4+ characters)"
-	username_input.custom_minimum_size = Vector2(400, 35)
+	username_input.custom_minimum_size = Vector2(390, 35)
 	vbox.add_child(username_input)
 	
 	# Spacing
@@ -83,7 +83,7 @@ func create_ui():
 	password_input = LineEdit.new()
 	password_input.placeholder_text = "Enter password (4+ characters)"
 	password_input.secret = true
-	password_input.custom_minimum_size = Vector2(400, 35)
+	password_input.custom_minimum_size = Vector2(390, 35)
 	vbox.add_child(password_input)
 	
 	# Spacing
@@ -125,7 +125,7 @@ func create_ui():
 	status_label = Label.new()
 	status_label.text = "Enter username and password to register or login"
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	status_label.custom_minimum_size = Vector2(410, 60)
+	status_label.custom_minimum_size = Vector2(390, 60)
 	vbox.add_child(status_label)
 	
 	# Close button

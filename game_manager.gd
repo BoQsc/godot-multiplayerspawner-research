@@ -281,7 +281,7 @@ func _show_custom_join_ui():
 	ip_input.name = "IPInput"
 	ip_input.text = "192.168.0.90"
 	ip_input.placeholder_text = "Enter server IP address"
-	ip_input.custom_minimum_size = Vector2(360, 35)
+	ip_input.custom_minimum_size = Vector2(340, 35)
 	vbox.add_child(ip_input)
 	
 	# Spacing
@@ -298,7 +298,7 @@ func _show_custom_join_ui():
 	port_input.name = "PortInput"
 	port_input.text = "4443"
 	port_input.placeholder_text = "Enter port number"
-	port_input.custom_minimum_size = Vector2(360, 35)
+	port_input.custom_minimum_size = Vector2(340, 35)
 	vbox.add_child(port_input)
 	
 	# Spacing
@@ -409,7 +409,7 @@ func _show_player_list_ui():
 	
 	# Scroll container for player list
 	var scroll_container = ScrollContainer.new()
-	scroll_container.custom_minimum_size = Vector2(460, 280)
+	scroll_container.custom_minimum_size = Vector2(440, 280)
 	vbox.add_child(scroll_container)
 	
 	# VBoxContainer to hold player entries
