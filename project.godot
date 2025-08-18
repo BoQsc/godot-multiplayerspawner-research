@@ -18,4 +18,4 @@ config/icon="res://icon.svg"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/world_persistence/plugin.cfg")
+enabled=PackedStringArray("res://addons/scene_auto_reload/plugin.cfg", "res://addons/world_persistence/plugin.cfg")
