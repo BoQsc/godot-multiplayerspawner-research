@@ -101,18 +101,19 @@ func _draw():
 	draw_cursor()  # Draw cursor on top
 
 func draw_background():
-	# Draw editor background using Godot editor theme
-	var bg_color = get_theme_color("base_color", "Editor")
+	# Draw editor background using standard Godot editor interface color
+	# This is the same color used for console, scene tree, and other editor panels
+	var bg_color = get_theme_color("dark_color_2", "Editor")
 	if bg_color == Color.BLACK:  # Fallback if theme color not available
-		bg_color = Color(0.2, 0.23, 0.31)  # Default Godot dark theme color
+		bg_color = Color(0.19, 0.22, 0.27)  # Default Godot editor panel color
 	
 	draw_rect(Rect2(Vector2.ZERO, size), bg_color)
 	
-	# Draw border
-	var border_color = get_theme_color("font_color", "Editor")
+	# Draw subtle border using editor accent color
+	var border_color = get_theme_color("accent_color", "Editor")
 	if border_color == Color.BLACK:  # Fallback
-		border_color = Color(0.4, 0.4, 0.4)
-	border_color.a = 0.3  # Make border subtle
+		border_color = Color(0.35, 0.35, 0.35)
+	border_color.a = 0.2  # Very subtle border
 	draw_rect(Rect2(Vector2.ZERO, size), border_color, false, 1.0)
 
 func draw_text_segments():
