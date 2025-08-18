@@ -13,59 +13,66 @@ layout_mode = 0
 offset_right = 101.0
 offset_bottom = 40.0
 
-[node name="HFlowContainer" type="VBoxContainer" parent="PanelContainer"]
+[node name="MarginContainer" type="MarginContainer" parent="PanelContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 20
+
+[node name="HFlowContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer"]
 layout_mode = 2
 
-[node name="Title" type="MarginContainer" parent="PanelContainer/HFlowContainer"]
+[node name="Title" type="MarginContainer" parent="PanelContainer/MarginContainer/HFlowContainer"]
 layout_mode = 2
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_bottom = 10
 
-[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/Title"]
+[node name="Label" type="Label" parent="PanelContainer/MarginContainer/HFlowContainer/Title"]
 layout_mode = 2
 text = "Annonymous Player Device Binding"
 
-[node name="Protect this character" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
+[node name="Protect this character" type="VBoxContainer" parent="PanelContainer/MarginContainer/HFlowContainer"]
 layout_mode = 2
 
-[node name="CheckBox" type="CheckBox" parent="PanelContainer/HFlowContainer/Protect this character"]
+[node name="CheckBox" type="CheckBox" parent="PanelContainer/MarginContainer/HFlowContainer/Protect this character"]
 layout_mode = 2
 text = "Protect this character on this device."
 
-[node name="Sensitive Data" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
+[node name="Sensitive Data" type="VBoxContainer" parent="PanelContainer/MarginContainer/HFlowContainer"]
 layout_mode = 2
 
-[node name="UUID Player" type="HBoxContainer" parent="PanelContainer/HFlowContainer/Sensitive Data"]
+[node name="UUID Player" type="HBoxContainer" parent="PanelContainer/MarginContainer/HFlowContainer/Sensitive Data"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/Sensitive Data/UUID Player"]
+[node name="Label" type="Label" parent="PanelContainer/MarginContainer/HFlowContainer/Sensitive Data/UUID Player"]
 layout_mode = 2
 text = "UUID Player:"
 
-[node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/Sensitive Data/UUID Player"]
+[node name="LineEdit" type="LineEdit" parent="PanelContainer/MarginContainer/HFlowContainer/Sensitive Data/UUID Player"]
 layout_mode = 2
 placeholder_text = "000000"
 editable = false
 expand_to_text_length = true
 
-[node name="Device" type="HBoxContainer" parent="PanelContainer/HFlowContainer/Sensitive Data"]
+[node name="Device" type="HBoxContainer" parent="PanelContainer/MarginContainer/HFlowContainer/Sensitive Data"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/Sensitive Data/Device"]
+[node name="Label" type="Label" parent="PanelContainer/MarginContainer/HFlowContainer/Sensitive Data/Device"]
 layout_mode = 2
 text = "Device: "
 
-[node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/Sensitive Data/Device"]
+[node name="LineEdit" type="LineEdit" parent="PanelContainer/MarginContainer/HFlowContainer/Sensitive Data/Device"]
 layout_mode = 2
 placeholder_text = "000000"
 editable = false
 expand_to_text_length = true
 
-[node name="Protection notice" type="MarginContainer" parent="PanelContainer/HFlowContainer"]
+[node name="Protection notice" type="MarginContainer" parent="PanelContainer/MarginContainer/HFlowContainer"]
 layout_mode = 2
 theme_override_constants/margin_top = 10
 
-[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/Protection notice"]
+[node name="Label" type="Label" parent="PanelContainer/MarginContainer/HFlowContainer/Protection notice"]
 layout_mode = 2
 text = "🔐 This character is automatically protected on this device.
 Others cannot access it from different computers.
