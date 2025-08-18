@@ -258,7 +258,10 @@ func draw_cursor():
 	else:
 		cursor_color = Color.WHITE  # Fallback
 	
-	draw_line(cursor_pos, cursor_pos + Vector2(0, line_height), cursor_color, 2.0)
+	# Make cursor smaller - reduced height and thickness
+	var cursor_height = line_height * 0.8  # 80% of line height instead of full height
+	var cursor_offset = line_height * 0.1  # Small offset from top
+	draw_line(cursor_pos + Vector2(0, cursor_offset), cursor_pos + Vector2(0, cursor_offset + cursor_height), cursor_color, 1.0)  # Thickness 1.0 instead of 2.0
 
 func draw_selection():
 	if selection_start == -1 or selection_end == -1:
