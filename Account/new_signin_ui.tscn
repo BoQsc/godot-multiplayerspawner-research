@@ -19,7 +19,7 @@ layout_mode = 2
 [node name="Title" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="PanelContainer/HFlowContainer/Title"]
+[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/Title"]
 layout_mode = 2
 text = "Annonymous Player Device Binding"
 
@@ -30,7 +30,7 @@ text = "Protect this character on this device."
 [node name="UUID Player" type="HBoxContainer" parent="PanelContainer/HFlowContainer"]
 layout_mode = 2
 
-[node name="UUID Player" type="Label" parent="PanelContainer/HFlowContainer/UUID Player"]
+[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/UUID Player"]
 layout_mode = 2
 text = "UUID Player:"
 
@@ -48,10 +48,10 @@ text = "Device:
 [node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/Device"]
 layout_mode = 2
 
-[node name="VBoxContainer3" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
+[node name="Protection notice" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
 layout_mode = 2
 
-[node name="Label2" type="Label" parent="PanelContainer/HFlowContainer/VBoxContainer3"]
+[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/Protection notice"]
 layout_mode = 2
 text = "🔐 This character is automatically protected on this device.
 Others cannot access it from different computers.
