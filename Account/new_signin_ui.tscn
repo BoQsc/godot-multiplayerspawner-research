@@ -42,6 +42,9 @@ text = "UUID Player:"
 
 [node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/Sensitive Data/UUID Player"]
 layout_mode = 2
+placeholder_text = "000000"
+editable = false
+expand_to_text_length = true
 
 [node name="Device" type="HBoxContainer" parent="PanelContainer/HFlowContainer/Sensitive Data"]
 layout_mode = 2
@@ -52,6 +55,9 @@ text = "Device: "
 
 [node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/Sensitive Data/Device"]
 layout_mode = 2
+placeholder_text = "000000"
+editable = false
+expand_to_text_length = true
 
 [node name="Protection notice" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
 layout_mode = 2
