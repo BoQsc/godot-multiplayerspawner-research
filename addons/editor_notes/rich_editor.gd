@@ -70,7 +70,7 @@ var cursor_visible: bool = true
 signal text_changed()
 
 # Context menu
-var context_menu: PopupMenu
+var context_menu: Control
 
 func _ready():
 	setup_fonts()
@@ -130,16 +130,50 @@ func setup_initial_text():
 	cursor_position = 0
 
 func setup_context_menu():
-	context_menu = PopupMenu.new()
+	# Create custom context menu that forwards events to text editor
+	context_menu = Control.new()
 	add_child(context_menu)
+	context_menu.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	context_menu.size = Vector2(120, 100)
+	context_menu.visible = false
 	
-	context_menu.add_item("Cut", 0)
-	context_menu.add_item("Copy", 1)
-	context_menu.add_item("Paste", 2)
-	context_menu.add_separator()
-	context_menu.add_item("Select All", 3)
+	# Connect mouse events to forward them to the text editor
+	context_menu.gui_input.connect(_on_context_menu_input)
 	
-	context_menu.id_pressed.connect(_on_context_menu_item_pressed)
+	# Create panel background
+	var panel = Panel.new()
+	context_menu.add_child(panel)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	# Create vertical container for menu items
+	var vbox = VBoxContainer.new()
+	context_menu.add_child(vbox)
+	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	# Add menu buttons
+	var cut_btn = Button.new()
+	cut_btn.text = "Cut"
+	cut_btn.flat = true
+	cut_btn.pressed.connect(func(): cut_selection(); context_menu.hide())
+	vbox.add_child(cut_btn)
+	
+	var copy_btn = Button.new()
+	copy_btn.text = "Copy" 
+	copy_btn.flat = true
+	copy_btn.pressed.connect(func(): copy_selection(); context_menu.hide())
+	vbox.add_child(copy_btn)
+	
+	var paste_btn = Button.new()
+	paste_btn.text = "Paste"
+	paste_btn.flat = true
+	paste_btn.pressed.connect(func(): paste_from_clipboard(); context_menu.hide())
+	vbox.add_child(paste_btn)
+	
+	var select_btn = Button.new()
+	select_btn.text = "Select All"
+	select_btn.flat = true
+	select_btn.pressed.connect(func(): select_all(); context_menu.hide())
+	vbox.add_child(select_btn)
 
 func _draw():
 	draw_background()
@@ -604,6 +638,10 @@ func handle_key_input(event: InputEventKey):
 
 func handle_mouse_input(event: InputEventMouseButton):
 	if event.button_index == MOUSE_BUTTON_LEFT:
+		# If context menu is visible, hide it and continue processing
+		if context_menu.visible:
+			context_menu.hide()
+		
 		grab_focus()
 		
 		# Check if click is in line number area
@@ -664,10 +702,10 @@ func handle_mouse_input(event: InputEventMouseButton):
 			clear_selection()
 			queue_redraw()
 		
-		# Show context menu with offset below and slightly left of mouse tip
-		var mouse_global_pos = get_global_mouse_position()
-		context_menu.position = mouse_global_pos + Vector2(-5, 20)  # Offset down and slightly left
-		context_menu.popup()
+		# Show custom context menu with offset
+		context_menu.position = event.position + Vector2(-5, 20)
+		context_menu.visible = true
+		context_menu.move_to_front()
 
 func handle_mouse_motion(event: InputEventMouseMotion):
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
@@ -1186,16 +1224,22 @@ func _can_drop_data(position, data):
 func _drop_data(position, data):
 	pass
 
-func _on_context_menu_item_pressed(id: int):
-	match id:
-		0: # Cut
-			cut_selection()
-		1: # Copy
-			copy_selection()
-		2: # Paste
-			paste_from_clipboard()
-		3: # Select All
-			select_all()
+func _on_context_menu_input(event):
+	# Forward mouse events that don't hit buttons to the text editor underneath
+	if event is InputEventMouseButton:
+		# Calculate the position relative to the text editor
+		var editor_pos = event.position + context_menu.position
+		
+		# Create new event with correct position
+		var new_event = InputEventMouseButton.new()
+		new_event.button_index = event.button_index
+		new_event.pressed = event.pressed
+		new_event.double_click = event.double_click
+		new_event.position = editor_pos
+		
+		# Close context menu and process the event
+		context_menu.hide()
+		handle_mouse_input(new_event)
 
 func select_word_at_position(pos: int):
 	var text_content = get_text()
