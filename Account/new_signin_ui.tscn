@@ -61,8 +61,9 @@ placeholder_text = "000000"
 editable = false
 expand_to_text_length = true
 
-[node name="Protection notice" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
+[node name="Protection notice" type="MarginContainer" parent="PanelContainer/HFlowContainer"]
 layout_mode = 2
+theme_override_constants/margin_top = 10
 
 [node name="Label" type="Label" parent="PanelContainer/HFlowContainer/Protection notice"]
 layout_mode = 2
