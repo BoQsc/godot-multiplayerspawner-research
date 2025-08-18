@@ -51,6 +51,7 @@ func toggle_formatting(format_type: String):
 
 func _clear_all():
 	if rich_editor:
+		rich_editor.save_state()  # Save state before clearing
 		rich_editor.set_text("")
 		save_notes()
 

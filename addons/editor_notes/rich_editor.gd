@@ -31,6 +31,25 @@ var current_format: TextSegment = TextSegment.new()
 var line_drag_active: bool = false
 var line_drag_start_line: int = -1
 
+# Undo/Redo system
+class UndoState:
+	var segments_data: Array[TextSegment]
+	var cursor_pos: int
+	var selection_start_pos: int
+	var selection_end_pos: int
+	
+	func _init(segs: Array[TextSegment], cursor: int, sel_start: int, sel_end: int):
+		segments_data = []
+		for seg in segs:
+			segments_data.append(seg.copy())
+		cursor_pos = cursor
+		selection_start_pos = sel_start
+		selection_end_pos = sel_end
+
+var undo_stack: Array[UndoState] = []
+var redo_stack: Array[UndoState] = []
+var max_undo_steps: int = 100
+
 # Fonts and styling
 var base_font: Font
 var bold_font: Font  
@@ -537,6 +556,15 @@ func handle_key_input(event: InputEventKey):
 						delete_selection()
 					var char_str = char(event.unicode)
 					insert_character(char_str)
+		KEY_Z:
+			if ctrl_pressed:
+				if shift_pressed:
+					redo()  # Ctrl+Shift+Z for redo
+				else:
+					undo()  # Ctrl+Z for undo
+		KEY_Y:
+			if ctrl_pressed:
+				redo()  # Ctrl+Y for redo (alternative)
 		_:
 			# Handle printable characters
 			if event.unicode > 31 and event.unicode < 127:
@@ -690,6 +718,8 @@ func move_cursor(delta: int):
 	queue_redraw()
 
 func insert_character(char: String):
+	save_state()  # Save state before modification
+	
 	var segment_info = find_segment_at_position(cursor_position)
 	var segment = segment_info.segment
 	var local_pos = segment_info.local_position
@@ -702,6 +732,8 @@ func insert_character(char: String):
 	queue_redraw()
 
 func delete_character(delta: int):
+	save_state()  # Save state before modification
+	
 	if delta < 0 and cursor_position > 0:
 		# Backspace
 		var segment_info = find_segment_at_position(cursor_position - 1)
@@ -828,6 +860,8 @@ func toggle_specific_formatting_in_selection(format_type: String, enable: bool):
 	if not has_selection():
 		return
 	
+	save_state()  # Save state before modification
+	
 	var start_pos = min(selection_start, selection_end)
 	var end_pos = max(selection_start, selection_end)
 	
@@ -892,6 +926,8 @@ func toggle_specific_formatting_in_selection(format_type: String, enable: bool):
 func apply_formatting_to_selection(bold: bool, italic: bool, underline: bool, code: bool):
 	if not has_selection():
 		return
+	
+	save_state()  # Save state before modification
 	
 	var start_pos = min(selection_start, selection_end)
 	var end_pos = max(selection_start, selection_end)
@@ -985,6 +1021,8 @@ func delete_selection():
 	if not has_selection():
 		return
 	
+	save_state()  # Save state before modification
+	
 	var start_pos = min(selection_start, selection_end)
 	var end_pos = max(selection_start, selection_end)
 	
@@ -1052,16 +1090,29 @@ func copy_selection():
 
 func cut_selection():
 	if has_selection():
+		save_state()  # Save state before modification
 		copy_selection()
 		delete_selection()
 
 func paste_from_clipboard():
+	save_state()  # Save state before modification
+	
 	var clipboard_text = DisplayServer.clipboard_get()
 	if clipboard_text.length() > 0:
 		if has_selection():
 			delete_selection()
-		for char in clipboard_text:
-			insert_character(char)
+		
+		# Insert entire text as single operation without calling save_state for each character
+		var segment_info = find_segment_at_position(cursor_position)
+		var segment = segment_info.segment
+		var local_pos = segment_info.local_position
+		
+		# Insert clipboard text with current formatting
+		segment.text = segment.text.insert(local_pos, clipboard_text)
+		cursor_position += clipboard_text.length()
+		
+		text_changed.emit()
+		queue_redraw()
 
 # Navigation functions
 func move_cursor_to_line_start():
@@ -1162,6 +1213,58 @@ func get_line_at_position(text_pos: int) -> int:
 			line_number += 1
 	
 	return line_number
+
+# Undo/Redo system functions
+func save_state():
+	# Save current state to undo stack
+	var state = UndoState.new(segments, cursor_position, selection_start, selection_end)
+	undo_stack.append(state)
+	
+	# Limit undo stack size
+	if undo_stack.size() > max_undo_steps:
+		undo_stack.pop_front()
+	
+	# Clear redo stack when new action is performed
+	redo_stack.clear()
+
+func undo():
+	if undo_stack.is_empty():
+		return
+	
+	# Save current state to redo stack
+	var current_state = UndoState.new(segments, cursor_position, selection_start, selection_end)
+	redo_stack.append(current_state)
+	
+	# Restore previous state
+	var prev_state = undo_stack.pop_back()
+	restore_state(prev_state)
+
+func redo():
+	if redo_stack.is_empty():
+		return
+	
+	# Save current state to undo stack
+	var current_state = UndoState.new(segments, cursor_position, selection_start, selection_end)
+	undo_stack.append(current_state)
+	
+	# Restore next state
+	var next_state = redo_stack.pop_back()
+	restore_state(next_state)
+
+func restore_state(state: UndoState):
+	# Restore segments
+	segments.clear()
+	for seg in state.segments_data:
+		segments.append(seg.copy())
+	
+	# Restore cursor and selection
+	cursor_position = state.cursor_pos
+	selection_start = state.selection_start_pos
+	selection_end = state.selection_end_pos
+	
+	# Update display
+	text_changed.emit()
+	queue_redraw()
 
 func select_entire_line(line_number: int):
 	# Select the entire line (1-based line number)
