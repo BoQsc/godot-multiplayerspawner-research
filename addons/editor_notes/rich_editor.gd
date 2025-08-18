@@ -177,6 +177,9 @@ func draw_background():
 	# Draw line number area background
 	draw_rect(Rect2(Vector2.ZERO, Vector2(line_number_width, size.y)), line_number_bg_color)
 	
+	# Draw current line highlight
+	draw_current_line_highlight(bg_color)
+	
 	# Draw separator line between line numbers and text
 	var separator_color: Color
 	if editor_theme:
@@ -196,6 +199,26 @@ func draw_background():
 		border_color = Color(0.35, 0.35, 0.35, 0.1)
 	
 	draw_rect(Rect2(Vector2.ZERO, size), border_color, false, 1.0)
+
+func draw_current_line_highlight(bg_color: Color):
+	
+	# Find which line the cursor is on
+	var text_content = get_text()
+	var cursor_line = 1
+	for i in range(min(cursor_position, text_content.length())):
+		if text_content[i] == '\n':
+			cursor_line += 1
+	
+	# Calculate the Y position for this line
+	var current_line_y = text_margin.y + (cursor_line - 1) * line_height
+	
+	# Create a subtle highlight color (lighter than background)
+	var highlight_color = bg_color.lightened(0.03)  # Very subtle highlight
+	highlight_color.a = 0.8
+	
+	# Draw highlight across entire line (both line number area and text area)
+	var highlight_rect = Rect2(Vector2(0, current_line_y), Vector2(size.x, line_height))
+	draw_rect(highlight_rect, highlight_color)
 
 func draw_line_numbers():
 	# Get the actual editor interface theme
