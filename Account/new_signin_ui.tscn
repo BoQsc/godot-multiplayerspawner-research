@@ -18,7 +18,8 @@ layout_mode = 2
 
 [node name="Title" type="MarginContainer" parent="PanelContainer/HFlowContainer"]
 layout_mode = 2
-theme_override_constants/margin_bottom = 20
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_bottom = 10
 
 [node name="Label" type="Label" parent="PanelContainer/HFlowContainer/Title"]
 layout_mode = 2
