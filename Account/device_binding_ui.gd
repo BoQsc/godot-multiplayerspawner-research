@@ -27,7 +27,6 @@ func create_ui():
 	# VBox container for layout
 	var vbox = VBoxContainer.new()
 	vbox.position = Vector2(20, 20)
-	vbox.size = Vector2(360, 260)
 	device_binding_panel.add_child(vbox)
 	
 	# Title label

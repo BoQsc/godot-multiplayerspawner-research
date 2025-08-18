@@ -258,7 +258,6 @@ func _show_custom_join_ui():
 	# VBox container for layout
 	var vbox = VBoxContainer.new()
 	vbox.position = Vector2(20, 20)
-	vbox.size = Vector2(360, 260)
 	bg_panel.add_child(vbox)
 	
 	# Title label
@@ -393,7 +392,6 @@ func _show_player_list_ui():
 	# VBox container for layout
 	var vbox = VBoxContainer.new()
 	vbox.position = Vector2(20, 20)
-	vbox.size = Vector2(460, 360)
 	bg_panel.add_child(vbox)
 	
 	# Title label
