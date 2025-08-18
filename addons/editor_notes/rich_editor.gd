@@ -618,6 +618,23 @@ func handle_mouse_input(event: InputEventMouseButton):
 		queue_redraw()
 	elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 		grab_focus()
+		
+		# Check if right-click is outside current selection
+		var click_pos = get_text_position_at(event.position)
+		var selection_active = has_selection()
+		var click_in_selection = false
+		
+		if selection_active:
+			var start_pos = min(selection_start, selection_end)
+			var end_pos = max(selection_start, selection_end)
+			click_in_selection = click_pos >= start_pos and click_pos <= end_pos
+		
+		# If clicking outside selection or no selection exists, move cursor and clear selection
+		if not click_in_selection:
+			cursor_position = click_pos
+			clear_selection()
+			queue_redraw()
+		
 		# Show context menu with offset below and slightly left of mouse tip
 		var mouse_global_pos = get_global_mouse_position()
 		context_menu.position = mouse_global_pos + Vector2(-5, 20)  # Offset down and slightly left
