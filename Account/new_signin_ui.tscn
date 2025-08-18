@@ -13,7 +13,7 @@ layout_mode = 0
 offset_right = 101.0
 offset_bottom = 40.0
 
-[node name="HFlowContainer" type="HFlowContainer" parent="PanelContainer"]
+[node name="HFlowContainer" type="VBoxContainer" parent="PanelContainer"]
 layout_mode = 2
 
 [node name="Title" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
@@ -30,25 +30,27 @@ layout_mode = 2
 layout_mode = 2
 text = "Protect this character on this device."
 
-[node name="UUID Player" type="HBoxContainer" parent="PanelContainer/HFlowContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/UUID Player"]
+[node name="UUID Player" type="HBoxContainer" parent="PanelContainer/HFlowContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/VBoxContainer/UUID Player"]
 layout_mode = 2
 text = "UUID Player:"
 
-[node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/UUID Player"]
+[node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/VBoxContainer/UUID Player"]
 layout_mode = 2
 
-[node name="Device" type="HBoxContainer" parent="PanelContainer/HFlowContainer"]
+[node name="Device" type="HBoxContainer" parent="PanelContainer/HFlowContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/Device"]
+[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/VBoxContainer/Device"]
 layout_mode = 2
-text = "Device: 
-"
+text = "Device: "
 
-[node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/Device"]
+[node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/VBoxContainer/Device"]
 layout_mode = 2
 
 [node name="Protection notice" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
