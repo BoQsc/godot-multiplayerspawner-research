@@ -1079,7 +1079,9 @@ func is_word_char(char: String) -> bool:
 
 func get_line_number_at_y(y_pos: float) -> int:
 	# Convert Y position to line number (1-based)
-	var line_index = int((y_pos - text_margin.y) / line_height)
+	# Use the same calculation method as text positioning
+	var adjusted_y = y_pos - text_margin.y + (line_height * 0.5)  # Add half line height for better center detection
+	var line_index = int(adjusted_y / line_height)
 	return max(1, line_index + 1)
 
 func select_entire_line(line_number: int):
@@ -1114,7 +1116,10 @@ func select_entire_line(line_number: int):
 	if current_line == line_number:
 		selection_start = line_start
 		selection_end = line_end
+		# Position cursor at end of line content, not after newline
 		cursor_position = line_end
+		if line_end > line_start and line_end <= text_content.length() and text_content[line_end - 1] == '\n':
+			cursor_position = line_end - 1
 	else:
 		# Line number is beyond available lines - select last line
 		if text_content.length() > 0:
