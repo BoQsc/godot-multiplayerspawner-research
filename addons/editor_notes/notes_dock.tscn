@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://addons/editor_notes/notes_dock.gd" id="1_0v8xj"]
 
-[node name="NotesDock" type="Control"]
+[node name="Notes" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -15,10 +15,20 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 
-[node name="Label" type="Label" parent="VBoxContainer"]
+[node name="TitleContainer" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/TitleContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
 text = "Editor Notes"
 horizontal_alignment = 1
+
+[node name="ToggleButton" type="Button" parent="VBoxContainer/TitleContainer"]
+layout_mode = 2
+focus_mode = 0
+text = "Source"
+tooltip_text = "Toggle between source and rendered view"
 
 [node name="Toolbar" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
@@ -26,35 +36,55 @@ layout_mode = 2
 [node name="BoldButton" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 size_flags_horizontal = 3
+focus_mode = 0
 text = "B"
 tooltip_text = "Bold"
 
 [node name="ItalicButton" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 size_flags_horizontal = 3
+focus_mode = 0
 text = "I"
 tooltip_text = "Italic"
 
 [node name="UnderlineButton" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 size_flags_horizontal = 3
+focus_mode = 0
 text = "U"
 tooltip_text = "Underline"
 
 [node name="CodeButton" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 size_flags_horizontal = 3
+focus_mode = 0
 text = "C"
 tooltip_text = "Code"
 
 [node name="ClearButton" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 size_flags_horizontal = 3
+focus_mode = 0
 text = "Clear"
 tooltip_text = "Clear all text"
 
-[node name="TextEdit" type="TextEdit" parent="VBoxContainer"]
+[node name="EditorContainer" type="Control" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
+
+[node name="TextEdit" type="TextEdit" parent="VBoxContainer/EditorContainer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 placeholder_text = "Type your notes here..."
 wrap_mode = 1
+
+[node name="RichTextLabel" type="RichTextLabel" parent="VBoxContainer/EditorContainer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+visible = false
+bbcode_enabled = true
+selection_enabled = true
