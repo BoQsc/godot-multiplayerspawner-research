@@ -474,12 +474,18 @@ func get_visual_position(text_pos: int) -> Vector2:
 	return pos
 
 func _process(delta):
-	# Handle cursor blinking - faster blink rate
-	cursor_blink_time += delta
-	if cursor_blink_time >= 0.5:  # Changed from 1.0 to 0.5 for faster blinking
-		cursor_visible = not cursor_visible
-		cursor_blink_time = 0.0
-		queue_redraw()
+	# Handle cursor blinking - faster blink rate, only when focused
+	if has_focus():
+		cursor_blink_time += delta
+		if cursor_blink_time >= 0.5:  # Changed from 1.0 to 0.5 for faster blinking
+			cursor_visible = not cursor_visible
+			cursor_blink_time = 0.0
+			queue_redraw()
+	else:
+		# When not focused, show cursor as solid (not blinking)
+		if cursor_visible != true:
+			cursor_visible = true
+			queue_redraw()
 
 func _gui_input(event):
 	if event is InputEventKey and event.pressed:
