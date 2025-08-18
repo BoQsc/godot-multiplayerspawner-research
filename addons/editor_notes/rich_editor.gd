@@ -480,15 +480,43 @@ func handle_key_input(event: InputEventKey):
 		KEY_A:
 			if ctrl_pressed:
 				select_all()
+			else:
+				# Let it fall through to unicode handling
+				if event.unicode > 31 and event.unicode < 127:
+					if has_selection():
+						delete_selection()
+					var char_str = char(event.unicode)
+					insert_character(char_str)
 		KEY_C:
 			if ctrl_pressed:
 				copy_selection()
+			else:
+				# Let it fall through to unicode handling
+				if event.unicode > 31 and event.unicode < 127:
+					if has_selection():
+						delete_selection()
+					var char_str = char(event.unicode)
+					insert_character(char_str)
 		KEY_V:
 			if ctrl_pressed:
 				paste_from_clipboard()
+			else:
+				# Let it fall through to unicode handling
+				if event.unicode > 31 and event.unicode < 127:
+					if has_selection():
+						delete_selection()
+					var char_str = char(event.unicode)
+					insert_character(char_str)
 		KEY_X:
 			if ctrl_pressed:
 				cut_selection()
+			else:
+				# Let it fall through to unicode handling
+				if event.unicode > 31 and event.unicode < 127:
+					if has_selection():
+						delete_selection()
+					var char_str = char(event.unicode)
+					insert_character(char_str)
 		_:
 			# Handle printable characters
 			if event.unicode > 31 and event.unicode < 127:
