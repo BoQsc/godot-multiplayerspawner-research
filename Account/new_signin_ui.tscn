@@ -30,27 +30,27 @@ layout_mode = 2
 layout_mode = 2
 text = "Protect this character on this device."
 
-[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
+[node name="Sensitive Data" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
 layout_mode = 2
 
-[node name="UUID Player" type="HBoxContainer" parent="PanelContainer/HFlowContainer/VBoxContainer"]
+[node name="UUID Player" type="HBoxContainer" parent="PanelContainer/HFlowContainer/Sensitive Data"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/VBoxContainer/UUID Player"]
+[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/Sensitive Data/UUID Player"]
 layout_mode = 2
 text = "UUID Player:"
 
-[node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/VBoxContainer/UUID Player"]
+[node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/Sensitive Data/UUID Player"]
 layout_mode = 2
 
-[node name="Device" type="HBoxContainer" parent="PanelContainer/HFlowContainer/VBoxContainer"]
+[node name="Device" type="HBoxContainer" parent="PanelContainer/HFlowContainer/Sensitive Data"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/VBoxContainer/Device"]
+[node name="Label" type="Label" parent="PanelContainer/HFlowContainer/Sensitive Data/Device"]
 layout_mode = 2
 text = "Device: "
 
-[node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/VBoxContainer/Device"]
+[node name="LineEdit" type="LineEdit" parent="PanelContainer/HFlowContainer/Sensitive Data/Device"]
 layout_mode = 2
 
 [node name="Protection notice" type="VBoxContainer" parent="PanelContainer/HFlowContainer"]
