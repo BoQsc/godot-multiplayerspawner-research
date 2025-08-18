@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "WebSearch",
+      "WebFetch(domain:docs.godotengine.org)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

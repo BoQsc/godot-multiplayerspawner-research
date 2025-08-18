@@ -1,0 +1,60 @@
+[gd_scene load_steps=2 format=3 uid="uid://c4vqvk2f3mvl"]
+
+[ext_resource type="Script" path="res://addons/editor_notes/notes_dock.gd" id="1_0v8xj"]
+
+[node name="NotesDock" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_0v8xj")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Label" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Editor Notes"
+horizontal_alignment = 1
+
+[node name="Toolbar" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="BoldButton" type="Button" parent="VBoxContainer/Toolbar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "B"
+tooltip_text = "Bold"
+
+[node name="ItalicButton" type="Button" parent="VBoxContainer/Toolbar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "I"
+tooltip_text = "Italic"
+
+[node name="UnderlineButton" type="Button" parent="VBoxContainer/Toolbar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "U"
+tooltip_text = "Underline"
+
+[node name="CodeButton" type="Button" parent="VBoxContainer/Toolbar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "C"
+tooltip_text = "Code"
+
+[node name="ClearButton" type="Button" parent="VBoxContainer/Toolbar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Clear"
+tooltip_text = "Clear all text"
+
+[node name="TextEdit" type="TextEdit" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+placeholder_text = "Type your notes here..."
+wrap_mode = 1
