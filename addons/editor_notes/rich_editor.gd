@@ -618,8 +618,9 @@ func handle_mouse_input(event: InputEventMouseButton):
 		queue_redraw()
 	elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 		grab_focus()
-		# Show context menu at mouse position
-		context_menu.position = global_position + event.position
+		# Show context menu with offset below and slightly left of mouse tip
+		var mouse_global_pos = get_global_mouse_position()
+		context_menu.position = mouse_global_pos + Vector2(-5, 20)  # Offset down and slightly left
 		context_menu.popup()
 
 func handle_mouse_motion(event: InputEventMouseMotion):
