@@ -341,6 +341,16 @@ func draw_selection():
 	var start_pos = min(selection_start, selection_end)
 	var end_pos = max(selection_start, selection_end)
 	
+	# Check if this is an empty line selection (selection contains only a newline)
+	if end_pos - start_pos == 1:
+		var text_content = get_text()
+		if start_pos < text_content.length() and text_content[start_pos] == '\n':
+			# This is a selection of just a newline (empty line) - show space character highlight
+			var cursor_visual = get_visual_position(start_pos)
+			var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+			draw_rect(Rect2(cursor_visual, Vector2(space_width, line_height)), Color(0.3, 0.6, 1.0, 0.3))
+			return
+	
 	if start_pos == end_pos:
 		return
 	
