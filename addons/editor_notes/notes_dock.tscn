@@ -15,76 +15,103 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 
-[node name="TitleContainer" type="HBoxContainer" parent="VBoxContainer"]
+[node name="Header" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/TitleContainer"]
+[node name="Title" type="Label" parent="VBoxContainer/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Editor Notes"
 horizontal_alignment = 1
 
-[node name="ToggleButton" type="Button" parent="VBoxContainer/TitleContainer"]
+[node name="ModeButton" type="Button" parent="VBoxContainer/Header"]
 layout_mode = 2
 focus_mode = 0
-text = "Source"
-tooltip_text = "Toggle between source and rendered view"
+text = "Render"
+tooltip_text = "Current mode: Render"
+
+[node name="EditButton" type="Button" parent="VBoxContainer/Header"]
+layout_mode = 2
+focus_mode = 0
+text = "Edit"
+tooltip_text = "Switch to edit mode"
 
 [node name="Toolbar" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
+visible = false
 
-[node name="BoldButton" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="BoldBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 0
 text = "B"
 tooltip_text = "Bold"
 
-[node name="ItalicButton" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="ItalicBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 0
 text = "I"
 tooltip_text = "Italic"
 
-[node name="UnderlineButton" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="UnderlineBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 0
 text = "U"
 tooltip_text = "Underline"
 
-[node name="CodeButton" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="CodeBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 0
-text = "C"
+text = "</>"
 tooltip_text = "Code"
 
-[node name="ClearButton" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="ClearBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 0
 text = "Clear"
-tooltip_text = "Clear all text"
+tooltip_text = "Clear all"
 
-[node name="EditorContainer" type="Control" parent="VBoxContainer"]
+[node name="Content" type="Control" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="TextEdit" type="TextEdit" parent="VBoxContainer/EditorContainer"]
+[node name="RenderView" type="RichTextLabel" parent="VBoxContainer/Content"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-placeholder_text = "Type your notes here..."
-wrap_mode = 1
+bbcode_enabled = true
+selection_enabled = true
+scroll_following = true
 
-[node name="RichTextLabel" type="RichTextLabel" parent="VBoxContainer/EditorContainer"]
+[node name="EditView" type="HSplitContainer" parent="VBoxContainer/Content"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 visible = false
+
+[node name="EditField" type="TextEdit" parent="VBoxContainer/Content/EditView"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Type your notes here..."
+wrap_mode = 1
+
+[node name="LivePreview" type="RichTextLabel" parent="VBoxContainer/Content/EditView"]
+layout_mode = 2
+size_flags_horizontal = 3
 bbcode_enabled = true
 selection_enabled = true
+
+[node name="SourceField" type="TextEdit" parent="VBoxContainer/Content"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+visible = false
+placeholder_text = "Raw markdown editing..."
+wrap_mode = 1

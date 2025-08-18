@@ -1,120 +1,189 @@
 @tool
 extends Control
 
-@onready var text_edit: TextEdit = $VBoxContainer/EditorContainer/TextEdit
-@onready var rich_text_label: RichTextLabel = $VBoxContainer/EditorContainer/RichTextLabel
-@onready var toggle_button: Button = $VBoxContainer/TitleContainer/ToggleButton
+enum Mode { RENDER, EDIT, SOURCE }
 
-const NOTES_SAVE_PATH = "user://editor_notes.txt"
-var is_source_mode = true
+@onready var render_view: RichTextLabel = $VBoxContainer/Content/RenderView
+@onready var edit_view: HSplitContainer = $VBoxContainer/Content/EditView
+@onready var edit_field: TextEdit = $VBoxContainer/Content/EditView/EditField
+@onready var live_preview: RichTextLabel = $VBoxContainer/Content/EditView/LivePreview
+@onready var source_field: TextEdit = $VBoxContainer/Content/SourceField
+@onready var mode_button: Button = $VBoxContainer/Header/ModeButton
+@onready var edit_button: Button = $VBoxContainer/Header/EditButton
+@onready var toolbar: HBoxContainer = $VBoxContainer/Toolbar
+
+const SAVE_PATH = "user://editor_notes.txt"
+var current_mode = Mode.RENDER
+var markdown_content = ""
 
 func _ready():
-	# Connect buttons with lambda functions for immediate execution
-	$VBoxContainer/Toolbar/BoldButton.pressed.connect(func(): wrap_selection("**", "**"))
-	$VBoxContainer/Toolbar/ItalicButton.pressed.connect(func(): wrap_selection("*", "*"))
-	$VBoxContainer/Toolbar/UnderlineButton.pressed.connect(func(): wrap_selection("_", "_"))
-	$VBoxContainer/Toolbar/CodeButton.pressed.connect(func(): wrap_selection("`", "`"))
-	$VBoxContainer/Toolbar/ClearButton.pressed.connect(func(): text_edit.clear())
-	toggle_button.pressed.connect(_on_toggle_pressed)
-	
-	# Load notes and setup auto-save
+	setup_connections()
 	load_notes()
-	text_edit.text_changed.connect(_on_text_changed)
+	update_display()
 
-func wrap_selection(prefix: String, suffix: String):
-	# Get all the info we need IMMEDIATELY
-	var full_text = text_edit.text
-	var selection_from = text_edit.get_selection_from_column()
-	var selection_to = text_edit.get_selection_to_column() 
-	var selected_text = text_edit.get_selected_text()
-	var caret_line = text_edit.get_caret_line()
-	var caret_col = text_edit.get_caret_column()
+func setup_connections():
+	mode_button.pressed.connect(_cycle_mode)
+	edit_button.pressed.connect(_toggle_edit)
 	
-	# Simple check: if no selected text, insert empty formatting
+	# Formatting buttons
+	$VBoxContainer/Toolbar/BoldBtn.pressed.connect(func(): format_text("**", "**"))
+	$VBoxContainer/Toolbar/ItalicBtn.pressed.connect(func(): format_text("*", "*"))
+	$VBoxContainer/Toolbar/UnderlineBtn.pressed.connect(func(): format_text("_", "_"))
+	$VBoxContainer/Toolbar/CodeBtn.pressed.connect(func(): format_text("`", "`"))
+	$VBoxContainer/Toolbar/ClearBtn.pressed.connect(_clear_all)
+	
+	# Text change handling
+	edit_field.text_changed.connect(_on_edit_changed)
+	source_field.text_changed.connect(_on_source_changed)
+
+func _cycle_mode():
+	match current_mode:
+		Mode.RENDER:
+			current_mode = Mode.SOURCE
+		Mode.EDIT:
+			current_mode = Mode.SOURCE
+		Mode.SOURCE:
+			current_mode = Mode.RENDER
+	
+	update_display()
+
+func _toggle_edit():
+	if current_mode == Mode.RENDER:
+		current_mode = Mode.EDIT
+	elif current_mode == Mode.EDIT:
+		current_mode = Mode.RENDER
+	
+	update_display()
+
+func update_display():
+	match current_mode:
+		Mode.RENDER:
+			_show_render_mode()
+		Mode.EDIT:
+			_show_edit_mode()
+		Mode.SOURCE:
+			_show_source_mode()
+
+func _show_render_mode():
+	render_view.visible = true
+	edit_view.visible = false
+	source_field.visible = false
+	toolbar.visible = false
+	
+	mode_button.text = "Render"
+	mode_button.tooltip_text = "Viewing formatted text"
+	edit_button.text = "Edit"
+	edit_button.visible = true
+	
+	# Update rendered content
+	render_view.text = _markdown_to_bbcode(markdown_content)
+
+func _show_edit_mode():
+	render_view.visible = false
+	edit_view.visible = true
+	source_field.visible = false
+	toolbar.visible = true
+	
+	mode_button.text = "Edit"
+	mode_button.tooltip_text = "Editing with live preview"
+	edit_button.text = "View"
+	edit_button.visible = true
+	
+	# Show markdown in edit field with live preview
+	edit_field.text = markdown_content
+	live_preview.text = _markdown_to_bbcode(markdown_content)
+	edit_field.placeholder_text = "Type here and see formatted preview on the right"
+
+func _show_source_mode():
+	render_view.visible = false
+	edit_view.visible = false
+	source_field.visible = true
+	toolbar.visible = true
+	
+	mode_button.text = "Source"
+	mode_button.tooltip_text = "Raw markdown editing"
+	edit_button.visible = false
+	
+	# Show markdown in source field
+	source_field.text = markdown_content
+
+func format_text(prefix: String, suffix: String):
+	var target_field: TextEdit
+	
+	match current_mode:
+		Mode.EDIT:
+			target_field = edit_field
+		Mode.SOURCE:
+			target_field = source_field
+		_:
+			return
+	
+	var selected_text = target_field.get_selected_text()
+	
 	if selected_text.is_empty():
-		text_edit.insert_text_at_caret(prefix + suffix)
-		# Move cursor between the formatting
-		text_edit.set_caret_column(text_edit.get_caret_column() - suffix.length())
+		# No selection - insert empty formatting
+		target_field.insert_text_at_caret(prefix + suffix)
+		var pos = target_field.get_caret_column()
+		target_field.set_caret_column(pos - suffix.length())
 	else:
-		# Calculate character positions manually
-		var char_start = 0
-		for i in range(text_edit.get_selection_from_line()):
-			char_start += text_edit.get_line(i).length() + 1
-		char_start += selection_from
-		
-		var char_end = 0  
-		for i in range(text_edit.get_selection_to_line()):
-			char_end += text_edit.get_line(i).length() + 1
-		char_end += selection_to
-		
-		# Build new text by replacing the selection
-		var new_text = full_text.substr(0, char_start) + prefix + selected_text + suffix + full_text.substr(char_end)
-		
-		# Set the new text
-		text_edit.text = new_text
-		
-		# Position cursor after the formatted text  
-		var new_cursor_pos = char_start + prefix.length() + selected_text.length() + suffix.length()
-		
-		# Convert back to line/column
-		var line = 0
-		var pos = 0
-		while line < text_edit.get_line_count() and pos + text_edit.get_line(line).length() < new_cursor_pos:
-			pos += text_edit.get_line(line).length() + 1
-			line += 1
-		
-		text_edit.set_caret_line(line)
-		text_edit.set_caret_column(new_cursor_pos - pos)
+		# Wrap selection
+		target_field.insert_text_at_caret(prefix + selected_text + suffix)
 
-func _on_toggle_pressed():
-	is_source_mode = !is_source_mode
+func _clear_all():
+	match current_mode:
+		Mode.EDIT:
+			edit_field.clear()
+		Mode.SOURCE:
+			source_field.clear()
 	
-	if is_source_mode:
-		text_edit.visible = true
-		rich_text_label.visible = false
-		toggle_button.text = "Source"
-		$VBoxContainer/Toolbar.visible = true
-	else:
-		text_edit.visible = false
-		rich_text_label.visible = true
-		toggle_button.text = "Render"
-		$VBoxContainer/Toolbar.visible = false
-		update_render()
+	markdown_content = ""
+	render_view.clear()
+	if live_preview:
+		live_preview.clear()
+	save_notes()
 
-func update_render():
-	var text = text_edit.text
-	
-	# Simple regex replacements for markdown to BBCode
+func _on_edit_changed():
+	markdown_content = edit_field.text
+	# Update live preview immediately
+	live_preview.text = _markdown_to_bbcode(markdown_content)
+	call_deferred("save_notes")
+
+func _on_source_changed():
+	markdown_content = source_field.text
+	call_deferred("save_notes")
+
+func _markdown_to_bbcode(markdown: String) -> String:
+	var bbcode = markdown
 	var regex = RegEx.new()
 	
+	# Convert markdown to BBCode
 	regex.compile("\\*\\*(.*?)\\*\\*")
-	text = regex.sub(text, "[b]$1[/b]", true)
+	bbcode = regex.sub(bbcode, "[b]$1[/b]", true)
 	
-	regex.compile("\\*(.*?)\\*")  
-	text = regex.sub(text, "[i]$1[/i]", true)
+	regex.compile("(?<!\\*)\\*([^*]+)\\*(?!\\*)")
+	bbcode = regex.sub(bbcode, "[i]$1[/i]", true)
 	
-	regex.compile("_(.*?)_")
-	text = regex.sub(text, "[u]$1[/u]", true)
+	regex.compile("_([^_]+)_")
+	bbcode = regex.sub(bbcode, "[u]$1[/u]", true)
 	
-	regex.compile("`(.*?)`")
-	text = regex.sub(text, "[code]$1[/code]", true)
+	regex.compile("`([^`]+)`")
+	bbcode = regex.sub(bbcode, "[code]$1[/code]", true)
 	
-	rich_text_label.text = text
-
-func _on_text_changed():
-	call_deferred("save_notes")
-	if not is_source_mode:
-		update_render()
+	return bbcode
 
 func save_notes():
-	var file = FileAccess.open(NOTES_SAVE_PATH, FileAccess.WRITE)
+	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(text_edit.text)
+		file.store_string(markdown_content)
 		file.close()
 
 func load_notes():
-	if FileAccess.file_exists(NOTES_SAVE_PATH):
-		var file = FileAccess.open(NOTES_SAVE_PATH, FileAccess.READ)
+	if FileAccess.file_exists(SAVE_PATH):
+		var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
 		if file:
-			text_edit.text = file.get_as_text()
+			markdown_content = file.get_as_text()
 			file.close()
+			if edit_field:
+				edit_field.text = markdown_content
+			if source_field:
+				source_field.text = markdown_content
