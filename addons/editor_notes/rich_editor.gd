@@ -156,6 +156,10 @@ func setup_initial_text():
 	cursor_position = 0
 
 func setup_context_menu():
+	# Prevent multiple context menu creation
+	if context_menu != null:
+		return
+		
 	# Create custom control that forwards events (non-modal)
 	context_menu = Control.new()
 	add_child(context_menu)
@@ -334,9 +338,15 @@ func _draw():
 	draw_scrollbar()  # Draw scrollbar on top
 
 func draw_background():
-	# Get the actual editor interface theme
-	var editor_interface = Engine.get_singleton("EditorInterface")
-	var editor_theme = editor_interface.get_editor_theme() if editor_interface else null
+	# Get the actual editor interface theme with error handling
+	var editor_interface = null
+	var editor_theme = null
+	
+	# Safe theme access
+	if Engine.has_singleton("EditorInterface"):
+		editor_interface = Engine.get_singleton("EditorInterface")
+		if editor_interface and editor_interface.has_method("get_editor_theme"):
+			editor_theme = editor_interface.get_editor_theme()
 	
 	var bg_color: Color
 	var line_number_bg_color: Color
@@ -528,6 +538,10 @@ func draw_text_segments():
 	# NEW APPROACH: Build line data first, then render line by line with dynamic heights
 	var line_data = get_line_data()
 	
+	# Safety check for empty content
+	if line_data.is_empty():
+		return
+	
 	var pos = text_margin
 	pos.y -= scroll_offset  # Apply scroll offset
 	
@@ -680,17 +694,34 @@ func invalidate_cache():
 	line_data_dirty = true
 	cached_content_height = 0.0
 
+func invalidate_cache_if_needed(old_length: int, new_length: int):
+	# Smarter cache invalidation - only invalidate if content structure might have changed
+	if old_length != new_length or (old_length > 0 and new_length > 0):
+		# Content size changed or non-empty content modified
+		invalidate_cache()
+
 func get_segment_font(segment: TextSegment) -> Font:
+	var font: Font
+	
 	if segment.code:
-		return code_font
+		font = code_font
 	elif segment.bold and segment.italic:
-		return bold_italic_font
+		font = bold_italic_font
 	elif segment.bold:
-		return bold_font
+		font = bold_font
 	elif segment.italic:
-		return italic_font
+		font = italic_font
 	else:
-		return base_font
+		font = base_font
+	
+	# Fallback to base font if selected font is null
+	if font == null:
+		font = base_font
+		if font == null:
+			# Emergency fallback - create a default font
+			font = SystemFont.new()
+	
+	return font
 
 func get_segment_font_size(segment: TextSegment) -> int:
 	if segment.heading_level > 0:
@@ -881,15 +912,30 @@ func draw_multi_line_selection(start_pos: int, end_pos: int):
 	var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	
 	# Use the same line-based approach as text rendering for consistency
-	var line_data = build_line_data()
+	var line_data = get_line_data()
 	var pos = text_margin
 	pos.y -= scroll_offset  # Apply scroll offset
 	var current_pos = 0
+	
+	# Viewport culling for selection drawing
+	var visible_start_y = -scroll_offset
+	var visible_end_y = size.y - scroll_offset
 	
 	for line_info in line_data:
 		var line_segments = line_info.segments
 		var line_height_val = line_info.height
 		var line_start_pos = current_pos
+		
+		# Viewport culling - skip lines outside visible area
+		if pos.y + line_height_val < visible_start_y:
+			pos.y += line_height_val
+			var line_length = 0
+			for segment_info in line_segments:
+				line_length += segment_info.text.length()
+			current_pos += line_length + 1  # +1 for newline
+			continue
+		if pos.y > visible_end_y:
+			break
 		
 		# Calculate total length of this line
 		var line_length = 0
@@ -1582,12 +1628,18 @@ func delete_word(delta: int):
 		selection_end = old_selection_end
 
 func find_segment_at_position(pos: int) -> Dictionary:
+	# Ensure we have segments and valid position
+	if segments.is_empty():
+		segments = [TextSegment.new("")]
+	
+	pos = clamp(pos, 0, get_total_text_length())
 	var current_pos = 0
 	
 	for i in range(segments.size()):
 		var segment = segments[i]
 		if current_pos + segment.text.length() > pos:
-			return {"segment": segment, "segment_index": i, "local_position": pos - current_pos}
+			var local_pos = clamp(pos - current_pos, 0, segment.text.length())
+			return {"segment": segment, "segment_index": i, "local_position": local_pos}
 		current_pos += segment.text.length()
 	
 	# Return last segment if position is at end
@@ -1855,7 +1907,15 @@ func set_text(text: String):
 
 # Selection functions
 func has_selection() -> bool:
-	return selection_start != -1 and selection_end != -1 and selection_start != selection_end
+	if selection_start == -1 or selection_end == -1:
+		return false
+	
+	# Ensure selection bounds are valid
+	var text_length = get_total_text_length()
+	var start = clamp(selection_start, 0, text_length)
+	var end = clamp(selection_end, 0, text_length)
+	
+	return start != end
 
 func start_selection():
 	if selection_start == -1:
