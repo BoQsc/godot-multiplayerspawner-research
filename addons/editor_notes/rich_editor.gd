@@ -1557,9 +1557,7 @@ func select_entire_line(line_number: int):
 			line_end = i
 			while line_end < text_content.length() and text_content[line_end] != '\n':
 				line_end += 1
-			# Include the newline character if it exists
-			if line_end < text_content.length():
-				line_end += 1
+			# Don't include the newline character - just select the line content
 			break
 		elif text_content[i] == '\n':
 			current_line += 1
@@ -1574,10 +1572,8 @@ func select_entire_line(line_number: int):
 	if current_line == line_number:
 		selection_start = line_start
 		selection_end = line_end
-		# Position cursor at end of line content, not after newline
+		# Position cursor at end of line content
 		cursor_position = line_end
-		if line_end > line_start and line_end <= text_content.length() and text_content[line_end - 1] == '\n':
-			cursor_position = line_end - 1
 	else:
 		# Line number is beyond available lines - select last line
 		if text_content.length() > 0:
