@@ -506,20 +506,16 @@ func build_line_data() -> Array:
 	var current_line_start = 0
 	
 	for segment in segments:
-		if segment.text.is_empty():
-			continue
-		
 		var segment_lines = segment.text.split('\n')
 		
 		for line_idx in range(segment_lines.size()):
 			var line_text = segment_lines[line_idx]
 			
-			# Add this line part to current line
-			if line_text.length() > 0:
-				current_line_segments.append({
-					"segment": segment,
-					"text": line_text
-				})
+			# Add this line part to current line (including empty lines)
+			current_line_segments.append({
+				"segment": segment,
+				"text": line_text
+			})
 			
 			# If this is the end of a line (newline or last line of segment)
 			if line_idx < segment_lines.size() - 1:
@@ -546,7 +542,7 @@ func build_line_data() -> Array:
 		for line_idx in range(segment_lines.size() - 1):
 			current_pos += 1
 	
-	# Don't forget the last line if it has content
+	# Don't forget the last line (even if it's empty)
 	if current_line_segments.size() > 0:
 		var line_segments_only = []
 		for seg_info in current_line_segments:
@@ -558,6 +554,14 @@ func build_line_data() -> Array:
 			"segments": current_line_segments,
 			"height": current_line_height,
 			"start_pos": current_line_start
+		})
+	
+	# Ensure we always have at least one line (for empty editor)
+	if line_data.is_empty():
+		line_data.append({
+			"segments": [],
+			"height": line_height,  # Use default line height
+			"start_pos": 0
 		})
 	
 	return line_data
@@ -594,6 +598,33 @@ func get_line_height_for_segments(segments_on_line: Array) -> float:
 		max_height = max(max_height, segment_height)
 	
 	return max_height
+
+func get_line_height_at_position(text_pos: int) -> float:
+	# Get the line height for the line containing the given position
+	text_pos = clamp(text_pos, 0, get_total_text_length())
+	
+	var line_data = build_line_data()
+	var current_pos = 0
+	
+	for line_info in line_data:
+		var line_segments = line_info.segments
+		var line_height_val = line_info.height
+		
+		# Calculate total length of this line
+		var line_length = 0
+		for segment_info in line_segments:
+			line_length += segment_info.text.length()
+		
+		var line_end_pos = current_pos + line_length
+		
+		# Check if target position is on this line
+		if text_pos <= line_end_pos:
+			return line_height_val
+		
+		current_pos = line_end_pos + 1  # +1 for newline character
+	
+	# Fallback to default line height
+	return line_height
 
 func calculate_line_segments(line_start_pos: int, line_end_pos: int) -> Array:
 	# Get all segments that affect a specific line
@@ -650,10 +681,13 @@ func draw_cursor():
 	else:
 		cursor_color = Color.WHITE  # Fallback
 	
-	# Make cursor smaller - reduced height and thickness
-	var cursor_height = line_height * 0.8  # 80% of line height instead of full height
-	var cursor_offset = line_height * 0.1  # Small offset from top
-	draw_line(cursor_pos + Vector2(0, cursor_offset), cursor_pos + Vector2(0, cursor_offset + cursor_height), cursor_color, 1.0)  # Thickness 1.0 instead of 2.0
+	# Get the actual line height for the cursor position
+	var actual_line_height = get_line_height_at_position(cursor_position)
+	
+	# Make cursor smaller - reduced height and thickness based on actual line height
+	var cursor_height = actual_line_height * 0.8  # 80% of actual line height
+	var cursor_offset = actual_line_height * 0.1  # Small offset from top
+	draw_line(cursor_pos + Vector2(0, cursor_offset), cursor_pos + Vector2(0, cursor_offset + cursor_height), cursor_color, 1.0)
 
 func draw_selection():
 	if selection_start == -1 or selection_end == -1:
@@ -675,9 +709,10 @@ func draw_selection():
 func draw_empty_line_selection(pos: int):
 	# Draw selection for empty line (zero-width selection)
 	var visual_pos = get_visual_position(pos)
+	var actual_line_height = get_line_height_at_position(pos)
 	var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	var selection_color = Color(0.3, 0.6, 1.0, 0.3)
-	draw_rect(Rect2(visual_pos, Vector2(space_width, line_height)), selection_color)
+	draw_rect(Rect2(visual_pos, Vector2(space_width, actual_line_height)), selection_color)
 
 func draw_multi_line_selection(start_pos: int, end_pos: int):
 	var text_content = get_text()
@@ -720,6 +755,9 @@ func draw_multi_line_selection(start_pos: int, end_pos: int):
 			var sel_start_in_line = max(0, start_pos - line_pos)
 			var sel_end_in_line = min(line.length(), end_pos - line_pos)
 			
+			# Get the actual line height for this position
+			var actual_line_height = get_line_height_at_position(line_pos)
+			
 			# Draw selection for this line if it intersects
 			if sel_start_in_line < sel_end_in_line and sel_start_in_line < line.length():
 				var selected_text = line.substr(sel_start_in_line, sel_end_in_line - sel_start_in_line)
@@ -731,7 +769,7 @@ func draw_multi_line_selection(start_pos: int, end_pos: int):
 				
 				var selection_rect = Rect2(
 					Vector2(line_start_pos.x + prefix_width, line_start_pos.y), 
-					Vector2(selected_width, line_height)
+					Vector2(selected_width, actual_line_height)
 				)
 				draw_rect(selection_rect, selection_color)
 			
@@ -740,10 +778,10 @@ func draw_multi_line_selection(start_pos: int, end_pos: int):
 			if line_idx < segment_lines.size() - 1:
 				# Draw newline selection if needed
 				if current_pos >= start_pos and current_pos < end_pos:
-					draw_rect(Rect2(Vector2(line_start_pos.x + font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x, line_start_pos.y), Vector2(space_width, line_height)), selection_color)
+					draw_rect(Rect2(Vector2(line_start_pos.x + font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x, line_start_pos.y), Vector2(space_width, actual_line_height)), selection_color)
 				current_pos += 1  # For the newline character
 				line_start_pos.x = text_margin.x
-				line_start_pos.y += line_height
+				line_start_pos.y += actual_line_height
 			else:
 				# Update x position for end of line
 				line_start_pos.x += font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x

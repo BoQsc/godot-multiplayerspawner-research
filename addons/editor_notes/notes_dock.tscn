@@ -25,113 +25,119 @@ size_flags_horizontal = 3
 text = "Editor Notes"
 horizontal_alignment = 1
 
-[node name="Toolbar" type="VBoxContainer" parent="VBoxContainer"]
+[node name="Toolbar" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
+add_theme_constant_override("separation", 2)
 
-[node name="FormattingRow" type="HBoxContainer" parent="VBoxContainer/Toolbar"]
+[node name="BoldBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
-
-[node name="BoldBtn" type="Button" parent="VBoxContainer/Toolbar/FormattingRow"]
-layout_mode = 2
-size_flags_horizontal = 3
 focus_mode = 0
+flat = true
 text = "B"
 tooltip_text = "Bold (Ctrl+B)"
+custom_minimum_size = Vector2(24, 24)
 
-[node name="ItalicBtn" type="Button" parent="VBoxContainer/Toolbar/FormattingRow"]
+[node name="ItalicBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
-size_flags_horizontal = 3
 focus_mode = 0
+flat = true
 text = "I"
 tooltip_text = "Italic (Ctrl+I)"
+custom_minimum_size = Vector2(24, 24)
 
-[node name="UnderlineBtn" type="Button" parent="VBoxContainer/Toolbar/FormattingRow"]
+[node name="UnderlineBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
-size_flags_horizontal = 3
 focus_mode = 0
+flat = true
 text = "U"
 tooltip_text = "Underline (Ctrl+U)"
+custom_minimum_size = Vector2(24, 24)
 
-[node name="StrikethroughBtn" type="Button" parent="VBoxContainer/Toolbar/FormattingRow"]
+[node name="StrikethroughBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
-size_flags_horizontal = 3
 focus_mode = 0
+flat = true
 text = "S"
 tooltip_text = "Strikethrough (Ctrl+Shift+X)"
+custom_minimum_size = Vector2(24, 24)
 
-[node name="CodeBtn" type="Button" parent="VBoxContainer/Toolbar/FormattingRow"]
+[node name="CodeBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
-size_flags_horizontal = 3
 focus_mode = 0
+flat = true
 text = "</>"
 tooltip_text = "Inline Code (Ctrl+`)"
+custom_minimum_size = Vector2(32, 24)
 
-[node name="StructureRow" type="HBoxContainer" parent="VBoxContainer/Toolbar"]
+[node name="HeadingBtn" type="MenuButton" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
-
-[node name="HeadingBtn" type="MenuButton" parent="VBoxContainer/Toolbar/StructureRow"]
-layout_mode = 2
-size_flags_horizontal = 3
 focus_mode = 0
+flat = true
 text = "H"
 tooltip_text = "Headings"
+custom_minimum_size = Vector2(24, 24)
 
-[node name="ListBtn" type="MenuButton" parent="VBoxContainer/Toolbar/StructureRow"]
+[node name="ListBtn" type="MenuButton" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
-size_flags_horizontal = 3
 focus_mode = 0
+flat = true
 text = "≡"
 tooltip_text = "Lists"
+custom_minimum_size = Vector2(24, 24)
 
-[node name="QuoteBtn" type="Button" parent="VBoxContainer/Toolbar/StructureRow"]
+[node name="QuoteBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
-size_flags_horizontal = 3
 focus_mode = 0
+flat = true
 text = "❝"
 tooltip_text = "Blockquote"
+custom_minimum_size = Vector2(24, 24)
 
-[node name="CodeBlockBtn" type="Button" parent="VBoxContainer/Toolbar/StructureRow"]
+[node name="CodeBlockBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
-size_flags_horizontal = 3
 focus_mode = 0
+flat = true
 text = "{ }"
 tooltip_text = "Code Block"
+custom_minimum_size = Vector2(32, 24)
 
-[node name="HRBtn" type="Button" parent="VBoxContainer/Toolbar/StructureRow"]
+[node name="HRBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
-size_flags_horizontal = 3
 focus_mode = 0
+flat = true
 text = "—"
 tooltip_text = "Horizontal Rule"
+custom_minimum_size = Vector2(24, 24)
 
-[node name="InsertRow" type="HBoxContainer" parent="VBoxContainer/Toolbar"]
+[node name="LinkBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
-
-[node name="LinkBtn" type="Button" parent="VBoxContainer/Toolbar/InsertRow"]
-layout_mode = 2
-size_flags_horizontal = 3
 focus_mode = 0
+flat = true
 text = "🔗"
 tooltip_text = "Insert Link (Ctrl+K)"
+custom_minimum_size = Vector2(24, 24)
 
-[node name="ImageBtn" type="Button" parent="VBoxContainer/Toolbar/InsertRow"]
+[node name="ImageBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
-size_flags_horizontal = 3
 focus_mode = 0
+flat = true
 text = "🖼"
 tooltip_text = "Insert Image"
+custom_minimum_size = Vector2(24, 24)
 
-[node name="TableBtn" type="Button" parent="VBoxContainer/Toolbar/InsertRow"]
+[node name="TableBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
-size_flags_horizontal = 3
 focus_mode = 0
+flat = true
 text = "⊞"
 tooltip_text = "Insert Table"
+custom_minimum_size = Vector2(24, 24)
 
-[node name="ClearBtn" type="Button" parent="VBoxContainer/Toolbar/InsertRow"]
+[node name="ClearBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
-size_flags_horizontal = 3
 focus_mode = 0
+flat = true
 text = "Clear"
 tooltip_text = "Clear all"
+custom_minimum_size = Vector2(40, 24)
 
