@@ -1340,60 +1340,68 @@ func handle_mouse_motion(event: InputEventMouseMotion):
 			queue_redraw()
 
 func get_text_position_at(visual_pos: Vector2) -> int:
-	# Convert visual position back to text position
+	# Convert visual position back to text position using line-based approach
+	var line_data = get_line_data()
 	var pos = text_margin
-	pos.y -= scroll_offset  # Apply scroll offset
-	var text_pos = 0
-	var full_text = get_text()
-	
-	# Adjust visual position to account for scroll
-	var adjusted_visual_pos = Vector2(visual_pos.x, visual_pos.y + scroll_offset)
-	
-	# Clamp to bounds
-	var clamped_pos = Vector2(
-		clamp(adjusted_visual_pos.x, text_margin.x, size.x),
-		clamp(adjusted_visual_pos.y, text_margin.y, text_margin.y + total_content_height)
-	)
+	pos.y -= scroll_offset  # Apply scroll offset to drawing position
+	var current_text_pos = 0
 	
 	# If click is above text area, return position 0
 	if visual_pos.y < text_margin.y:
 		return 0
 	
-	# Simple character by character approach
-	for i in range(full_text.length()):
-		var char = full_text[i]
-		var actual_line_height = get_line_height_at_position(i)
+	# Find which line the click is on
+	for line_info in line_data:
+		var line_segments = line_info.segments
+		var line_height_val = line_info.height
 		
-		# Check if we're on the right line
-		if clamped_pos.y >= pos.y and clamped_pos.y < pos.y + actual_line_height:
-			if char == '\n':
-				return i
-			else:
-				var segment_info = find_segment_at_position(i)
-				var font = get_segment_font(segment_info.segment)
-				var segment_font_size = get_segment_font_size(segment_info.segment)
-				var char_size = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size)
+		# Check if click is within this line's Y range
+		if visual_pos.y >= pos.y and visual_pos.y < pos.y + line_height_val:
+			# Found the correct line - now find X position within the line
+			var line_x = pos.x
+			var chars_in_line = 0
+			
+			for segment_info in line_segments:
+				var segment = segment_info.segment
+				var text = segment_info.text
+				var font = get_segment_font(segment)
+				var segment_font_size = get_segment_font_size(segment)
 				
-				if clamped_pos.x >= pos.x and clamped_pos.x < pos.x + char_size.x:
-					if clamped_pos.x < pos.x + char_size.x / 2:
-						return i
-					else:
-						return i + 1
-				elif clamped_pos.x < pos.x:
-					return i
+				# Check each character in this segment
+				for char_idx in range(text.length()):
+					var char = text[char_idx]
+					var char_width = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+					
+					# Check if click is within this character
+					if visual_pos.x >= line_x and visual_pos.x < line_x + char_width:
+						# Return position based on which half of character was clicked
+						if visual_pos.x < line_x + char_width / 2:
+							return current_text_pos + chars_in_line
+						else:
+							return current_text_pos + chars_in_line + 1
+					
+					line_x += char_width
+					chars_in_line += 1
+				
+			# Click was beyond the end of this line
+			return current_text_pos + chars_in_line
 		
-		# Move to next character position
-		if char == '\n':
-			pos.x = text_margin.x
-			pos.y += actual_line_height
-		else:
-			var segment_info = find_segment_at_position(i)
-			var font = get_segment_font(segment_info.segment)
-			var segment_font_size = get_segment_font_size(segment_info.segment)
-			var char_size = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size)
-			pos.x += char_size.x
+		# Move to next line
+		pos.y += line_height_val
+		
+		# Calculate text position for start of next line
+		var line_length = 0
+		for segment_info in line_segments:
+			line_length += segment_info.text.length()
+		current_text_pos += line_length
+		
+		# Add 1 for newline character if this is not the last line
+		var is_last_line = (line_data.find(line_info) == line_data.size() - 1)
+		if not is_last_line:
+			current_text_pos += 1
 	
-	return full_text.length()
+	# Click was below all text
+	return get_total_text_length()
 
 func get_text_position_at_extended(visual_pos: Vector2) -> int:
 	# Extended version that handles out-of-bounds positions smoothly for selection
@@ -2013,8 +2021,8 @@ func get_line_number_at_y(y_pos: float) -> int:
 		return 1
 	
 	# Use line data for accurate positioning with dynamic heights
-	var line_data = build_line_data()
-	var current_y = text_margin.y
+	var line_data = get_line_data()
+	var current_y = text_margin.y - scroll_offset  # Apply scroll offset
 	
 	for i in range(line_data.size()):
 		var line_info = line_data[i]
