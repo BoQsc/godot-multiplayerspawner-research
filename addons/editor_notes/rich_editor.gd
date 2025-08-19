@@ -758,63 +758,92 @@ func draw_empty_line_selection(pos: int):
 	# Draw selection for empty line (zero-width selection)
 	var visual_pos = get_visual_position(pos)
 	var actual_line_height = get_line_height_at_position(pos)
-	# Make empty line selection more visible - use width of several characters
-	var selection_width = base_font.get_string_size("    ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x  # 4 spaces
+	var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	var selection_color = Color(0.3, 0.6, 1.0, 0.3)
-	draw_rect(Rect2(visual_pos, Vector2(selection_width, actual_line_height)), selection_color)
+	draw_rect(Rect2(visual_pos, Vector2(space_width, actual_line_height)), selection_color)
 
 func draw_multi_line_selection(start_pos: int, end_pos: int):
 	var text_content = get_text()
 	var selection_color = Color(0.3, 0.6, 1.0, 0.3)
-	var selection_width_for_empty = base_font.get_string_size("    ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x  # 4 spaces
+	var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	
-	# Character-by-character selection drawing with empty line handling
-	var current_pos = text_margin
-	var i = 0
+	# Special case: if selection starts and ends at the same newline, don't draw it
+	if start_pos == end_pos and start_pos < text_content.length() and text_content[start_pos] == '\n':
+		return
 	
-	while i <= text_content.length():  # <= to handle position at end of text
-		# Check if this position is within selection
-		if i >= start_pos and i < end_pos:
-			if i < text_content.length():
-				var char = text_content[i]
-				
-				if char == '\n':
-					# This is a newline within selection - draw empty line selection
-					var line_height_for_pos = get_line_height_at_position(i)
-					var selection_rect = Rect2(current_pos, Vector2(selection_width_for_empty, line_height_for_pos))
+	# OPTIMIZED: Batch selection drawing by segments instead of character-by-character
+	var current_pos = 0
+	var draw_pos = text_margin
+	
+	for segment in segments:
+		var segment_start = current_pos
+		var segment_end = current_pos + segment.text.length()
+		
+		# Skip segments completely outside selection
+		if segment_end <= start_pos or segment_start >= end_pos:
+			# Still need to advance draw position for segments before selection
+			if segment_end <= start_pos:
+				draw_pos = advance_draw_pos_for_segment(draw_pos, segment)
+			current_pos += segment.text.length()
+			continue
+		
+		var font = get_segment_font(segment)
+		var segment_font_size = get_segment_font_size(segment)
+		
+		# Process this segment's text
+		var segment_lines = segment.text.split('\n')
+		var line_start_pos = draw_pos
+		
+		for line_idx in range(segment_lines.size()):
+			var line = segment_lines[line_idx]
+			var line_pos = current_pos
+			
+			# Find intersection with selection
+			var line_end_pos = line_pos + line.length()
+			var sel_start_in_line = max(0, start_pos - line_pos)
+			var sel_end_in_line = min(line.length(), end_pos - line_pos)
+			
+			# Get the actual line height for this position
+			var actual_line_height = get_line_height_at_position(line_pos)
+			
+			# Draw selection for this line if it intersects
+			if sel_start_in_line < sel_end_in_line:
+				if line.length() == 0:
+					# Empty line - draw space-width selection
+					var selection_rect = Rect2(
+						Vector2(line_start_pos.x, line_start_pos.y), 
+						Vector2(space_width, actual_line_height)
+					)
 					draw_rect(selection_rect, selection_color)
 				else:
-					# Regular character
-					var segment_info = find_segment_at_position(i)
-					var segment = segment_info.segment
-					var font = get_segment_font(segment)
-					var segment_font_size = get_segment_font_size(segment)
+					# Non-empty line
+					var selected_text = line.substr(sel_start_in_line, sel_end_in_line - sel_start_in_line)
 					
-					var char_width = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
-					var line_height_for_pos = get_line_height_at_position(i)
+					# Calculate X position for start of selection in this line
+					var prefix_text = line.substr(0, sel_start_in_line) if sel_start_in_line > 0 else ""
+					var prefix_width = font.get_string_size(prefix_text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x if prefix_text.length() > 0 else 0
+					var selected_width = font.get_string_size(selected_text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
 					
-					var selection_rect = Rect2(current_pos, Vector2(char_width, line_height_for_pos))
+					var selection_rect = Rect2(
+						Vector2(line_start_pos.x + prefix_width, line_start_pos.y), 
+						Vector2(selected_width, actual_line_height)
+					)
 					draw_rect(selection_rect, selection_color)
+			
+			# Handle newlines and position updates
+			current_pos += line.length()
+			if line_idx < segment_lines.size() - 1:
+				# Draw newline selection if needed
+				if current_pos >= start_pos and current_pos < end_pos:
+					draw_rect(Rect2(Vector2(line_start_pos.x + font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x, line_start_pos.y), Vector2(space_width, actual_line_height)), selection_color)
+				current_pos += 1  # For the newline character
+				line_start_pos.x = text_margin.x
+				line_start_pos.y += actual_line_height
 			else:
-				# Position beyond text - treat as empty line
-				var selection_rect = Rect2(current_pos, Vector2(selection_width_for_empty, line_height))
-				draw_rect(selection_rect, selection_color)
+				# Update x position for end of line
+				line_start_pos.x += font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
 		
-		# Move to next position
-		if i < text_content.length():
-			var char = text_content[i]
-			if char == '\n':
-				current_pos.x = text_margin.x
-				current_pos.y += get_line_height_at_position(i)
-			else:
-				var segment_info = find_segment_at_position(i)
-				var segment = segment_info.segment
-				var font = get_segment_font(segment)
-				var segment_font_size = get_segment_font_size(segment)
-				var char_width = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
-				current_pos.x += char_width
-		
-		i += 1
+		draw_pos = line_start_pos
 
 func advance_draw_pos_for_segment(pos: Vector2, segment: TextSegment) -> Vector2:
 	var font = get_segment_font(segment)
