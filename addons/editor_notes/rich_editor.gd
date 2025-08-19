@@ -2029,14 +2029,20 @@ func select_line_range(start_line: int, end_line: int):
 	# Get start position of first line
 	var range_start = line_starts[first_line - 1]
 	
-	# Get end position of last line
+	# Get end position of last line - fixed for multiline selections
 	var range_end
-	if last_line < line_starts.size():
-		# Not the last line - end is just before next line start
-		range_end = line_starts[last_line] - 1  # -1 to exclude the newline
+	if first_line == last_line:
+		# Single line selection - use original logic to exclude newline
+		if last_line < line_starts.size():
+			range_end = line_starts[last_line] - 1  # -1 to exclude the newline
+		else:
+			range_end = text_content.length()
 	else:
-		# Last line - go to end of text
-		range_end = text_content.length()
+		# Multi-line selection - include newlines to properly select empty lines
+		if last_line < line_starts.size():
+			range_end = line_starts[last_line]  # Include newline for multiline selection
+		else:
+			range_end = text_content.length()
 	
 	# Set selection
 	selection_start = range_start
