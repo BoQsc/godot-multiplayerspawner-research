@@ -61,8 +61,8 @@ var code_font: Font
 var font_size: int = 16
 var line_height: float = 20.0
 var line_number_width: float = 40.0  # Width of line number sidebar
-var margin: Vector2 = Vector2(10, 10)
-var text_margin: Vector2 = Vector2(50, 10)  # Text starts after line numbers
+var margin: Vector2 = Vector2(10, 2)
+var text_margin: Vector2 = Vector2(50, 2)  # Text starts after line numbers
 var cursor_blink_time: float = 0.0
 var cursor_visible: bool = true
 
