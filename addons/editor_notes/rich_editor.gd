@@ -797,14 +797,15 @@ func handle_mouse_input(event: InputEventMouseButton):
 		line_drag_active = false  # Reset line drag state when clicking in text area
 		var click_pos = get_text_position_at(event.position)
 		if event.pressed:
+			# Clear the context menu flag when actually clicking in text area
+			context_menu_just_shown = false
 			# Check for double-click
 			if event.double_click:
 				select_word_at_position(click_pos)
 			else:
 				cursor_position = click_pos
-				# Start selection on mouse down
-				selection_start = click_pos
-				selection_end = click_pos
+				# Clear any existing selection on click
+				clear_selection()
 				# Capture mouse to continue tracking even outside bounds
 				Input.set_default_cursor_shape(Input.CURSOR_IBEAM)
 		else:
@@ -864,7 +865,12 @@ func handle_mouse_motion(event: InputEventMouseMotion):
 			if needs_update:
 				select_line_range(line_drag_start_line, current_line)
 				queue_redraw()
-		elif selection_start != -1:
+		else:
+			# Handle regular text drag selection - start selection if not already active
+			if selection_start == -1:
+				# Start new selection at current cursor position
+				selection_start = cursor_position
+			
 			# Handle regular text drag selection with better out-of-bounds handling
 			var drag_pos = get_text_position_at_extended(event.position)
 			selection_end = drag_pos
