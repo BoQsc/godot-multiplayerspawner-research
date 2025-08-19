@@ -984,7 +984,7 @@ func get_visual_position(text_pos: int) -> Vector2:
 	# OPTIMIZED: Use pre-built line data with dynamic heights
 	text_pos = clamp(text_pos, 0, get_total_text_length())
 	
-	var line_data = build_line_data()
+	var line_data = get_line_data()
 	var pos = text_margin
 	pos.y -= scroll_offset  # Apply scroll offset
 	var current_pos = 0
@@ -1340,7 +1340,7 @@ func handle_mouse_motion(event: InputEventMouseMotion):
 			queue_redraw()
 
 func get_text_position_at(visual_pos: Vector2) -> int:
-	# Convert visual position back to text position using line-based approach
+	# Convert visual position back to text position using same logic as get_visual_position() but in reverse
 	var line_data = get_line_data()
 	var pos = text_margin
 	pos.y -= scroll_offset  # Apply scroll offset to drawing position
@@ -1354,12 +1354,20 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 	for line_info in line_data:
 		var line_segments = line_info.segments
 		var line_height_val = line_info.height
+		var line_start_pos = current_text_pos
+		
+		# Calculate total length of this line
+		var line_length = 0
+		for segment_info in line_segments:
+			line_length += segment_info.text.length()
+		
+		var line_end_pos = line_start_pos + line_length
 		
 		# Check if click is within this line's Y range
 		if visual_pos.y >= pos.y and visual_pos.y < pos.y + line_height_val:
 			# Found the correct line - now find X position within the line
 			var line_x = pos.x
-			var chars_in_line = 0
+			var chars_processed = 0
 			
 			for segment_info in line_segments:
 				var segment = segment_info.segment
@@ -1367,38 +1375,42 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 				var font = get_segment_font(segment)
 				var segment_font_size = get_segment_font_size(segment)
 				
-				# Check each character in this segment
-				for char_idx in range(text.length()):
-					var char = text[char_idx]
-					var char_width = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
-					
-					# Check if click is within this character
-					if visual_pos.x >= line_x and visual_pos.x < line_x + char_width:
-						# Return position based on which half of character was clicked
-						if visual_pos.x < line_x + char_width / 2:
-							return current_text_pos + chars_in_line
-						else:
-							return current_text_pos + chars_in_line + 1
-					
-					line_x += char_width
-					chars_in_line += 1
+				# If click is before this segment, return position at start of segment
+				if visual_pos.x < line_x:
+					return line_start_pos + chars_processed
 				
+				# Check positions within this segment using binary search approach
+				for char_idx in range(text.length() + 1):  # +1 to include position after last character
+					var partial_text = text.substr(0, char_idx)
+					var partial_width = font.get_string_size(partial_text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+					var char_right_edge = line_x + partial_width
+					
+					if visual_pos.x <= char_right_edge:
+						# Found the position - check which side of character
+						if char_idx == 0:
+							return line_start_pos + chars_processed
+						else:
+							var prev_partial_text = text.substr(0, char_idx - 1)
+							var prev_partial_width = font.get_string_size(prev_partial_text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+							var char_left_edge = line_x + prev_partial_width
+							var char_center = (char_left_edge + char_right_edge) / 2
+							
+							if visual_pos.x < char_center:
+								return line_start_pos + chars_processed + char_idx - 1
+							else:
+								return line_start_pos + chars_processed + char_idx
+				
+				# Update position for next segment
+				var segment_width = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+				line_x += segment_width
+				chars_processed += text.length()
+			
 			# Click was beyond the end of this line
-			return current_text_pos + chars_in_line
+			return line_end_pos
 		
 		# Move to next line
 		pos.y += line_height_val
-		
-		# Calculate text position for start of next line
-		var line_length = 0
-		for segment_info in line_segments:
-			line_length += segment_info.text.length()
-		current_text_pos += line_length
-		
-		# Add 1 for newline character if this is not the last line
-		var is_last_line = (line_data.find(line_info) == line_data.size() - 1)
-		if not is_last_line:
-			current_text_pos += 1
+		current_text_pos = line_end_pos + 1  # +1 for newline character (if exists)
 	
 	# Click was below all text
 	return get_total_text_length()
