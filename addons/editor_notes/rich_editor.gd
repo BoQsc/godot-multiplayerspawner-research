@@ -78,6 +78,11 @@ var scroll_dragging: bool = false
 var scroll_drag_start_y: float = 0.0
 var scroll_drag_start_offset: float = 0.0
 
+# Performance caching
+var cached_line_data: Array = []
+var line_data_dirty: bool = true
+var cached_content_height: float = 0.0
+
 # Signals
 signal text_changed()
 
@@ -381,10 +386,18 @@ func draw_background():
 	draw_rect(Rect2(Vector2.ZERO, size), border_color, false, 1.0)
 
 func calculate_content_height():
-	var line_data = build_line_data()
+	# Use cached height if available
+	if cached_content_height > 0.0 and not line_data_dirty:
+		total_content_height = cached_content_height
+		return
+	
+	var line_data = get_line_data()
 	total_content_height = text_margin.y
 	for line_info in line_data:
 		total_content_height += line_info.height
+	
+	# Cache the result
+	cached_content_height = total_content_height
 
 func draw_scrollbar():
 	# Only draw scrollbar if content exceeds visible area
@@ -472,13 +485,24 @@ func draw_line_numbers():
 		line_number_color = Color(0.6, 0.6, 0.6, 0.5)
 	
 	# Draw line numbers using dynamic line heights
-	var line_data = build_line_data()
+	var line_data = get_line_data()
 	var line_number_font = base_font
 	var y_pos = text_margin.y - scroll_offset  # Apply scroll offset
+	
+	# Viewport culling for line numbers
+	var visible_start_y = -scroll_offset
+	var visible_end_y = size.y - scroll_offset
 	
 	for line_idx in range(line_data.size()):
 		var line_info = line_data[line_idx]
 		var line_height_val = line_info.height
+		
+		# Viewport culling - skip line numbers outside visible area
+		if y_pos + line_height_val < visible_start_y:
+			y_pos += line_height_val
+			continue
+		if y_pos > visible_end_y:
+			break
 		
 		var line_num = line_idx + 1
 		var line_text = str(line_num)
@@ -502,13 +526,25 @@ func draw_line_numbers():
 
 func draw_text_segments():
 	# NEW APPROACH: Build line data first, then render line by line with dynamic heights
-	var line_data = build_line_data()
+	var line_data = get_line_data()
 	
 	var pos = text_margin
 	pos.y -= scroll_offset  # Apply scroll offset
+	
+	# Viewport culling - only draw visible lines
+	var visible_start_y = -scroll_offset
+	var visible_end_y = size.y - scroll_offset
+	
 	for line_info in line_data:
 		var line_segments = line_info.segments
 		var current_line_height = line_info.height
+		
+		# Viewport culling - skip lines outside visible area
+		if pos.y + current_line_height < visible_start_y:
+			pos.y += current_line_height
+			continue
+		if pos.y > visible_end_y:
+			break
 		
 		# Draw each segment on this line
 		var line_x = pos.x
@@ -560,7 +596,17 @@ func draw_text_segments():
 		pos.x = text_margin.x
 		pos.y += current_line_height
 
-func build_line_data() -> Array:
+func get_line_data() -> Array:
+	# Return cached line data if available and not dirty
+	if not line_data_dirty and cached_line_data.size() > 0:
+		return cached_line_data
+	
+	# Rebuild line data
+	cached_line_data = build_line_data_internal()
+	line_data_dirty = false
+	return cached_line_data
+
+func build_line_data_internal() -> Array:
 	# Build an array of line information with dynamic heights
 	var line_data = []
 	var current_pos = 0
@@ -624,6 +670,15 @@ func build_line_data() -> Array:
 		})
 	
 	return line_data
+
+# Legacy function for compatibility - will be replaced gradually
+func build_line_data() -> Array:
+	return get_line_data()
+
+func invalidate_cache():
+	# Mark cache as dirty when content changes
+	line_data_dirty = true
+	cached_content_height = 0.0
 
 func get_segment_font(segment: TextSegment) -> Font:
 	if segment.code:
@@ -1421,6 +1476,9 @@ func insert_character(char: String):
 	segment.text = segment.text.insert(local_pos, char)
 	cursor_position += 1
 	
+	# Invalidate cache
+	invalidate_cache()
+	
 	text_changed.emit()
 	queue_redraw()
 
@@ -1442,6 +1500,9 @@ func delete_character(delta: int):
 		var local_pos = segment_info.local_position
 		
 		segment.text = segment.text.erase(local_pos, 1)
+	
+	# Invalidate cache
+	invalidate_cache()
 	
 	text_changed.emit()
 	queue_redraw()
@@ -1763,6 +1824,7 @@ func get_text() -> String:
 func set_text(text: String):
 	segments = [TextSegment.new(text)]
 	cursor_position = 0
+	invalidate_cache()
 	queue_redraw()
 
 # Selection functions
