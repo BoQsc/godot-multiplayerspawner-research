@@ -472,13 +472,24 @@ func draw_text_segments():
 				
 				# Draw the text with styling effects
 				if segment.bold and not segment.code:
-					font.draw_string(get_canvas_item(), text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
-					font.draw_string(get_canvas_item(), text_pos + Vector2(0.5, 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
+					# Enhanced bold effect with multiple passes and slight scaling
+					var bold_color = color.lerp(Color.WHITE, 0.1)  # Slightly brighter
+					font.draw_string(get_canvas_item(), text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, bold_color)
+					font.draw_string(get_canvas_item(), text_pos + Vector2(0.5, 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, bold_color)
+					font.draw_string(get_canvas_item(), text_pos + Vector2(0, 0.5), text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, bold_color)
+					font.draw_string(get_canvas_item(), text_pos + Vector2(0.5, 0.5), text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, bold_color)
 					if segment.italic:
-						font.draw_string(get_canvas_item(), text_pos + Vector2(1, 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
+						# Bold + Italic: add italic slant on top of bold
+						font.draw_string(get_canvas_item(), text_pos + Vector2(1, -0.2), text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, bold_color)
 				elif segment.italic and not segment.code:
-					var italic_color = color.lerp(Color.WHITE, 0.1)
-					font.draw_string(get_canvas_item(), text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, italic_color)
+					# Enhanced italic effect with visible slanting
+					var italic_color = color.lerp(Color(1.0, 0.9, 0.7), 0.3)  # Warmer, more noticeable color
+					# Create italic slant by drawing multiple passes at different X offsets with varying Y
+					for i in range(text.length()):
+						var char = text[i]
+						var char_x = font.get_string_size(text.substr(0, i), HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+						var slant_offset = i * 0.15  # Gradually increase slant
+						font.draw_string(get_canvas_item(), text_pos + Vector2(char_x + slant_offset, -0.3), char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, italic_color)
 				else:
 					font.draw_string(get_canvas_item(), text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
 				
