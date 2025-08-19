@@ -540,11 +540,20 @@ func draw_selection():
 	var start_pos = min(selection_start, selection_end)
 	var end_pos = max(selection_start, selection_end)
 	
+	# Handle zero-width selections (empty lines) specially
 	if start_pos == end_pos:
+		draw_empty_line_selection(start_pos)
 		return
 		
-	# Always use the comprehensive multi-line drawing for better handling of empty lines
+	# Use the comprehensive multi-line drawing for actual selections
 	draw_multi_line_selection(start_pos, end_pos)
+
+func draw_empty_line_selection(pos: int):
+	# Draw selection for empty line (zero-width selection)
+	var visual_pos = get_visual_position(pos)
+	var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var selection_color = Color(0.3, 0.6, 1.0, 0.3)
+	draw_rect(Rect2(visual_pos, Vector2(space_width, line_height)), selection_color)
 
 func draw_multi_line_selection(start_pos: int, end_pos: int):
 	var text_content = get_text()
