@@ -549,8 +549,10 @@ func draw_selection():
 	var end_pos = max(selection_start, selection_end)
 	
 	# Handle zero-width selections (empty lines) specially - only for intentional selections
-	if start_pos == end_pos and intentional_empty_line_selection:
-		draw_empty_line_selection(start_pos)
+	if start_pos == end_pos:
+		if intentional_empty_line_selection:
+			draw_empty_line_selection(start_pos)
+		# For zero-width drag selections, don't draw anything
 		return
 		
 	# Use the comprehensive multi-line drawing for actual selections
@@ -568,39 +570,23 @@ func draw_multi_line_selection(start_pos: int, end_pos: int):
 	var selection_color = Color(0.3, 0.6, 1.0, 0.3)
 	var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	
-	# Draw selection line by line for better empty line handling
-	var current_pos = start_pos
-	var current_line_start = start_pos
-	
-	# Find the start of the current line
-	while current_line_start > 0 and text_content[current_line_start - 1] != '\n':
-		current_line_start -= 1
-	
-	while current_pos <= end_pos:
-		# Find the end of current line
-		var line_end = current_pos
-		while line_end < text_content.length() and text_content[line_end] != '\n':
-			line_end += 1
-		
-		# Calculate visual positions
-		var line_start_visual = get_visual_position(max(current_pos, start_pos))
-		var selection_start_in_line = max(current_pos, start_pos)
-		var selection_end_in_line = min(line_end, end_pos)
-		
-		if selection_start_in_line <= selection_end_in_line:
-			if selection_start_in_line == line_end:
-				# Empty line or newline character - show space width highlight
-				draw_rect(Rect2(line_start_visual, Vector2(space_width, line_height)), selection_color)
-			else:
-				# Line has content
-				var selection_end_visual = get_visual_position(selection_end_in_line)
-				var width = max(space_width, selection_end_visual.x - line_start_visual.x)
-				draw_rect(Rect2(line_start_visual, Vector2(width, line_height)), selection_color)
-		
-		# Move to next line
-		current_pos = line_end + 1
-		if line_end >= text_content.length():
+	# Simple character-by-character approach for consistent behavior
+	for pos in range(start_pos, end_pos + 1):
+		if pos >= text_content.length():
 			break
+			
+		var char = text_content[pos]
+		var visual_pos = get_visual_position(pos)
+		
+		if char == '\n':
+			# Newline character - draw small space width highlight
+			draw_rect(Rect2(visual_pos, Vector2(space_width, line_height)), selection_color)
+		else:
+			# Regular character - draw character width highlight
+			var segment_info = find_segment_at_position(pos)
+			var font = get_segment_font(segment_info.segment)
+			var char_width = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+			draw_rect(Rect2(visual_pos, Vector2(char_width, line_height)), selection_color)
 
 func get_visual_position(text_pos: int) -> Vector2:
 	# Calculate position by rendering text segments up to cursor position
@@ -891,17 +877,10 @@ func handle_mouse_motion(event: InputEventMouseMotion):
 			# Handle regular text drag selection with better out-of-bounds handling
 			var drag_pos = get_text_position_at_extended(event.position)
 			
-			# Only update selection if it would actually create a meaningful selection
-			if drag_pos != selection_start:
-				selection_end = drag_pos
-				cursor_position = drag_pos
-				queue_redraw()
-			else:
-				# If drag_pos equals selection_start, we have a zero-width selection
-				# Clear the selection instead of showing a meaningless highlight
-				clear_selection()
-				cursor_position = drag_pos
-				queue_redraw()
+			# Always update selection_end (never change selection_start once set)
+			selection_end = drag_pos
+			cursor_position = drag_pos
+			queue_redraw()
 
 func get_text_position_at(visual_pos: Vector2) -> int:
 	# Convert visual position back to text position with proper bounds handling
@@ -942,11 +921,9 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 		# Check if we're on the right line and close to the character
 		if clamped_pos.y >= pos.y and clamped_pos.y < pos.y + line_height:
 			if char == '\n':
-				# If clicking at end of line, position cursor at end of line
-				if clamped_pos.x >= pos.x:
-					return i
-				else:
-					return i
+				# For newlines, prefer returning the position before the newline
+				# This makes selection behavior more intuitive
+				return i
 			else:
 				# Find which segment this character belongs to for proper font
 				var segment_info = find_segment_at_position(i)
