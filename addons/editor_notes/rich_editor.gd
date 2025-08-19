@@ -1545,103 +1545,86 @@ func restore_state(state: UndoState):
 func select_entire_line(line_number: int):
 	# Select the entire line (1-based line number)
 	var text_content = get_text()
-	var current_line = 1
-	var line_start = 0
-	var line_end = 0
+	if text_content.is_empty():
+		selection_start = 0
+		selection_end = 0
+		cursor_position = 0
+		queue_redraw()
+		return
 	
-	# Find the start and end positions of the target line
+	# Build line positions array for more reliable line finding
+	var line_starts = [0]  # Start positions of each line
 	for i in range(text_content.length()):
-		if current_line == line_number:
-			line_start = i
-			# Find end of this line
-			line_end = i
-			while line_end < text_content.length() and text_content[line_end] != '\n':
-				line_end += 1
-			# Don't include the newline character - just select the line content
-			break
-		elif text_content[i] == '\n':
-			current_line += 1
-			if current_line == line_number:
-				line_start = i + 1
+		if text_content[i] == '\n':
+			line_starts.append(i + 1)
 	
-	# If we're on the last line and it doesn't end with newline
-	if current_line == line_number and line_end <= line_start:
+	# Check if line_number is valid
+	if line_number < 1 or line_number > line_starts.size():
+		# Invalid line number - clear selection
+		selection_start = -1
+		selection_end = -1
+		cursor_position = 0
+		queue_redraw()
+		return
+	
+	# Get line boundaries
+	var line_start = line_starts[line_number - 1]  # Convert to 0-based
+	var line_end = line_start
+	
+	# Find end of this line
+	if line_number < line_starts.size():
+		# Not the last line - end is just before next line start
+		line_end = line_starts[line_number] - 1  # -1 to exclude the newline
+	else:
+		# Last line - go to end of text
 		line_end = text_content.length()
 	
-	# Set selection to the entire line
-	if current_line == line_number:
-		selection_start = line_start
-		selection_end = line_end
-		# Position cursor at end of line content
-		cursor_position = line_end
-	else:
-		# Line number is beyond available lines - select last line
-		if text_content.length() > 0:
-			selection_start = text_content.length()
-			selection_end = text_content.length()
-			cursor_position = text_content.length()
+	# Set selection
+	selection_start = line_start
+	selection_end = line_end
+	cursor_position = line_end
+	
+	queue_redraw()
 
 func select_line_range(start_line: int, end_line: int):
-	# Select a range of lines (1-based line numbers)
+	# Select a range of lines (1-based line numbers) using same logic as select_entire_line
 	var text_content = get_text()
 	if text_content.is_empty():
 		selection_start = 0
 		selection_end = 0
 		cursor_position = 0
+		queue_redraw()
 		return
 	
-	# Ensure valid line numbers
-	var max_lines = 1
+	# Build line positions array - same as select_entire_line
+	var line_starts = [0]
 	for i in range(text_content.length()):
 		if text_content[i] == '\n':
-			max_lines += 1
+			line_starts.append(i + 1)
 	
-	start_line = clamp(start_line, 1, max_lines)
-	end_line = clamp(end_line, 1, max_lines)
+	# Clamp line numbers to valid range
+	start_line = clamp(start_line, 1, line_starts.size())
+	end_line = clamp(end_line, 1, line_starts.size())
 	
 	# Determine direction
 	var first_line = min(start_line, end_line)
 	var last_line = max(start_line, end_line)
 	
-	# Find line positions more accurately
-	var line_positions = [0]  # Start positions of each line
-	var current_line = 1
+	# Get start position of first line
+	var range_start = line_starts[first_line - 1]
 	
-	for i in range(text_content.length()):
-		if text_content[i] == '\n':
-			current_line += 1
-			if i + 1 < text_content.length():
-				line_positions.append(i + 1)
-			else:
-				line_positions.append(text_content.length())
-	
-	# Ensure we have position for the last line
-	if line_positions.size() < max_lines:
-		line_positions.append(text_content.length())
-	
-	# Get start and end positions
-	var range_start = line_positions[first_line - 1] if first_line - 1 < line_positions.size() else 0
-	var range_end = text_content.length()
-	
-	# Find end of last line (including newline if it exists)
-	if last_line < line_positions.size():
-		range_end = line_positions[last_line]
+	# Get end position of last line
+	var range_end
+	if last_line < line_starts.size():
+		# Not the last line - end is just before next line start
+		range_end = line_starts[last_line] - 1  # -1 to exclude the newline
 	else:
-		# Last line - go to end
-		var pos = line_positions[last_line - 1] if last_line - 1 < line_positions.size() else 0
-		while pos < text_content.length() and text_content[pos] != '\n':
-			pos += 1
-		if pos < text_content.length() and text_content[pos] == '\n':
-			pos += 1
-		range_end = pos
+		# Last line - go to end of text
+		range_end = text_content.length()
 	
-	# Set the selection
+	# Set selection
 	selection_start = range_start
 	selection_end = range_end
-	
-	# Position cursor appropriately
 	cursor_position = range_end
-	if range_end > range_start and range_end <= text_content.length() and text_content[range_end - 1] == '\n':
-		cursor_position = range_end - 1
 	
 	queue_redraw()
