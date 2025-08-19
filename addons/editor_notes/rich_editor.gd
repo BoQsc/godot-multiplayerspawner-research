@@ -71,6 +71,7 @@ signal text_changed()
 
 # Context menu
 var context_menu: Control
+var context_menu_just_shown: bool = false
 
 func _ready():
 	setup_fonts()
@@ -275,6 +276,7 @@ func _on_focus_exited():
 	# Hide context menu when editor loses focus
 	if context_menu and context_menu.visible:
 		context_menu.hide()
+		context_menu_just_shown = false
 
 func _on_context_menu_input(event):
 	# With proper mouse filtering, this should only receive unhandled events
@@ -292,6 +294,7 @@ func _on_context_menu_input(event):
 		
 		# Close context menu and process the event
 		context_menu.hide()
+		context_menu_just_shown = false
 		handle_mouse_input(new_event)
 
 func _draw():
@@ -761,9 +764,10 @@ func handle_key_input(event: InputEventKey):
 
 func handle_mouse_input(event: InputEventMouseButton):
 	if event.button_index == MOUSE_BUTTON_LEFT:
-		# If context menu is visible, hide it and continue processing
-		if context_menu.visible:
+		# If context menu is visible and wasn't just shown, hide it and continue processing
+		if context_menu.visible and not context_menu_just_shown:
 			context_menu.hide()
+		context_menu_just_shown = false
 		
 		grab_focus()
 		
@@ -832,6 +836,7 @@ func handle_mouse_input(event: InputEventMouseButton):
 		context_menu.position = mouse_global_pos + Vector2(-5, 0) - global_position
 		context_menu.visible = true
 		context_menu.move_to_front()
+		context_menu_just_shown = true
 
 func handle_mouse_motion(event: InputEventMouseMotion):
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
