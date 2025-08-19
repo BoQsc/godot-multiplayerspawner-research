@@ -585,14 +585,18 @@ func draw_multi_line_selection(start_pos: int, end_pos: int):
 		if char == '\n':
 			# Only draw newlines if selection spans multiple positions
 			if start_pos != end_pos:
-				# Check if this is a single-line selection that starts at a newline
-				var start_line = get_line_at_position(start_pos)
-				var end_line = get_line_at_position(end_pos)
+				# Check if this is a single-line selection where user started dragging from a newline
+				var actual_start = min(selection_start, selection_end)
+				var actual_end = max(selection_start, selection_end)
+				var start_line = get_line_at_position(actual_start)
+				var end_line = get_line_at_position(actual_end)
 				var is_single_line = (start_line == end_line)
-				var selection_starts_at_newline = (start_pos < text_content.length() and text_content[start_pos] == '\n')
 				
-				# Don't draw newline if it's a single-line selection that starts at newline
-				if not (is_single_line and selection_starts_at_newline and pos == start_pos):
+				# Check if the user originally started dragging from a newline position
+				var drag_started_at_newline = (selection_start < text_content.length() and text_content[selection_start] == '\n')
+				
+				# Don't draw newlines in single-line selections that started from a newline
+				if not (is_single_line and drag_started_at_newline):
 					draw_rect(Rect2(visual_pos, Vector2(space_width, line_height)), selection_color)
 		else:
 			# Regular character - draw character width highlight
