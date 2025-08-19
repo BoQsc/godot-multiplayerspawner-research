@@ -540,66 +540,50 @@ func draw_selection():
 	var start_pos = min(selection_start, selection_end)
 	var end_pos = max(selection_start, selection_end)
 	
-	# Check if this is an empty line selection (selection contains only a newline character)
-	if end_pos - start_pos == 1:
-		var text_content = get_text()
-		if start_pos < text_content.length() and text_content[start_pos] == '\n':
-			# This is an empty line - show space character highlight instead of newline selection
-			var cursor_visual = get_visual_position(start_pos)
-			var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-			draw_rect(Rect2(cursor_visual, Vector2(space_width, line_height)), Color(0.3, 0.6, 1.0, 0.3))
-			return
-	
 	if start_pos == end_pos:
 		return
-	
-	var start_visual = get_visual_position(start_pos)
-	var end_visual = get_visual_position(end_pos)
-	
-	# Handle single-line and multi-line selections
-	if abs(start_visual.y - end_visual.y) < line_height:
-		# Single line selection
-		var rect = Rect2(start_visual, Vector2(end_visual.x - start_visual.x, line_height))
-		draw_rect(rect, Color(0.3, 0.6, 1.0, 0.3))
-	else:
-		# Multi-line selection - need to calculate actual text boundaries
-		var text_content = get_text()
 		
-		# First line: from start position to end of that line
-		var first_line_end_pos = start_pos
-		while first_line_end_pos < text_content.length() and text_content[first_line_end_pos] != '\n':
-			first_line_end_pos += 1
-		var first_line_end_visual = get_visual_position(first_line_end_pos)
-		draw_rect(Rect2(start_visual, Vector2(first_line_end_visual.x - start_visual.x, line_height)), Color(0.3, 0.6, 1.0, 0.3))
+	# Always use the comprehensive multi-line drawing for better handling of empty lines
+	draw_multi_line_selection(start_pos, end_pos)
+
+func draw_multi_line_selection(start_pos: int, end_pos: int):
+	var text_content = get_text()
+	var selection_color = Color(0.3, 0.6, 1.0, 0.3)
+	var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	
+	# Draw selection line by line for better empty line handling
+	var current_pos = start_pos
+	var current_line_start = start_pos
+	
+	# Find the start of the current line
+	while current_line_start > 0 and text_content[current_line_start - 1] != '\n':
+		current_line_start -= 1
+	
+	while current_pos <= end_pos:
+		# Find the end of current line
+		var line_end = current_pos
+		while line_end < text_content.length() and text_content[line_end] != '\n':
+			line_end += 1
 		
-		# Middle lines: find each complete line within selection
-		var current_pos = first_line_end_pos + 1  # Skip the newline
-		while current_pos < end_pos and current_pos < text_content.length():
-			var line_start_pos = current_pos
-			var line_end_pos = current_pos
-			
-			# Find end of this line
-			while line_end_pos < text_content.length() and text_content[line_end_pos] != '\n':
-				line_end_pos += 1
-			
-			# Handle lines within selection
-			if line_start_pos < end_pos:
-				var line_start_visual = get_visual_position(line_start_pos)
-				
-				if line_start_pos == line_end_pos:
-					# Empty line (just newline) - show small space character highlight like code editors
-					var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-					draw_rect(Rect2(line_start_visual, Vector2(space_width, line_height)), Color(0.3, 0.6, 1.0, 0.3))
-				elif line_end_pos <= end_pos:
-					# Line with content, completely within selection
-					var line_end_visual = get_visual_position(line_end_pos)
-					draw_rect(Rect2(line_start_visual, Vector2(line_end_visual.x - line_start_visual.x, line_height)), Color(0.3, 0.6, 1.0, 0.3))
-				else:
-					# Line extends beyond selection - partial selection
-					draw_rect(Rect2(line_start_visual, Vector2(end_visual.x - line_start_visual.x, line_height)), Color(0.3, 0.6, 1.0, 0.3))
-					break
-			
-			current_pos = line_end_pos + 1  # Move past the newline
+		# Calculate visual positions
+		var line_start_visual = get_visual_position(max(current_pos, start_pos))
+		var selection_start_in_line = max(current_pos, start_pos)
+		var selection_end_in_line = min(line_end, end_pos)
+		
+		if selection_start_in_line <= selection_end_in_line:
+			if selection_start_in_line == line_end:
+				# Empty line or newline character - show space width highlight
+				draw_rect(Rect2(line_start_visual, Vector2(space_width, line_height)), selection_color)
+			else:
+				# Line has content
+				var selection_end_visual = get_visual_position(selection_end_in_line)
+				var width = max(space_width, selection_end_visual.x - line_start_visual.x)
+				draw_rect(Rect2(line_start_visual, Vector2(width, line_height)), selection_color)
+		
+		# Move to next line
+		current_pos = line_end + 1
+		if line_end >= text_content.length():
+			break
 
 func get_visual_position(text_pos: int) -> Vector2:
 	# Calculate position by rendering text segments up to cursor position
