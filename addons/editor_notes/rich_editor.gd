@@ -868,9 +868,14 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 	var pos = text_margin
 	var text_pos = 0
 	
-	# If click is in line number area or above text area, return position 0
-	if visual_pos.x < text_margin.x or visual_pos.y < text_margin.y:
+	# If click is above text area, return position 0
+	if visual_pos.y < text_margin.y:
 		return 0
+	
+	# If click is in line number area, clamp to start of the line at that Y position
+	if visual_pos.x < text_margin.x:
+		var line_index = int((visual_pos.y - text_margin.y) / line_height)
+		return get_line_start_position(line_index)
 	
 	# Use the same approach as get_visual_position for consistency
 	var full_text = get_text()
@@ -915,6 +920,27 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 	
 	# If clicked beyond all text, return end position
 	return full_text.length()
+
+func get_line_start_position(line_index: int) -> int:
+	# Get the text position at the start of the given line (0-based)
+	if line_index <= 0:
+		return 0
+	
+	var full_text = get_text()
+	var current_line = 0
+	var pos = 0
+	
+	for i in range(full_text.length()):
+		if current_line == line_index:
+			return pos
+		if full_text[i] == '\n':
+			current_line += 1
+			pos = i + 1
+		else:
+			if current_line < line_index:
+				pos = i + 1
+	
+	return pos
 
 func move_cursor(delta: int):
 	cursor_position = max(0, min(get_total_text_length(), cursor_position + delta))
