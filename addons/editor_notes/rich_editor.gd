@@ -73,6 +73,11 @@ signal text_changed()
 var context_menu: Control
 var context_menu_just_shown: bool = false
 
+# Mouse tracking for drag detection
+var mouse_down_position: Vector2
+var drag_threshold: float = 3.0  # Minimum pixels to start selection
+var intentional_empty_line_selection: bool = false  # Track if empty line was selected intentionally
+
 func _ready():
 	setup_fonts()
 	setup_initial_text()
@@ -543,8 +548,8 @@ func draw_selection():
 	var start_pos = min(selection_start, selection_end)
 	var end_pos = max(selection_start, selection_end)
 	
-	# Handle zero-width selections (empty lines) specially
-	if start_pos == end_pos:
+	# Handle zero-width selections (empty lines) specially - only for intentional selections
+	if start_pos == end_pos and intentional_empty_line_selection:
 		draw_empty_line_selection(start_pos)
 		return
 		
@@ -806,6 +811,10 @@ func handle_mouse_input(event: InputEventMouseButton):
 				cursor_position = click_pos
 				# Clear any existing selection on click
 				clear_selection()
+				# Reset empty line selection flag for regular text clicks
+				intentional_empty_line_selection = false
+				# Store mouse down position for drag detection
+				mouse_down_position = event.position
 				# Capture mouse to continue tracking even outside bounds
 				Input.set_default_cursor_shape(Input.CURSOR_IBEAM)
 		else:
@@ -866,16 +875,33 @@ func handle_mouse_motion(event: InputEventMouseMotion):
 				select_line_range(line_drag_start_line, current_line)
 				queue_redraw()
 		else:
-			# Handle regular text drag selection - start selection if not already active
+			# Handle regular text drag selection - only start if we've moved enough
 			if selection_start == -1:
-				# Start new selection at current cursor position
-				selection_start = cursor_position
+				# Check if we've moved far enough to start a selection
+				var distance = event.position.distance_to(mouse_down_position)
+				if distance >= drag_threshold:
+					# Start new selection at original mouse down position
+					var start_pos = get_text_position_at(mouse_down_position)
+					selection_start = start_pos
+					selection_end = start_pos
+				else:
+					# Not enough movement, don't start selection yet
+					return
 			
 			# Handle regular text drag selection with better out-of-bounds handling
 			var drag_pos = get_text_position_at_extended(event.position)
-			selection_end = drag_pos
-			cursor_position = drag_pos
-			queue_redraw()
+			
+			# Only update selection if it would actually create a meaningful selection
+			if drag_pos != selection_start:
+				selection_end = drag_pos
+				cursor_position = drag_pos
+				queue_redraw()
+			else:
+				# If drag_pos equals selection_start, we have a zero-width selection
+				# Clear the selection instead of showing a meaningless highlight
+				clear_selection()
+				cursor_position = drag_pos
+				queue_redraw()
 
 func get_text_position_at(visual_pos: Vector2) -> int:
 	# Convert visual position back to text position with proper bounds handling
@@ -1315,6 +1341,7 @@ func update_selection():
 func clear_selection():
 	selection_start = -1
 	selection_end = -1
+	intentional_empty_line_selection = false
 	queue_redraw()
 
 func select_all():
@@ -1603,6 +1630,9 @@ func select_entire_line(line_number: int):
 	selection_start = line_start
 	selection_end = line_end
 	cursor_position = line_end
+	
+	# Set flag for intentional empty line selection if this is an empty line
+	intentional_empty_line_selection = (line_start == line_end)
 	
 	queue_redraw()
 
