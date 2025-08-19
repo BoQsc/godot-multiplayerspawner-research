@@ -70,6 +70,14 @@ var text_margin: Vector2 = Vector2(50, 2)  # Text starts after line numbers
 var cursor_blink_time: float = 0.0
 var cursor_visible: bool = true
 
+# Scrolling properties
+var scroll_offset: float = 0.0
+var total_content_height: float = 0.0
+var scrollbar_width: float = 16.0
+var scroll_dragging: bool = false
+var scroll_drag_start_y: float = 0.0
+var scroll_drag_start_offset: float = 0.0
+
 # Signals
 signal text_changed()
 
@@ -307,11 +315,18 @@ func _on_context_menu_input(event):
 		handle_mouse_input(new_event)
 
 func _draw():
+	# Calculate total content height
+	calculate_content_height()
+	
+	# Clamp scroll offset to valid range
+	clamp_scroll_offset()
+	
 	draw_background()
 	draw_line_numbers()
 	draw_selection()  # Draw selection behind text
 	draw_text_segments()
 	draw_cursor()  # Draw cursor on top
+	draw_scrollbar()  # Draw scrollbar on top
 
 func draw_background():
 	# Get the actual editor interface theme
@@ -365,6 +380,49 @@ func draw_background():
 	
 	draw_rect(Rect2(Vector2.ZERO, size), border_color, false, 1.0)
 
+func calculate_content_height():
+	var line_data = build_line_data()
+	total_content_height = text_margin.y
+	for line_info in line_data:
+		total_content_height += line_info.height
+
+func draw_scrollbar():
+	# Only draw scrollbar if content exceeds visible area
+	if total_content_height <= size.y:
+		return
+	
+	var scrollbar_x = size.x - scrollbar_width
+	var scrollbar_track_rect = Rect2(Vector2(scrollbar_x, 0), Vector2(scrollbar_width, size.y))
+	
+	# Get editor theme colors
+	var editor_interface = Engine.get_singleton("EditorInterface")
+	var editor_theme = editor_interface.get_editor_theme() if editor_interface else null
+	
+	var track_color: Color = Color(0.1, 0.1, 0.1, 0.3)
+	var thumb_color: Color = Color(0.4, 0.4, 0.4, 0.7)
+	var thumb_hover_color: Color = Color(0.5, 0.5, 0.5, 0.8)
+	
+	if editor_theme:
+		track_color = editor_theme.get_color("dark_color_1", "Editor")
+		track_color.a = 0.3
+		thumb_color = editor_theme.get_color("font_color", "Editor")
+		thumb_color.a = 0.4
+		thumb_hover_color = thumb_color
+		thumb_hover_color.a = 0.6
+	
+	# Draw scrollbar track
+	draw_rect(scrollbar_track_rect, track_color)
+	
+	# Calculate thumb size and position
+	var visible_ratio = size.y / total_content_height
+	var thumb_height = max(20.0, size.y * visible_ratio)
+	var scroll_range = total_content_height - size.y
+	var thumb_y = (scroll_offset / scroll_range) * (size.y - thumb_height) if scroll_range > 0 else 0
+	
+	# Draw scrollbar thumb
+	var thumb_rect = Rect2(Vector2(scrollbar_x + 2, thumb_y), Vector2(scrollbar_width - 4, thumb_height))
+	draw_rect(thumb_rect, thumb_color)
+
 func draw_current_line_highlight(bg_color: Color):
 	# Find which line the cursor is on using line data
 	var line_data = build_line_data()
@@ -416,7 +474,7 @@ func draw_line_numbers():
 	# Draw line numbers using dynamic line heights
 	var line_data = build_line_data()
 	var line_number_font = base_font
-	var y_pos = text_margin.y
+	var y_pos = text_margin.y - scroll_offset  # Apply scroll offset
 	
 	for line_idx in range(line_data.size()):
 		var line_info = line_data[line_idx]
@@ -447,6 +505,7 @@ func draw_text_segments():
 	var line_data = build_line_data()
 	
 	var pos = text_margin
+	pos.y -= scroll_offset  # Apply scroll offset
 	for line_info in line_data:
 		var line_segments = line_info.segments
 		var current_line_height = line_info.height
@@ -769,6 +828,7 @@ func draw_multi_line_selection(start_pos: int, end_pos: int):
 	# Use the same line-based approach as text rendering for consistency
 	var line_data = build_line_data()
 	var pos = text_margin
+	pos.y -= scroll_offset  # Apply scroll offset
 	var current_pos = 0
 	
 	for line_info in line_data:
@@ -871,6 +931,7 @@ func get_visual_position(text_pos: int) -> Vector2:
 	
 	var line_data = build_line_data()
 	var pos = text_margin
+	pos.y -= scroll_offset  # Apply scroll offset
 	var current_pos = 0
 	
 	for line_info in line_data:
@@ -946,8 +1007,15 @@ func _gui_input(event):
 		handle_key_input(event)
 		accept_event()
 	elif event is InputEventMouseButton:
-		handle_mouse_input(event)
-		accept_event()
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			scroll_up()
+			accept_event()
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			scroll_down()
+			accept_event()
+		else:
+			handle_mouse_input(event)
+			accept_event()
 	elif event is InputEventMouseMotion:
 		handle_mouse_motion(event)
 		accept_event()
@@ -1219,13 +1287,17 @@ func handle_mouse_motion(event: InputEventMouseMotion):
 func get_text_position_at(visual_pos: Vector2) -> int:
 	# Convert visual position back to text position
 	var pos = text_margin
+	pos.y -= scroll_offset  # Apply scroll offset
 	var text_pos = 0
 	var full_text = get_text()
 	
+	# Adjust visual position to account for scroll
+	var adjusted_visual_pos = Vector2(visual_pos.x, visual_pos.y + scroll_offset)
+	
 	# Clamp to bounds
 	var clamped_pos = Vector2(
-		clamp(visual_pos.x, text_margin.x, size.x),
-		clamp(visual_pos.y, text_margin.y, size.y)
+		clamp(adjusted_visual_pos.x, text_margin.x, size.x),
+		clamp(adjusted_visual_pos.y, text_margin.y, text_margin.y + total_content_height)
 	)
 	
 	# If click is above text area, return position 0
@@ -2259,3 +2331,19 @@ func insert_table():
 	
 	text_changed.emit()
 	queue_redraw()
+
+# Scrolling functions
+func scroll_up():
+	var scroll_speed = line_height * 3  # Scroll 3 lines at a time
+	scroll_offset = max(0, scroll_offset - scroll_speed)
+	queue_redraw()
+
+func scroll_down():
+	var max_scroll = max(0, total_content_height - size.y)
+	var scroll_speed = line_height * 3  # Scroll 3 lines at a time
+	scroll_offset = min(max_scroll, scroll_offset + scroll_speed)
+	queue_redraw()
+
+func clamp_scroll_offset():
+	var max_scroll = max(0, total_content_height - size.y)
+	scroll_offset = clamp(scroll_offset, 0, max_scroll)
