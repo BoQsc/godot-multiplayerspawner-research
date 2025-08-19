@@ -268,7 +268,7 @@ func create_menu_item(parent: VBoxContainer, text: String, callback: Callable):
 	btn.add_theme_color_override("font_hover_color", menu_font_hover_color)
 	btn.add_theme_color_override("font_pressed_color", menu_font_hover_color)
 	
-	btn.pressed.connect(func(): print("DEBUG: Button '", text, "' clicked!"); callback.call())
+	btn.pressed.connect(callback)
 	parent.add_child(btn)
 
 func _on_focus_exited():
@@ -864,9 +864,15 @@ func handle_mouse_motion(event: InputEventMouseMotion):
 			queue_redraw()
 
 func get_text_position_at(visual_pos: Vector2) -> int:
-	# Convert visual position back to text position using same method as get_visual_position
+	# Convert visual position back to text position with proper bounds handling
 	var pos = text_margin
 	var text_pos = 0
+	
+	# Clamp the visual position to editor bounds
+	var clamped_pos = Vector2(
+		clamp(visual_pos.x, text_margin.x, size.x),
+		clamp(visual_pos.y, text_margin.y, size.y)
+	)
 	
 	# If click is above text area, return position 0
 	if visual_pos.y < text_margin.y:
@@ -874,20 +880,30 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 	
 	# If click is in line number area, clamp to start of the line at that Y position
 	if visual_pos.x < text_margin.x:
-		var line_index = int((visual_pos.y - text_margin.y) / line_height)
+		var line_index = int((clamped_pos.y - text_margin.y) / line_height)
 		return get_line_start_position(line_index)
 	
-	# Use the same approach as get_visual_position for consistency
+	# If click is below text area, return end of text
 	var full_text = get_text()
+	if visual_pos.y > size.y:
+		return full_text.length()
+	
+	# If click is to the right of text area, find end of the line at that Y position
+	if visual_pos.x > size.x:
+		var line_index = int((clamped_pos.y - text_margin.y) / line_height)
+		return get_line_end_position(line_index)
+	
+	# Use the same approach as get_visual_position for consistency with clamped position
+	# full_text already declared above
 	
 	for i in range(full_text.length()):
 		var char = full_text[i]
 		
 		# Check if we're on the right line and close to the character
-		if visual_pos.y >= pos.y and visual_pos.y < pos.y + line_height:
+		if clamped_pos.y >= pos.y and clamped_pos.y < pos.y + line_height:
 			if char == '\n':
 				# If clicking at end of line, position cursor at end of line
-				if visual_pos.x >= pos.x:
+				if clamped_pos.x >= pos.x:
 					return i
 				else:
 					return i
@@ -898,13 +914,13 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 				var char_size = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 				
 				# Check if click is within this character's bounds
-				if visual_pos.x >= pos.x and visual_pos.x < pos.x + char_size.x:
+				if clamped_pos.x >= pos.x and clamped_pos.x < pos.x + char_size.x:
 					# Click closer to start or end of character?
-					if visual_pos.x < pos.x + char_size.x / 2:
+					if clamped_pos.x < pos.x + char_size.x / 2:
 						return i
 					else:
 						return i + 1
-				elif visual_pos.x < pos.x:
+				elif clamped_pos.x < pos.x:
 					return i
 		
 		# Move to next character position
@@ -941,6 +957,26 @@ func get_line_start_position(line_index: int) -> int:
 				pos = i + 1
 	
 	return pos
+
+func get_line_end_position(line_index: int) -> int:
+	# Get the text position at the end of the given line (0-based)
+	var full_text = get_text()
+	var current_line = 0
+	var line_start = 0
+	
+	for i in range(full_text.length()):
+		if current_line == line_index:
+			# Found the target line, now find its end
+			for j in range(i, full_text.length()):
+				if full_text[j] == '\n':
+					return j  # Return position just before newline
+			return full_text.length()  # End of text if no newline found
+		elif full_text[i] == '\n':
+			current_line += 1
+			line_start = i + 1
+	
+	# If line_index is beyond available lines, return end of text
+	return full_text.length()
 
 func move_cursor(delta: int):
 	cursor_position = max(0, min(get_total_text_length(), cursor_position + delta))
@@ -1592,3 +1628,5 @@ func select_line_range(start_line: int, end_line: int):
 	cursor_position = range_end
 	if range_end > range_start and range_end <= text_content.length() and text_content[range_end - 1] == '\n':
 		cursor_position = range_end - 1
+	
+	queue_redraw()
