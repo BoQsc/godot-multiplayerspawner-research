@@ -140,8 +140,8 @@ func setup_context_menu():
 	context_menu.size = Vector2(120, 120)
 	context_menu.visible = false
 	
-	# Temporarily disable input handler to test buttons
-	#context_menu.gui_input.connect(_on_context_menu_input)
+	# Re-enable input handler for double-click forwarding
+	context_menu.gui_input.connect(_on_context_menu_input)
 	
 	# Create background panel with PopupMenu styling
 	var panel = Panel.new()
@@ -277,36 +277,22 @@ func _on_focus_exited():
 		context_menu.hide()
 
 func _on_context_menu_input(event):
-	# Forward mouse events that don't hit buttons to the text editor underneath
+	# With proper mouse filtering, this should only receive unhandled events
+	# (events that didn't hit buttons, since buttons have MOUSE_FILTER_STOP)
 	if event is InputEventMouseButton and event.pressed:
-		# Check if click is over any button by checking the VBox children
-		var vbox = context_menu.get_child(1)  # VBox is second child after Panel
-		var clicked_button = false
+		# Calculate the position relative to the text editor
+		var editor_pos = event.position + context_menu.position
 		
-		for child in vbox.get_children():
-			if child is Button:
-				var global_rect = Rect2(child.global_position, child.size)
-				var global_click_pos = context_menu.global_position + event.position
-				if global_rect.has_point(global_click_pos):
-					clicked_button = true
-					# Let the button handle this click naturally
-					return
+		# Create new event with correct position
+		var new_event = InputEventMouseButton.new()
+		new_event.button_index = event.button_index
+		new_event.pressed = event.pressed
+		new_event.double_click = event.double_click
+		new_event.position = editor_pos
 		
-		# Only forward if we didn't click a button
-		if not clicked_button:
-			# Calculate the position relative to the text editor
-			var editor_pos = event.position + context_menu.position
-			
-			# Create new event with correct position
-			var new_event = InputEventMouseButton.new()
-			new_event.button_index = event.button_index
-			new_event.pressed = event.pressed
-			new_event.double_click = event.double_click
-			new_event.position = editor_pos
-			
-			# Close context menu and process the event
-			context_menu.hide()
-			handle_mouse_input(new_event)
+		# Close context menu and process the event
+		context_menu.hide()
+		handle_mouse_input(new_event)
 
 func _draw():
 	draw_background()
