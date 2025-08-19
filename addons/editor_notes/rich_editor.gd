@@ -570,6 +570,10 @@ func draw_multi_line_selection(start_pos: int, end_pos: int):
 	var selection_color = Color(0.3, 0.6, 1.0, 0.3)
 	var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	
+	# Special case: if selection starts and ends at the same newline, don't draw it
+	if start_pos == end_pos and start_pos < text_content.length() and text_content[start_pos] == '\n':
+		return
+	
 	# Simple character-by-character approach for consistent behavior
 	for pos in range(start_pos, end_pos + 1):
 		if pos >= text_content.length():
@@ -579,8 +583,17 @@ func draw_multi_line_selection(start_pos: int, end_pos: int):
 		var visual_pos = get_visual_position(pos)
 		
 		if char == '\n':
-			# Newline character - draw small space width highlight
-			draw_rect(Rect2(visual_pos, Vector2(space_width, line_height)), selection_color)
+			# Only draw newlines if selection spans multiple positions
+			if start_pos != end_pos:
+				# Check if this is a single-line selection that starts at a newline
+				var start_line = get_line_at_position(start_pos)
+				var end_line = get_line_at_position(end_pos)
+				var is_single_line = (start_line == end_line)
+				var selection_starts_at_newline = (start_pos < text_content.length() and text_content[start_pos] == '\n')
+				
+				# Don't draw newline if it's a single-line selection that starts at newline
+				if not (is_single_line and selection_starts_at_newline and pos == start_pos):
+					draw_rect(Rect2(visual_pos, Vector2(space_width, line_height)), selection_color)
 		else:
 			# Regular character - draw character width highlight
 			var segment_info = find_segment_at_position(pos)
@@ -868,6 +881,7 @@ func handle_mouse_motion(event: InputEventMouseMotion):
 				if distance >= drag_threshold:
 					# Start new selection at original mouse down position
 					var start_pos = get_text_position_at(mouse_down_position)
+					
 					selection_start = start_pos
 					selection_end = start_pos
 				else:
@@ -921,8 +935,7 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 		# Check if we're on the right line and close to the character
 		if clamped_pos.y >= pos.y and clamped_pos.y < pos.y + line_height:
 			if char == '\n':
-				# For newlines, prefer returning the position before the newline
-				# This makes selection behavior more intuitive
+				# For newlines, return position of newline character
 				return i
 			else:
 				# Find which segment this character belongs to for proper font
