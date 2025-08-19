@@ -140,7 +140,7 @@ func setup_context_menu():
 	# Connect mouse events to forward them to the text editor
 	context_menu.gui_input.connect(_on_context_menu_input)
 	
-	# Create panel background
+	# Create panel background with default styling
 	var panel = Panel.new()
 	context_menu.add_child(panel)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -149,31 +149,62 @@ func setup_context_menu():
 	var vbox = VBoxContainer.new()
 	context_menu.add_child(vbox)
 	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vbox.add_theme_constant_override("separation", 2)
 	
-	# Add menu buttons
+	# Add menu buttons with proper styling
 	var cut_btn = Button.new()
 	cut_btn.text = "Cut"
 	cut_btn.flat = true
+	cut_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	style_menu_button(cut_btn)
 	cut_btn.pressed.connect(func(): cut_selection(); context_menu.hide())
 	vbox.add_child(cut_btn)
 	
 	var copy_btn = Button.new()
 	copy_btn.text = "Copy" 
 	copy_btn.flat = true
+	copy_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	style_menu_button(copy_btn)
 	copy_btn.pressed.connect(func(): copy_selection(); context_menu.hide())
 	vbox.add_child(copy_btn)
 	
 	var paste_btn = Button.new()
 	paste_btn.text = "Paste"
 	paste_btn.flat = true
+	paste_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	style_menu_button(paste_btn)
 	paste_btn.pressed.connect(func(): paste_from_clipboard(); context_menu.hide())
 	vbox.add_child(paste_btn)
 	
 	var select_btn = Button.new()
 	select_btn.text = "Select All"
 	select_btn.flat = true
+	select_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	style_menu_button(select_btn)
 	select_btn.pressed.connect(func(): select_all(); context_menu.hide())
 	vbox.add_child(select_btn)
+
+func style_menu_button(button: Button):
+	# Style buttons to look like menu items
+	var normal_style = StyleBoxFlat.new()
+	normal_style.bg_color = Color.TRANSPARENT
+	normal_style.content_margin_left = 8
+	normal_style.content_margin_right = 8
+	normal_style.content_margin_top = 4
+	normal_style.content_margin_bottom = 4
+	
+	var hover_style = StyleBoxFlat.new()
+	hover_style.bg_color = Color(0.3, 0.6, 1.0, 0.3)  # Light blue highlight
+	hover_style.content_margin_left = 8
+	hover_style.content_margin_right = 8
+	hover_style.content_margin_top = 4
+	hover_style.content_margin_bottom = 4
+	
+	button.add_theme_stylebox_override("normal", normal_style)
+	button.add_theme_stylebox_override("hover", hover_style)
+	button.add_theme_stylebox_override("pressed", hover_style)
+	button.add_theme_color_override("font_color", Color.WHITE)
+	button.add_theme_color_override("font_hover_color", Color.WHITE)
 
 func _draw():
 	draw_background()
@@ -702,8 +733,9 @@ func handle_mouse_input(event: InputEventMouseButton):
 			clear_selection()
 			queue_redraw()
 		
-		# Show custom context menu with offset
-		context_menu.position = event.position + Vector2(-5, 20)
+		# Show custom context menu with offset at mouse tip level
+		var mouse_global_pos = get_global_mouse_position()
+		context_menu.position = mouse_global_pos + Vector2(-5, 0) - global_position
 		context_menu.visible = true
 		context_menu.move_to_front()
 
