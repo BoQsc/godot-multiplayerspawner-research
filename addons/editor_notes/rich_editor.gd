@@ -330,6 +330,9 @@ func _draw():
 	# Clamp scroll offset to valid range
 	clamp_scroll_offset()
 	
+	# Ensure we only draw within our bounds
+	var clip_rect = Rect2(Vector2.ZERO, size)
+	
 	draw_background()
 	draw_line_numbers()
 	draw_selection()  # Draw selection behind text
@@ -699,6 +702,39 @@ func invalidate_cache_if_needed(old_length: int, new_length: int):
 	if old_length != new_length or (old_length > 0 and new_length > 0):
 		# Content size changed or non-empty content modified
 		invalidate_cache()
+
+func cleanup_segments():
+	# Remove empty segments and merge adjacent segments with identical formatting
+	var cleaned_segments: Array[TextSegment] = []
+	
+	for segment in segments:
+		if segment.text.length() == 0:
+			continue  # Skip empty segments
+		
+		# Check if we can merge with the previous segment
+		if cleaned_segments.size() > 0:
+			var prev_segment = cleaned_segments[-1]
+			if segments_have_same_formatting(prev_segment, segment):
+				# Merge with previous segment
+				prev_segment.text += segment.text
+				continue
+		
+		# Add as new segment
+		cleaned_segments.append(segment)
+	
+	# Ensure we have at least one segment
+	if cleaned_segments.is_empty():
+		cleaned_segments.append(TextSegment.new(""))
+	
+	segments = cleaned_segments
+
+func segments_have_same_formatting(seg1: TextSegment, seg2: TextSegment) -> bool:
+	return (seg1.bold == seg2.bold and 
+			seg1.italic == seg2.italic and 
+			seg1.underline == seg2.underline and 
+			seg1.strikethrough == seg2.strikethrough and 
+			seg1.code == seg2.code and 
+			seg1.heading_level == seg2.heading_level)
 
 func get_segment_font(segment: TextSegment) -> Font:
 	var font: Font
@@ -1989,6 +2025,10 @@ func delete_selection():
 		new_segments.append(TextSegment.new(""))
 	
 	segments = new_segments
+	
+	# Clean up empty segments and merge adjacent segments with same formatting
+	cleanup_segments()
+	
 	cursor_position = start_pos
 	clear_selection()
 	
@@ -2180,6 +2220,9 @@ func restore_state(state: UndoState):
 	cursor_position = state.cursor_pos
 	selection_start = state.selection_start_pos
 	selection_end = state.selection_end_pos
+	
+	# Invalidate cache since content changed
+	invalidate_cache()
 	
 	# Update display
 	text_changed.emit()

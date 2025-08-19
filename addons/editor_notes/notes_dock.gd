@@ -22,10 +22,13 @@ var table_btn: Button
 var clear_btn: Button
 
 const SAVE_PATH = "res://README.md"
+var file_monitor_timer: Timer
+var last_modified_time: int = 0
 
 func _ready():
 	setup_rich_editor()
 	setup_toolbar()
+	setup_file_monitoring()
 	load_notes()
 
 func setup_rich_editor():
@@ -33,7 +36,14 @@ func setup_rich_editor():
 	rich_editor = RichEditor.new()
 	rich_editor.name = "RichEditor"
 	rich_editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	
+	# Ensure proper z-order by adding to VBoxContainer (toolbar will stay on top)
 	$VBoxContainer.add_child(rich_editor)
+	
+	# Explicitly ensure toolbar and header stay on top
+	$VBoxContainer.move_child($VBoxContainer/Header, 0)
+	$VBoxContainer.move_child($VBoxContainer/Toolbar, 1)
+	$VBoxContainer.move_child(rich_editor, 2)
 	
 	# Connect signals
 	rich_editor.text_changed.connect(_on_text_changed)
@@ -142,15 +152,68 @@ func load_notes():
 		# README.md doesn't exist - will be auto-created on first note
 		if rich_editor:
 			rich_editor.set_text("")
+		last_modified_time = 0
 		return
 		
 	var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if file:
 		var content = file.get_as_text()
+		last_modified_time = FileAccess.get_modified_time(SAVE_PATH)
 		file.close()
 		
 		if rich_editor:
 			rich_editor.set_text(content)
+
+func setup_file_monitoring():
+	# Create timer for file monitoring
+	file_monitor_timer = Timer.new()
+	file_monitor_timer.timeout.connect(_check_file_changes)
+	file_monitor_timer.wait_time = 1.0  # Check every second
+	file_monitor_timer.autostart = true
+	add_child(file_monitor_timer)
+
+func _check_file_changes():
+	if not FileAccess.file_exists(SAVE_PATH):
+		return
+	
+	var current_modified_time = FileAccess.get_modified_time(SAVE_PATH)
+	if current_modified_time > last_modified_time:
+		# File was modified externally - reload it
+		print("README.md was modified externally, reloading...")
+		load_notes_without_losing_cursor()
+
+func load_notes_without_losing_cursor():
+	# Save current cursor position
+	var cursor_pos = 0
+	var selection_start = -1
+	var selection_end = -1
+	
+	if rich_editor:
+		cursor_pos = rich_editor.cursor_position
+		selection_start = rich_editor.selection_start
+		selection_end = rich_editor.selection_end
+	
+	# Load new content
+	var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if file:
+		var content = file.get_as_text()
+		last_modified_time = FileAccess.get_modified_time(SAVE_PATH)
+		file.close()
+		
+		if rich_editor:
+			# Update content without triggering save
+			rich_editor.set_text(content)
+			
+			# Restore cursor position (clamped to new content length)
+			var max_pos = rich_editor.get_total_text_length()
+			rich_editor.cursor_position = clamp(cursor_pos, 0, max_pos)
+			
+			# Restore selection if it was valid
+			if selection_start != -1 and selection_end != -1:
+				rich_editor.selection_start = clamp(selection_start, 0, max_pos)
+				rich_editor.selection_end = clamp(selection_end, 0, max_pos)
+			
+			rich_editor.queue_redraw()
 
 func setup_heading_menu():
 	if not heading_btn:
