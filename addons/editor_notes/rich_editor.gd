@@ -8,17 +8,21 @@ class TextSegment:
 	var bold: bool = false
 	var italic: bool = false
 	var underline: bool = false
+	var strikethrough: bool = false
 	var code: bool = false
+	var heading_level: int = 0  # 0 = not a heading, 1-6 = H1-H6
 	
-	func _init(txt: String = "", b: bool = false, i: bool = false, u: bool = false, c: bool = false):
+	func _init(txt: String = "", b: bool = false, i: bool = false, u: bool = false, s: bool = false, c: bool = false, h: int = 0):
 		text = txt
 		bold = b
 		italic = i
 		underline = u
+		strikethrough = s
 		code = c
+		heading_level = h
 	
 	func copy() -> TextSegment:
-		return TextSegment.new(text, bold, italic, underline, code)
+		return TextSegment.new(text, bold, italic, underline, strikethrough, code, heading_level)
 
 # Editor state
 var segments: Array[TextSegment] = []
@@ -422,6 +426,7 @@ func draw_text_segments():
 			continue
 			
 		var font = get_segment_font(segment)
+		var segment_font_size = get_segment_font_size(segment)
 		var color = get_segment_color(segment)
 		
 		# Draw the entire segment at once for better alignment
@@ -431,53 +436,43 @@ func draw_text_segments():
 			var line = segment_lines[line_idx]
 			
 			if line.length() > 0:
-				# Draw text with baseline offset - this aligns text with cursor
-				var text_pos = Vector2(pos.x, pos.y + font.get_ascent(font_size))
+				# OPTIMIZED: Draw entire line at once instead of character-by-character
+				var line_width = font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+				var text_pos = Vector2(pos.x, pos.y + font.get_ascent(segment_font_size))
 				
-				# Draw background for code segments - calculate width character by character
+				# Draw background for code segments
 				if segment.code:
-					var line_width = 0.0
-					for char_idx in range(line.length()):
-						var char = line[char_idx]
-						var char_size = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
-						line_width += char_size.x
 					var code_bg_color = color.lerp(Color.BLACK, 0.3)
 					code_bg_color.a = 0.2
 					draw_rect(Rect2(Vector2(pos.x - 2, pos.y), Vector2(line_width + 4, line_height)), code_bg_color)
 				
-				# Draw the text character by character for consistent positioning
-				var char_pos = pos
-				for char_idx in range(line.length()):
-					var char = line[char_idx]
-					var char_text_pos = Vector2(char_pos.x, char_pos.y + font.get_ascent(font_size))
-					
-					# Draw the character with styling effects
-					if segment.bold and not segment.code:
-						# Simulate bold by drawing text multiple times with slight offset
-						font.draw_string(get_canvas_item(), char_text_pos, char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-						font.draw_string(get_canvas_item(), char_text_pos + Vector2(0.5, 0), char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-						if segment.italic:
-							# Also add italic effect with skew simulation
-							font.draw_string(get_canvas_item(), char_text_pos + Vector2(1, 0), char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-					elif segment.italic and not segment.code:
-						# Simulate italic with slight color variation and offset
-						var italic_color = color.lerp(Color.WHITE, 0.1)
-						font.draw_string(get_canvas_item(), char_text_pos, char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, italic_color)
-					else:
-						# Normal text
-						font.draw_string(get_canvas_item(), char_text_pos, char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-					
-					# Draw underline if needed
-					if segment.underline and not segment.code:
-						var char_size = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
-						var underline_y = char_text_pos.y + 2
-						draw_line(Vector2(char_pos.x, underline_y), Vector2(char_pos.x + char_size.x, underline_y), color, 1.0)
-					
-					# Move to next character position using same method as positioning
-					var char_size = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
-					char_pos.x += char_size.x
+				# Draw the entire line with styling effects
+				if segment.bold and not segment.code:
+					# Simulate bold by drawing text multiple times with slight offset
+					font.draw_string(get_canvas_item(), text_pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
+					font.draw_string(get_canvas_item(), text_pos + Vector2(0.5, 0), line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
+					if segment.italic:
+						# Also add italic effect with skew simulation
+						font.draw_string(get_canvas_item(), text_pos + Vector2(1, 0), line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
+				elif segment.italic and not segment.code:
+					# Simulate italic with slight color variation and offset
+					var italic_color = color.lerp(Color.WHITE, 0.1)
+					font.draw_string(get_canvas_item(), text_pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, italic_color)
+				else:
+					# Normal text
+					font.draw_string(get_canvas_item(), text_pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
 				
-				pos.x = char_pos.x
+				# Draw underline if needed
+				if segment.underline and not segment.code:
+					var underline_y = text_pos.y + 2
+					draw_line(Vector2(pos.x, underline_y), Vector2(pos.x + line_width, underline_y), color, 1.0)
+				
+				# Draw strikethrough if needed
+				if segment.strikethrough and not segment.code:
+					var strikethrough_y = text_pos.y - font.get_ascent(segment_font_size) / 2
+					draw_line(Vector2(pos.x, strikethrough_y), Vector2(pos.x + line_width, strikethrough_y), color, 1.0)
+				
+				pos.x += line_width
 			
 			# Move to next line if there's a newline
 			if line_idx < segment_lines.size() - 1:
@@ -497,6 +492,15 @@ func get_segment_font(segment: TextSegment) -> Font:
 		return italic_font
 	else:
 		return base_font
+
+func get_segment_font_size(segment: TextSegment) -> int:
+	if segment.heading_level > 0:
+		# Scale font size based on heading level
+		var scale_factors = [2.0, 1.5, 1.25, 1.1, 1.0, 0.9]  # H1-H6
+		var scale = scale_factors[segment.heading_level - 1]
+		return int(font_size * scale)
+	else:
+		return font_size
 
 func get_segment_color(segment: TextSegment) -> Color:
 	# Get the actual editor theme
@@ -574,59 +578,137 @@ func draw_multi_line_selection(start_pos: int, end_pos: int):
 	if start_pos == end_pos and start_pos < text_content.length() and text_content[start_pos] == '\n':
 		return
 	
-	# Simple character-by-character approach for consistent behavior
-	for pos in range(start_pos, end_pos + 1):
-		if pos >= text_content.length():
-			break
-			
-		var char = text_content[pos]
-		var visual_pos = get_visual_position(pos)
+	# OPTIMIZED: Batch selection drawing by segments instead of character-by-character
+	var current_pos = 0
+	var draw_pos = text_margin
+	
+	for segment in segments:
+		var segment_start = current_pos
+		var segment_end = current_pos + segment.text.length()
 		
-		if char == '\n':
-			# Only draw newlines if selection spans multiple positions
-			if start_pos != end_pos:
-				# Check if this is a single-line selection where user started dragging from a newline
-				var actual_start = min(selection_start, selection_end)
-				var actual_end = max(selection_start, selection_end)
-				var start_line = get_line_at_position(actual_start)
-				var end_line = get_line_at_position(actual_end)
-				var is_single_line = (start_line == end_line)
+		# Skip segments completely outside selection
+		if segment_end <= start_pos or segment_start >= end_pos:
+			# Still need to advance draw position for segments before selection
+			if segment_end <= start_pos:
+				draw_pos = advance_draw_pos_for_segment(draw_pos, segment)
+			current_pos += segment.text.length()
+			continue
+		
+		var font = get_segment_font(segment)
+		var segment_font_size = get_segment_font_size(segment)
+		
+		# Process this segment's text
+		var segment_lines = segment.text.split('\n')
+		var line_start_pos = draw_pos
+		
+		for line_idx in range(segment_lines.size()):
+			var line = segment_lines[line_idx]
+			var line_pos = current_pos
+			
+			# Find intersection with selection
+			var line_end_pos = line_pos + line.length()
+			var sel_start_in_line = max(0, start_pos - line_pos)
+			var sel_end_in_line = min(line.length(), end_pos - line_pos)
+			
+			# Draw selection for this line if it intersects
+			if sel_start_in_line < sel_end_in_line and sel_start_in_line < line.length():
+				var selected_text = line.substr(sel_start_in_line, sel_end_in_line - sel_start_in_line)
 				
-				# Check if the user originally started dragging from a newline position
-				var drag_started_at_newline = (selection_start < text_content.length() and text_content[selection_start] == '\n')
+				# Calculate X position for start of selection in this line
+				var prefix_text = line.substr(0, sel_start_in_line) if sel_start_in_line > 0 else ""
+				var prefix_width = font.get_string_size(prefix_text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x if prefix_text.length() > 0 else 0
+				var selected_width = font.get_string_size(selected_text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
 				
-				# Don't draw newlines in single-line selections that started from a newline
-				if not (is_single_line and drag_started_at_newline):
-					draw_rect(Rect2(visual_pos, Vector2(space_width, line_height)), selection_color)
-		else:
-			# Regular character - draw character width highlight
-			var segment_info = find_segment_at_position(pos)
-			var font = get_segment_font(segment_info.segment)
-			var char_width = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-			draw_rect(Rect2(visual_pos, Vector2(char_width, line_height)), selection_color)
+				var selection_rect = Rect2(
+					Vector2(line_start_pos.x + prefix_width, line_start_pos.y), 
+					Vector2(selected_width, line_height)
+				)
+				draw_rect(selection_rect, selection_color)
+			
+			# Handle newlines and position updates
+			current_pos += line.length()
+			if line_idx < segment_lines.size() - 1:
+				# Draw newline selection if needed
+				if current_pos >= start_pos and current_pos < end_pos:
+					draw_rect(Rect2(Vector2(line_start_pos.x + font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x, line_start_pos.y), Vector2(space_width, line_height)), selection_color)
+				current_pos += 1  # For the newline character
+				line_start_pos.x = text_margin.x
+				line_start_pos.y += line_height
+			else:
+				# Update x position for end of line
+				line_start_pos.x += font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+		
+		draw_pos = line_start_pos
 
-func get_visual_position(text_pos: int) -> Vector2:
-	# Calculate position by rendering text segments up to cursor position
-	text_pos = clamp(text_pos, 0, get_total_text_length())
+func advance_draw_pos_for_segment(pos: Vector2, segment: TextSegment) -> Vector2:
+	var font = get_segment_font(segment)
+	var segment_font_size = get_segment_font_size(segment)
+	var segment_lines = segment.text.split('\n')
 	
-	var pos = text_margin
-	var char_count = 0
-	
-	# Build the complete text first to ensure consistency
-	var full_text = get_text()
-	
-	# Process each character up to the target position
-	for i in range(min(text_pos, full_text.length())):
-		var char = full_text[i]
-		if char == '\n':
+	for line_idx in range(segment_lines.size()):
+		var line = segment_lines[line_idx]
+		if line_idx < segment_lines.size() - 1:
+			# Move to next line
 			pos.x = text_margin.x
 			pos.y += line_height
 		else:
-			# Find which segment this character belongs to for proper font
-			var segment_info = find_segment_at_position(i)
-			var font = get_segment_font(segment_info.segment)
-			var char_size = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
-			pos.x += char_size.x
+			# Update x position
+			pos.x += font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+	
+	return pos
+
+func get_visual_position(text_pos: int) -> Vector2:
+	# OPTIMIZED: Calculate position by processing segments instead of individual characters
+	text_pos = clamp(text_pos, 0, get_total_text_length())
+	
+	var pos = text_margin
+	var current_pos = 0
+	
+	for segment in segments:
+		var segment_start = current_pos
+		var segment_end = current_pos + segment.text.length()
+		
+		# If target position is completely before this segment, we're done
+		if text_pos <= segment_start:
+			break
+			
+		var font = get_segment_font(segment)
+		var segment_font_size = get_segment_font_size(segment)
+		var segment_lines = segment.text.split('\n')
+		var line_pos = current_pos
+		
+		for line_idx in range(segment_lines.size()):
+			var line = segment_lines[line_idx]
+			var line_start = line_pos
+			var line_end = line_pos + line.length()
+			
+			if text_pos <= line_start:
+				# Target is at start of this line
+				return pos
+			elif text_pos <= line_end:
+				# Target is within this line - calculate partial line width
+				var chars_into_line = text_pos - line_start
+				var partial_text = line.substr(0, chars_into_line)
+				var partial_width = font.get_string_size(partial_text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+				pos.x += partial_width
+				return pos
+			else:
+				# Add full line width and continue
+				if line.length() > 0:
+					pos.x += font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+			
+			line_pos += line.length()
+			
+			# Handle newlines
+			if line_idx < segment_lines.size() - 1:
+				if text_pos == line_pos:
+					# Target is exactly at the newline
+					return pos
+				line_pos += 1  # For the newline character
+				pos.x = text_margin.x
+				pos.y += line_height
+		
+		current_pos = segment_end
 	
 	return pos
 
@@ -747,16 +829,6 @@ func handle_key_input(event: InputEventKey):
 						delete_selection()
 					var char_str = char(event.unicode)
 					insert_character(char_str)
-		KEY_X:
-			if ctrl_pressed:
-				cut_selection()
-			else:
-				# Let it fall through to unicode handling
-				if event.unicode > 31 and event.unicode < 127:
-					if has_selection():
-						delete_selection()
-					var char_str = char(event.unicode)
-					insert_character(char_str)
 		KEY_Z:
 			if ctrl_pressed:
 				if shift_pressed:
@@ -766,6 +838,19 @@ func handle_key_input(event: InputEventKey):
 		KEY_Y:
 			if ctrl_pressed:
 				redo()  # Ctrl+Y for redo (alternative)
+		KEY_X:
+			if ctrl_pressed and shift_pressed:
+				# Ctrl+Shift+X for strikethrough
+				toggle_formatting_type("strikethrough")
+			elif ctrl_pressed:
+				cut_selection()
+			else:
+				# Let it fall through to unicode handling
+				if event.unicode > 31 and event.unicode < 127:
+					if has_selection():
+						delete_selection()
+					var char_str = char(event.unicode)
+					insert_character(char_str)
 		_:
 			# Handle printable characters
 			if event.unicode > 31 and event.unicode < 127:
@@ -1168,15 +1253,16 @@ func get_total_text_length() -> int:
 		total += segment.text.length()
 	return total
 
-func apply_formatting(bold: bool = false, italic: bool = false, underline: bool = false, code: bool = false):
+func apply_formatting(bold: bool = false, italic: bool = false, underline: bool = false, strikethrough: bool = false, code: bool = false):
 	current_format.bold = bold
 	current_format.italic = italic  
 	current_format.underline = underline
+	current_format.strikethrough = strikethrough
 	current_format.code = code
 	
 	# If there's a selection, apply formatting to selected text
 	if selection_start != -1 and selection_end != -1:
-		apply_formatting_to_selection(bold, italic, underline, code)
+		apply_formatting_to_selection(bold, italic, underline, strikethrough, code)
 	
 	queue_redraw()
 
@@ -1190,6 +1276,8 @@ func toggle_formatting_type(format_type: String):
 				current_format.italic = not current_format.italic
 			"underline":
 				current_format.underline = not current_format.underline
+			"strikethrough":
+				current_format.strikethrough = not current_format.strikethrough
 			"code":
 				current_format.code = not current_format.code
 				# Code formatting is exclusive
@@ -1197,6 +1285,7 @@ func toggle_formatting_type(format_type: String):
 					current_format.bold = false
 					current_format.italic = false
 					current_format.underline = false
+					current_format.strikethrough = false
 		return
 	
 	# Has selection - check current state and toggle
@@ -1214,8 +1303,10 @@ func toggle_formatting_type(format_type: String):
 			toggle_specific_formatting_in_selection("italic", not has_formatting)
 		"underline":
 			toggle_specific_formatting_in_selection("underline", not has_formatting)
+		"strikethrough":
+			toggle_specific_formatting_in_selection("strikethrough", not has_formatting)
 		"code":
-			apply_formatting_to_selection(false, false, false, not has_formatting)
+			apply_formatting_to_selection(false, false, false, false, not has_formatting)
 	
 	queue_redraw()
 
@@ -1243,6 +1334,9 @@ func check_selection_has_formatting(format_type: String) -> bool:
 						return true
 				"underline":
 					if segment.underline:
+						return true
+				"strikethrough":
+					if segment.strikethrough:
 						return true
 				"code":
 					if segment.code:
@@ -1281,6 +1375,8 @@ func toggle_specific_formatting_in_selection(format_type: String, enable: bool):
 					new_segment.italic = enable
 				"underline":
 					new_segment.underline = enable
+				"strikethrough":
+					new_segment.strikethrough = enable
 			new_segments.append(new_segment)
 		else:
 			# Segment is partially within selection - split it
@@ -1305,6 +1401,8 @@ func toggle_specific_formatting_in_selection(format_type: String, enable: bool):
 						selected_segment.italic = enable
 					"underline":
 						selected_segment.underline = enable
+					"strikethrough":
+						selected_segment.strikethrough = enable
 				new_segments.append(selected_segment)
 			
 			if segment_end > end_pos:
@@ -1319,7 +1417,7 @@ func toggle_specific_formatting_in_selection(format_type: String, enable: bool):
 	text_changed.emit()
 	queue_redraw()
 
-func apply_formatting_to_selection(bold: bool, italic: bool, underline: bool, code: bool):
+func apply_formatting_to_selection(bold: bool, italic: bool, underline: bool, strikethrough: bool, code: bool):
 	if not has_selection():
 		return
 	
@@ -1344,6 +1442,7 @@ func apply_formatting_to_selection(bold: bool, italic: bool, underline: bool, co
 			new_segment.bold = bold
 			new_segment.italic = italic
 			new_segment.underline = underline
+			new_segment.strikethrough = strikethrough
 			new_segment.code = code
 			new_segments.append(new_segment)
 		else:
@@ -1365,6 +1464,7 @@ func apply_formatting_to_selection(bold: bool, italic: bool, underline: bool, co
 				selected_segment.bold = bold
 				selected_segment.italic = italic
 				selected_segment.underline = underline
+				selected_segment.strikethrough = strikethrough
 				selected_segment.code = code
 				new_segments.append(selected_segment)
 			
@@ -1741,4 +1841,198 @@ func select_line_range(start_line: int, end_line: int):
 	selection_end = range_end
 	cursor_position = range_end
 	
+	queue_redraw()
+
+# New formatting insertion functions
+func insert_heading(level: int):
+	save_state()
+	
+	# Move to start of current line
+	move_cursor_to_line_start()
+	var line_start = cursor_position
+	
+	# Find end of current line
+	var text_content = get_text()
+	var line_end = cursor_position
+	while line_end < text_content.length() and text_content[line_end] != '\n':
+		line_end += 1
+	
+	# Select the entire line
+	selection_start = line_start
+	selection_end = line_end
+	
+	# Apply heading formatting to selected text
+	if has_selection():
+		var start_pos = min(selection_start, selection_end)
+		var end_pos = max(selection_start, selection_end)
+		var new_segments: Array[TextSegment] = []
+		var current_pos = 0
+		
+		for segment in segments:
+			var segment_start = current_pos
+			var segment_end = current_pos + segment.text.length()
+			
+			if segment_end <= start_pos or segment_start >= end_pos:
+				# Segment is outside selection - keep unchanged
+				new_segments.append(segment.copy())
+			elif segment_start >= start_pos and segment_end <= end_pos:
+				# Segment is completely within selection - make it a heading
+				var new_segment = segment.copy()
+				new_segment.heading_level = level
+				# Clear other exclusive formatting
+				new_segment.code = false
+				new_segments.append(new_segment)
+			else:
+				# Segment is partially within selection - split it
+				if segment_start < start_pos:
+					# Part before selection
+					var before_segment = segment.copy()
+					before_segment.text = segment.text.substr(0, start_pos - segment_start)
+					new_segments.append(before_segment)
+				
+				# Part within selection
+				var selection_start_in_segment = max(0, start_pos - segment_start)
+				var selection_end_in_segment = min(segment.text.length(), end_pos - segment_start)
+				var selected_text = segment.text.substr(selection_start_in_segment, selection_end_in_segment - selection_start_in_segment)
+				
+				if selected_text.length() > 0:
+					var selected_segment = segment.copy()
+					selected_segment.text = selected_text
+					selected_segment.heading_level = level
+					selected_segment.code = false
+					new_segments.append(selected_segment)
+				
+				if segment_end > end_pos:
+					# Part after selection
+					var after_segment = segment.copy()
+					after_segment.text = segment.text.substr(end_pos - segment_start)
+					new_segments.append(after_segment)
+			
+			current_pos += segment.text.length()
+		
+		segments = new_segments
+		clear_selection()
+		text_changed.emit()
+		queue_redraw()
+
+func insert_list_item(type: String):
+	save_state()
+	move_cursor_to_line_start()
+	
+	var prefix = ""
+	match type:
+		"bullet":
+			prefix = "• "
+		"numbered":
+			prefix = "1. "
+		"checklist":
+			prefix = "- [ ] "
+	
+	# Insert the prefix
+	var segment_info = find_segment_at_position(cursor_position)
+	var segment = segment_info.segment
+	var local_pos = segment_info.local_position
+	
+	segment.text = segment.text.insert(local_pos, prefix)
+	cursor_position += prefix.length()
+	
+	text_changed.emit()
+	queue_redraw()
+
+func insert_blockquote():
+	save_state()
+	move_cursor_to_line_start()
+	
+	# Insert blockquote prefix
+	var segment_info = find_segment_at_position(cursor_position)
+	var segment = segment_info.segment
+	var local_pos = segment_info.local_position
+	
+	segment.text = segment.text.insert(local_pos, "> ")
+	cursor_position += 2
+	
+	text_changed.emit()
+	queue_redraw()
+
+func insert_code_block():
+	save_state()
+	
+	# Insert code block markers
+	var code_block = "```\n\n```"
+	var segment_info = find_segment_at_position(cursor_position)
+	var segment = segment_info.segment
+	var local_pos = segment_info.local_position
+	
+	segment.text = segment.text.insert(local_pos, code_block)
+	cursor_position += 4  # Position cursor inside the code block
+	
+	text_changed.emit()
+	queue_redraw()
+
+func insert_horizontal_rule():
+	save_state()
+	
+	# Insert horizontal rule
+	var hr = "\n---\n"
+	var segment_info = find_segment_at_position(cursor_position)
+	var segment = segment_info.segment
+	var local_pos = segment_info.local_position
+	
+	segment.text = segment.text.insert(local_pos, hr)
+	cursor_position += hr.length()
+	
+	text_changed.emit()
+	queue_redraw()
+
+func insert_link():
+	save_state()
+	
+	var link_text = "[Link Text](https://example.com)"
+	if has_selection():
+		# Use selected text as link text
+		var selected = get_selected_text()
+		link_text = "[" + selected + "](https://example.com)"
+		delete_selection()
+	
+	var segment_info = find_segment_at_position(cursor_position)
+	var segment = segment_info.segment
+	var local_pos = segment_info.local_position
+	
+	segment.text = segment.text.insert(local_pos, link_text)
+	cursor_position += link_text.length()
+	
+	text_changed.emit()
+	queue_redraw()
+
+func insert_image():
+	save_state()
+	
+	var image_text = "![Alt Text](image.png)"
+	var segment_info = find_segment_at_position(cursor_position)
+	var segment = segment_info.segment
+	var local_pos = segment_info.local_position
+	
+	segment.text = segment.text.insert(local_pos, image_text)
+	cursor_position += image_text.length()
+	
+	text_changed.emit()
+	queue_redraw()
+
+func insert_table():
+	save_state()
+	
+	var table_text = """
+| Header 1 | Header 2 | Header 3 |
+|----------|----------|----------|
+| Cell 1   | Cell 2   | Cell 3   |
+| Cell 4   | Cell 5   | Cell 6   |
+"""
+	var segment_info = find_segment_at_position(cursor_position)
+	var segment = segment_info.segment
+	var local_pos = segment_info.local_position
+	
+	segment.text = segment.text.insert(local_pos, table_text)
+	cursor_position += table_text.length()
+	
+	text_changed.emit()
 	queue_redraw()

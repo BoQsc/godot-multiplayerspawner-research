@@ -25,38 +25,110 @@ size_flags_horizontal = 3
 text = "Editor Notes"
 horizontal_alignment = 1
 
-[node name="Toolbar" type="HBoxContainer" parent="VBoxContainer"]
+[node name="Toolbar" type="VBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
 
-[node name="BoldBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="FormattingRow" type="HBoxContainer" parent="VBoxContainer/Toolbar"]
+layout_mode = 2
+
+[node name="BoldBtn" type="Button" parent="VBoxContainer/Toolbar/FormattingRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 0
 text = "B"
-tooltip_text = "Bold"
+tooltip_text = "Bold (Ctrl+B)"
 
-[node name="ItalicBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="ItalicBtn" type="Button" parent="VBoxContainer/Toolbar/FormattingRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 0
 text = "I"
-tooltip_text = "Italic"
+tooltip_text = "Italic (Ctrl+I)"
 
-[node name="UnderlineBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="UnderlineBtn" type="Button" parent="VBoxContainer/Toolbar/FormattingRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 0
 text = "U"
-tooltip_text = "Underline"
+tooltip_text = "Underline (Ctrl+U)"
 
-[node name="CodeBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="StrikethroughBtn" type="Button" parent="VBoxContainer/Toolbar/FormattingRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+text = "S"
+tooltip_text = "Strikethrough (Ctrl+Shift+X)"
+
+[node name="CodeBtn" type="Button" parent="VBoxContainer/Toolbar/FormattingRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 0
 text = "</>"
-tooltip_text = "Code"
+tooltip_text = "Inline Code (Ctrl+`)"
 
-[node name="ClearBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="StructureRow" type="HBoxContainer" parent="VBoxContainer/Toolbar"]
+layout_mode = 2
+
+[node name="HeadingBtn" type="MenuButton" parent="VBoxContainer/Toolbar/StructureRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+text = "H"
+tooltip_text = "Headings"
+
+[node name="ListBtn" type="MenuButton" parent="VBoxContainer/Toolbar/StructureRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+text = "≡"
+tooltip_text = "Lists"
+
+[node name="QuoteBtn" type="Button" parent="VBoxContainer/Toolbar/StructureRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+text = "❝"
+tooltip_text = "Blockquote"
+
+[node name="CodeBlockBtn" type="Button" parent="VBoxContainer/Toolbar/StructureRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+text = "{ }"
+tooltip_text = "Code Block"
+
+[node name="HRBtn" type="Button" parent="VBoxContainer/Toolbar/StructureRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+text = "—"
+tooltip_text = "Horizontal Rule"
+
+[node name="InsertRow" type="HBoxContainer" parent="VBoxContainer/Toolbar"]
+layout_mode = 2
+
+[node name="LinkBtn" type="Button" parent="VBoxContainer/Toolbar/InsertRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+text = "🔗"
+tooltip_text = "Insert Link (Ctrl+K)"
+
+[node name="ImageBtn" type="Button" parent="VBoxContainer/Toolbar/InsertRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+text = "🖼"
+tooltip_text = "Insert Image"
+
+[node name="TableBtn" type="Button" parent="VBoxContainer/Toolbar/InsertRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+text = "⊞"
+tooltip_text = "Insert Table"
+
+[node name="ClearBtn" type="Button" parent="VBoxContainer/Toolbar/InsertRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 0
