@@ -140,13 +140,14 @@ func setup_context_menu():
 	context_menu.size = Vector2(120, 120)
 	context_menu.visible = false
 	
-	# Connect events to forward them
-	context_menu.gui_input.connect(_on_context_menu_input)
+	# Temporarily disable input handler to test buttons
+	#context_menu.gui_input.connect(_on_context_menu_input)
 	
 	# Create background panel with PopupMenu styling
 	var panel = Panel.new()
 	context_menu.add_child(panel)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block button clicks
 	
 	# Style panel to match PopupMenu
 	var editor_interface = Engine.get_singleton("EditorInterface")
@@ -176,6 +177,7 @@ func setup_context_menu():
 	context_menu.add_child(vbox)
 	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	vbox.add_theme_constant_override("separation", 0)
+	vbox.mouse_filter = Control.MOUSE_FILTER_PASS  # Allow clicks through to buttons
 	
 	# Add menu buttons
 	create_menu_item(vbox, "Cut", func(): cut_selection(); context_menu.hide())
@@ -195,6 +197,8 @@ func create_menu_item(parent: VBoxContainer, text: String, callback: Callable):
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.custom_minimum_size.y = 24
+	btn.mouse_filter = Control.MOUSE_FILTER_STOP  # Ensure button captures mouse events
+	btn.focus_mode = Control.FOCUS_NONE  # Don't steal focus but allow clicks
 	
 	# Get actual PopupMenu colors from editor theme
 	var editor_interface = Engine.get_singleton("EditorInterface")
@@ -264,7 +268,7 @@ func create_menu_item(parent: VBoxContainer, text: String, callback: Callable):
 	btn.add_theme_color_override("font_hover_color", menu_font_hover_color)
 	btn.add_theme_color_override("font_pressed_color", menu_font_hover_color)
 	
-	btn.pressed.connect(callback)
+	btn.pressed.connect(func(): print("DEBUG: Button '", text, "' clicked!"); callback.call())
 	parent.add_child(btn)
 
 func _on_focus_exited():
@@ -274,20 +278,35 @@ func _on_focus_exited():
 
 func _on_context_menu_input(event):
 	# Forward mouse events that don't hit buttons to the text editor underneath
-	if event is InputEventMouseButton:
-		# Calculate the position relative to the text editor
-		var editor_pos = event.position + context_menu.position
+	if event is InputEventMouseButton and event.pressed:
+		# Check if click is over any button by checking the VBox children
+		var vbox = context_menu.get_child(1)  # VBox is second child after Panel
+		var clicked_button = false
 		
-		# Create new event with correct position
-		var new_event = InputEventMouseButton.new()
-		new_event.button_index = event.button_index
-		new_event.pressed = event.pressed
-		new_event.double_click = event.double_click
-		new_event.position = editor_pos
+		for child in vbox.get_children():
+			if child is Button:
+				var global_rect = Rect2(child.global_position, child.size)
+				var global_click_pos = context_menu.global_position + event.position
+				if global_rect.has_point(global_click_pos):
+					clicked_button = true
+					# Let the button handle this click naturally
+					return
 		
-		# Close context menu and process the event
-		context_menu.hide()
-		handle_mouse_input(new_event)
+		# Only forward if we didn't click a button
+		if not clicked_button:
+			# Calculate the position relative to the text editor
+			var editor_pos = event.position + context_menu.position
+			
+			# Create new event with correct position
+			var new_event = InputEventMouseButton.new()
+			new_event.button_index = event.button_index
+			new_event.pressed = event.pressed
+			new_event.double_click = event.double_click
+			new_event.position = editor_pos
+			
+			# Close context menu and process the event
+			context_menu.hide()
+			handle_mouse_input(new_event)
 
 func _draw():
 	draw_background()
