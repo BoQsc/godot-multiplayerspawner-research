@@ -438,9 +438,9 @@ func draw_scrollbar():
 
 func draw_current_line_highlight(bg_color: Color):
 	# Find which line the cursor is on using line data
-	var line_data = build_line_data()
+	var line_data = get_line_data()
 	var current_pos = 0
-	var y_pos = text_margin.y
+	var y_pos = text_margin.y - scroll_offset  # Apply scroll offset
 	var target_line_height = line_height  # Default fallback
 	var found_line = false
 	
@@ -717,7 +717,7 @@ func get_line_height_at_position(text_pos: int) -> float:
 	# Get the line height for the line containing the given position
 	text_pos = clamp(text_pos, 0, get_total_text_length())
 	
-	var line_data = build_line_data()
+	var line_data = get_line_data()
 	var current_pos = 0
 	
 	for line_info in line_data:
@@ -742,8 +742,8 @@ func get_line_height_at_position(text_pos: int) -> float:
 
 func get_line_start_at_y(y_pos: float) -> int:
 	# Find the start position of the line at the given Y coordinate
-	var line_data = build_line_data()
-	var current_y = text_margin.y
+	var line_data = get_line_data()
+	var current_y = text_margin.y - scroll_offset  # Apply scroll offset
 	var current_pos = 0
 	
 	for line_info in line_data:
@@ -766,8 +766,8 @@ func get_line_start_at_y(y_pos: float) -> int:
 
 func get_line_end_at_y(y_pos: float) -> int:
 	# Find the end position of the line at the given Y coordinate
-	var line_data = build_line_data()
-	var current_y = text_margin.y
+	var line_data = get_line_data()
+	var current_y = text_margin.y - scroll_offset  # Apply scroll offset
 	var current_pos = 0
 	
 	for line_info in line_data:
@@ -1753,6 +1753,9 @@ func toggle_specific_formatting_in_selection(format_type: String, enable: bool):
 	# Clear selection after formatting to prevent coordinate mismatch with new segment structure
 	clear_selection()
 	
+	# Invalidate cache
+	invalidate_cache()
+	
 	text_changed.emit()
 	queue_redraw()
 
@@ -1819,6 +1822,9 @@ func apply_formatting_to_selection(bold: bool, italic: bool, underline: bool, st
 	
 	# Clear selection after formatting to prevent coordinate mismatch with new segment structure
 	clear_selection()
+	
+	# Invalidate cache
+	invalidate_cache()
 	
 	text_changed.emit()
 	queue_redraw()
@@ -1913,6 +1919,10 @@ func delete_selection():
 	segments = new_segments
 	cursor_position = start_pos
 	clear_selection()
+	
+	# Invalidate cache
+	invalidate_cache()
+	
 	text_changed.emit()
 
 func get_selected_text() -> String:
@@ -1951,6 +1961,9 @@ func paste_from_clipboard():
 		# Insert clipboard text with current formatting
 		segment.text = segment.text.insert(local_pos, clipboard_text)
 		cursor_position += clipboard_text.length()
+		
+		# Invalidate cache
+		invalidate_cache()
 		
 		text_changed.emit()
 		queue_redraw()
