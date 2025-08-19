@@ -652,6 +652,17 @@ func _gui_input(event):
 		accept_event()
 
 func _unhandled_input(event):
+	# Handle global mouse motion for selection even when outside bounds
+	if event is InputEventMouseMotion and selection_start != -1 and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		# Convert global mouse position to local coordinates
+		var local_pos = get_global_mouse_position() - global_position
+		var drag_pos = get_text_position_at_extended(local_pos)
+		selection_end = drag_pos
+		cursor_position = drag_pos
+		queue_redraw()
+		get_viewport().set_input_as_handled()
+		return
+	
 	if not has_focus():
 		return
 		
@@ -797,6 +808,8 @@ func handle_mouse_input(event: InputEventMouseButton):
 				# Start selection on mouse down
 				selection_start = click_pos
 				selection_end = click_pos
+				# Capture mouse to continue tracking even outside bounds
+				Input.set_default_cursor_shape(Input.CURSOR_IBEAM)
 		else:
 			# End selection on mouse up
 			if selection_start == selection_end:
@@ -854,11 +867,8 @@ func handle_mouse_motion(event: InputEventMouseMotion):
 				select_line_range(line_drag_start_line, current_line)
 				queue_redraw()
 		elif selection_start != -1:
-			# Handle regular text drag selection - but only if we're in the text area
-			if event.position.x < line_number_width:
-				return
-			
-			var drag_pos = get_text_position_at(event.position)
+			# Handle regular text drag selection with better out-of-bounds handling
+			var drag_pos = get_text_position_at_extended(event.position)
 			selection_end = drag_pos
 			cursor_position = drag_pos
 			queue_redraw()
@@ -936,6 +946,31 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 	
 	# If clicked beyond all text, return end position
 	return full_text.length()
+
+func get_text_position_at_extended(visual_pos: Vector2) -> int:
+	# Extended version that handles out-of-bounds positions smoothly for selection
+	var full_text = get_text()
+	
+	# Handle positions above text area
+	if visual_pos.y < text_margin.y:
+		return 0
+	
+	# Handle positions in line number area - clamp to start of line
+	if visual_pos.x < text_margin.x:
+		var line_index = int((visual_pos.y - text_margin.y) / line_height)
+		return get_line_start_position(line_index)
+	
+	# Handle positions below text area - return end of text
+	if visual_pos.y > size.y:
+		return full_text.length()
+	
+	# Handle positions to the right of text area - find end of line at that Y
+	if visual_pos.x > size.x:
+		var line_index = int((visual_pos.y - text_margin.y) / line_height)
+		return get_line_end_position(line_index)
+	
+	# For positions within bounds, use regular calculation
+	return get_text_position_at(visual_pos)
 
 func get_line_start_position(line_index: int) -> int:
 	# Get the text position at the start of the given line (0-based)
