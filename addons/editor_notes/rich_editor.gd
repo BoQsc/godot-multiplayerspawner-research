@@ -626,6 +626,54 @@ func get_line_height_at_position(text_pos: int) -> float:
 	# Fallback to default line height
 	return line_height
 
+func get_line_start_at_y(y_pos: float) -> int:
+	# Find the start position of the line at the given Y coordinate
+	var line_data = build_line_data()
+	var current_y = text_margin.y
+	var current_pos = 0
+	
+	for line_info in line_data:
+		var line_height_val = line_info.height
+		
+		# Check if Y position is within this line
+		if y_pos >= current_y and y_pos < current_y + line_height_val:
+			return current_pos
+		
+		# Calculate total length of this line
+		var line_length = 0
+		for segment_info in line_info.segments:
+			line_length += segment_info.text.length()
+		
+		current_y += line_height_val
+		current_pos += line_length + 1  # +1 for newline
+	
+	# If Y is beyond all lines, return end of text
+	return get_total_text_length()
+
+func get_line_end_at_y(y_pos: float) -> int:
+	# Find the end position of the line at the given Y coordinate
+	var line_data = build_line_data()
+	var current_y = text_margin.y
+	var current_pos = 0
+	
+	for line_info in line_data:
+		var line_height_val = line_info.height
+		
+		# Calculate total length of this line
+		var line_length = 0
+		for segment_info in line_info.segments:
+			line_length += segment_info.text.length()
+		
+		# Check if Y position is within this line
+		if y_pos >= current_y and y_pos < current_y + line_height_val:
+			return current_pos + line_length
+		
+		current_y += line_height_val
+		current_pos += line_length + 1  # +1 for newline
+	
+	# If Y is beyond all lines, return end of text
+	return get_total_text_length()
+
 func calculate_line_segments(line_start_pos: int, line_end_pos: int) -> Array:
 	# Get all segments that affect a specific line
 	var line_segments: Array = []
@@ -1171,10 +1219,9 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 	if visual_pos.y < text_margin.y:
 		return 0
 	
-	# If click is in line number area, clamp to start of the line at that Y position
+	# If click is in line number area, find the line using dynamic heights
 	if visual_pos.x < text_margin.x:
-		var line_index = int((clamped_pos.y - text_margin.y) / line_height)
-		return get_line_start_position(line_index)
+		return get_line_start_at_y(clamped_pos.y)
 	
 	# If click is below text area, return end of text
 	var full_text = get_text()
@@ -1183,8 +1230,7 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 	
 	# If click is to the right of text area, find end of the line at that Y position
 	if visual_pos.x > size.x:
-		var line_index = int((clamped_pos.y - text_margin.y) / line_height)
-		return get_line_end_position(line_index)
+		return get_line_end_at_y(clamped_pos.y)
 	
 	# Use the same approach as get_visual_position for consistency with clamped position
 	# full_text already declared above
@@ -1192,8 +1238,11 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 	for i in range(full_text.length()):
 		var char = full_text[i]
 		
+		# Get actual line height for this position
+		var actual_line_height = get_line_height_at_position(i)
+		
 		# Check if we're on the right line and close to the character
-		if clamped_pos.y >= pos.y and clamped_pos.y < pos.y + line_height:
+		if clamped_pos.y >= pos.y and clamped_pos.y < pos.y + actual_line_height:
 			if char == '\n':
 				# For newlines, return position of newline character
 				return i
@@ -1216,12 +1265,13 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 		# Move to next character position
 		if char == '\n':
 			pos.x = text_margin.x
-			pos.y += line_height
+			pos.y += get_line_height_at_position(i)  # Use actual line height
 		else:
 			# Find which segment this character belongs to for proper font
 			var segment_info = find_segment_at_position(i)
 			var font = get_segment_font(segment_info.segment)
-			var char_size = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+			var segment_font_size = get_segment_font_size(segment_info.segment)
+			var char_size = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size)
 			pos.x += char_size.x
 	
 	# If clicked beyond all text, return end position
@@ -1237,8 +1287,7 @@ func get_text_position_at_extended(visual_pos: Vector2) -> int:
 	
 	# Handle positions in line number area - clamp to start of line
 	if visual_pos.x < text_margin.x:
-		var line_index = int((visual_pos.y - text_margin.y) / line_height)
-		return get_line_start_position(line_index)
+		return get_line_start_at_y(visual_pos.y)
 	
 	# Handle positions below text area - return end of text
 	if visual_pos.y > size.y:
@@ -1246,8 +1295,7 @@ func get_text_position_at_extended(visual_pos: Vector2) -> int:
 	
 	# Handle positions to the right of text area - find end of line at that Y
 	if visual_pos.x > size.x:
-		var line_index = int((visual_pos.y - text_margin.y) / line_height)
-		return get_line_end_position(line_index)
+		return get_line_end_at_y(visual_pos.y)
 	
 	# For positions within bounds, use regular calculation
 	return get_text_position_at(visual_pos)
