@@ -21,7 +21,7 @@ var image_btn: Button
 var table_btn: Button
 var clear_btn: Button
 
-const SAVE_PATH = "user://editor_notes.txt"
+const SAVE_PATH = "res://README.md"
 
 func _ready():
 	setup_rich_editor()
@@ -123,14 +123,25 @@ func _on_text_changed():
 func save_notes():
 	if not rich_editor:
 		return
-		
+	
+	var content = rich_editor.get_text()
+	
+	# Auto-create README.md on first note (when content is not empty)
+	if not FileAccess.file_exists(SAVE_PATH) and content.strip_edges() != "":
+		print("Auto-creating README.md with first note")
+	
 	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(rich_editor.get_text())
+		file.store_string(content)
 		file.close()
+	else:
+		print("ERROR: Could not open ", SAVE_PATH, " for writing")
 
 func load_notes():
 	if not FileAccess.file_exists(SAVE_PATH):
+		# README.md doesn't exist - will be auto-created on first note
+		if rich_editor:
+			rich_editor.set_text("")
 		return
 		
 	var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
