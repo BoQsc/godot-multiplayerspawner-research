@@ -702,11 +702,15 @@ func handle_key_input(event: InputEventKey):
 		KEY_BACKSPACE:
 			if has_selection():
 				delete_selection()
+			elif ctrl_pressed:
+				delete_word(-1)
 			else:
 				delete_character(-1)
 		KEY_DELETE:
 			if has_selection():
 				delete_selection()
+			elif ctrl_pressed:
+				delete_word(1)
 			else:
 				delete_character(1)
 		KEY_ENTER:
@@ -1090,6 +1094,60 @@ func delete_character(delta: int):
 	
 	text_changed.emit()
 	queue_redraw()
+
+func delete_word(delta: int):
+	save_state()  # Save state before modification
+	
+	var text_content = get_text()
+	var start_pos = cursor_position
+	var end_pos = cursor_position
+	
+	if delta < 0:
+		# Delete word backwards (CTRL+Backspace)
+		if cursor_position > 0:
+			# Move backward to find word boundary
+			var pos = cursor_position - 1
+			
+			# Skip whitespace first
+			while pos >= 0 and (text_content[pos] == ' ' or text_content[pos] == '\t' or text_content[pos] == '\n'):
+				pos -= 1
+			
+			# Then skip word characters
+			while pos >= 0 and is_word_char(text_content[pos]):
+				pos -= 1
+			
+			start_pos = pos + 1
+			end_pos = cursor_position
+	elif delta > 0:
+		# Delete word forwards (CTRL+Delete)
+		if cursor_position < text_content.length():
+			# Move forward to find word boundary
+			var pos = cursor_position
+			
+			# Skip whitespace first
+			while pos < text_content.length() and (text_content[pos] == ' ' or text_content[pos] == '\t' or text_content[pos] == '\n'):
+				pos += 1
+			
+			# Then skip word characters
+			while pos < text_content.length() and is_word_char(text_content[pos]):
+				pos += 1
+			
+			start_pos = cursor_position
+			end_pos = pos
+	
+	# Delete the range if we found a word boundary
+	if start_pos != end_pos:
+		# Create a temporary selection and delete it
+		var old_selection_start = selection_start
+		var old_selection_end = selection_end
+		
+		selection_start = start_pos
+		selection_end = end_pos
+		delete_selection()
+		
+		# Restore original selection state
+		selection_start = old_selection_start
+		selection_end = old_selection_end
 
 func find_segment_at_position(pos: int) -> Dictionary:
 	var current_pos = 0
