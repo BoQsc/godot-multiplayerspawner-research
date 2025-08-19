@@ -472,24 +472,16 @@ func draw_text_segments():
 				
 				# Draw the text with styling effects
 				if segment.bold and not segment.code:
-					# Enhanced bold effect with multiple passes and slight scaling
-					var bold_color = color.lerp(Color.WHITE, 0.1)  # Slightly brighter
+					# Simple bold effect
+					var bold_color = color.lerp(Color.WHITE, 0.1)
 					font.draw_string(get_canvas_item(), text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, bold_color)
 					font.draw_string(get_canvas_item(), text_pos + Vector2(0.5, 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, bold_color)
-					font.draw_string(get_canvas_item(), text_pos + Vector2(0, 0.5), text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, bold_color)
-					font.draw_string(get_canvas_item(), text_pos + Vector2(0.5, 0.5), text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, bold_color)
 					if segment.italic:
-						# Bold + Italic: add italic slant on top of bold
-						font.draw_string(get_canvas_item(), text_pos + Vector2(1, -0.2), text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, bold_color)
+						font.draw_string(get_canvas_item(), text_pos + Vector2(1, 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, bold_color)
 				elif segment.italic and not segment.code:
-					# Enhanced italic effect with visible slanting
-					var italic_color = color.lerp(Color(1.0, 0.9, 0.7), 0.3)  # Warmer, more noticeable color
-					# Create italic slant by drawing multiple passes at different X offsets with varying Y
-					for i in range(text.length()):
-						var char = text[i]
-						var char_x = font.get_string_size(text.substr(0, i), HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
-						var slant_offset = i * 0.15  # Gradually increase slant
-						font.draw_string(get_canvas_item(), text_pos + Vector2(char_x + slant_offset, -0.3), char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, italic_color)
+					# Simple italic effect with color change
+					var italic_color = color.lerp(Color(1.0, 0.8, 0.6), 0.3)  
+					font.draw_string(get_canvas_item(), text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, italic_color)
 				else:
 					font.draw_string(get_canvas_item(), text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
 				
@@ -773,67 +765,40 @@ func draw_empty_line_selection(pos: int):
 func draw_multi_line_selection(start_pos: int, end_pos: int):
 	var text_content = get_text()
 	var selection_color = Color(0.3, 0.6, 1.0, 0.3)
-	var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	
-	# Special case: if selection starts and ends at the same newline, don't draw it
-	if start_pos == end_pos and start_pos < text_content.length() and text_content[start_pos] == '\n':
-		return
+	# Simple character-by-character approach for selection drawing
+	var current_pos = text_margin
+	var text_pos = 0
 	
-	# Use the same line-based approach as other functions for consistency
-	var line_data = build_line_data()
-	var current_y = text_margin.y
-	
-	for line_info in line_data:
-		var line_height_val = line_info.height
-		var line_start_pos = line_info.start_pos
+	for i in range(text_content.length()):
+		var char = text_content[i]
 		
-		# Calculate the end position of this line
-		var line_length = 0
-		for seg_info in line_info.segments:
-			line_length += seg_info.text.length()
-		var line_end_pos = line_start_pos + line_length
-		
-		# Check if this line intersects with the selection
-		if line_end_pos > start_pos and line_start_pos < end_pos:
-			var line_x = text_margin.x
-			var current_text_pos = line_start_pos
+		# Check if this character is within selection
+		if i >= start_pos and i < end_pos:
+			# Find which segment this character belongs to
+			var segment_info = find_segment_at_position(i)
+			var segment = segment_info.segment
+			var font = get_segment_font(segment)
+			var segment_font_size = get_segment_font_size(segment)
 			
-			for seg_info in line_info.segments:
-				var segment = seg_info.segment
-				var text = seg_info.text
-				var font = get_segment_font(segment)
-				var segment_font_size = get_segment_font_size(segment)
-				
-				# Calculate selection bounds within this segment
-				var seg_start_pos = current_text_pos
-				var seg_end_pos = current_text_pos + text.length()
-				
-				# Find intersection with selection
-				var sel_start_in_seg = max(0, start_pos - seg_start_pos)
-				var sel_end_in_seg = min(text.length(), end_pos - seg_start_pos)
-				
-				if sel_start_in_seg < sel_end_in_seg and sel_start_in_seg < text.length():
-					# Calculate positions within this segment
-					var prefix_text = text.substr(0, sel_start_in_seg) if sel_start_in_seg > 0 else ""
-					var selected_text = text.substr(sel_start_in_seg, sel_end_in_seg - sel_start_in_seg)
-					
-					var prefix_width = font.get_string_size(prefix_text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x if prefix_text.length() > 0 else 0
-					var selected_width = font.get_string_size(selected_text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
-					
-					# Draw selection rectangle
-					var selection_rect = Rect2(
-						Vector2(line_x + prefix_width, current_y), 
-						Vector2(selected_width, line_height_val)
-					)
-					draw_rect(selection_rect, selection_color)
-				
-				# Update position for next segment
-				var segment_width = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
-				line_x += segment_width
-				current_text_pos += text.length()
+			var char_width = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+			var line_height_for_pos = get_line_height_at_position(i)
+			
+			# Draw selection rectangle for this character
+			var selection_rect = Rect2(current_pos, Vector2(char_width, line_height_for_pos))
+			draw_rect(selection_rect, selection_color)
 		
-		# Move to next line
-		current_y += line_height_val
+		# Move to next character position
+		if char == '\n':
+			current_pos.x = text_margin.x
+			current_pos.y += get_line_height_at_position(i)
+		else:
+			var segment_info = find_segment_at_position(i)
+			var segment = segment_info.segment
+			var font = get_segment_font(segment)
+			var segment_font_size = get_segment_font_size(segment)
+			var char_width = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+			current_pos.x += char_width
 
 func advance_draw_pos_for_segment(pos: Vector2, segment: TextSegment) -> Vector2:
 	var font = get_segment_font(segment)
@@ -1204,11 +1169,12 @@ func handle_mouse_motion(event: InputEventMouseMotion):
 			queue_redraw()
 
 func get_text_position_at(visual_pos: Vector2) -> int:
-	# Convert visual position back to text position with proper bounds handling
+	# Convert visual position back to text position
 	var pos = text_margin
 	var text_pos = 0
+	var full_text = get_text()
 	
-	# Clamp the visual position to editor bounds
+	# Clamp to bounds
 	var clamped_pos = Vector2(
 		clamp(visual_pos.x, text_margin.x, size.x),
 		clamp(visual_pos.y, text_margin.y, size.y)
@@ -1218,63 +1184,40 @@ func get_text_position_at(visual_pos: Vector2) -> int:
 	if visual_pos.y < text_margin.y:
 		return 0
 	
-	# If click is in line number area, find the line using dynamic heights
-	if visual_pos.x < text_margin.x:
-		return get_line_start_at_y(clamped_pos.y)
-	
-	# If click is below text area, return end of text
-	var full_text = get_text()
-	if visual_pos.y > size.y:
-		return full_text.length()
-	
-	# If click is to the right of text area, find end of the line at that Y position
-	if visual_pos.x > size.x:
-		return get_line_end_at_y(clamped_pos.y)
-	
-	# Use line data for consistent positioning
-	var line_data = build_line_data()
-	var current_y = text_margin.y
-	
-	for line_info in line_data:
-		var line_height_val = line_info.height
-		var line_start_pos = line_info.start_pos
+	# Simple character by character approach
+	for i in range(full_text.length()):
+		var char = full_text[i]
+		var actual_line_height = get_line_height_at_position(i)
 		
-		# Check if click is within this line's Y bounds
-		if clamped_pos.y >= current_y and clamped_pos.y < current_y + line_height_val:
-			# Found the correct line - now find X position
-			var line_x = text_margin.x
-			var current_text_pos = line_start_pos
-			
-			for segment_info in line_info.segments:
-				var segment = segment_info.segment
-				var text = segment_info.text
-				var font = get_segment_font(segment)
-				var segment_font_size = get_segment_font_size(segment)
+		# Check if we're on the right line
+		if clamped_pos.y >= pos.y and clamped_pos.y < pos.y + actual_line_height:
+			if char == '\n':
+				return i
+			else:
+				var segment_info = find_segment_at_position(i)
+				var font = get_segment_font(segment_info.segment)
+				var segment_font_size = get_segment_font_size(segment_info.segment)
+				var char_size = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size)
 				
-				# Check each character in this segment
-				for i in range(text.length()):
-					var char = text[i]
-					var char_width = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
-					
-					if clamped_pos.x >= line_x and clamped_pos.x < line_x + char_width:
-						# Click is within this character
-						if clamped_pos.x < line_x + char_width / 2:
-							return current_text_pos
-						else:
-							return current_text_pos + 1
-					elif clamped_pos.x < line_x:
-						# Click is to the left of this character
-						return current_text_pos
-					
-					line_x += char_width
-					current_text_pos += 1
-			
-			# Click is at the end of the line
-			return current_text_pos
+				if clamped_pos.x >= pos.x and clamped_pos.x < pos.x + char_size.x:
+					if clamped_pos.x < pos.x + char_size.x / 2:
+						return i
+					else:
+						return i + 1
+				elif clamped_pos.x < pos.x:
+					return i
 		
-		current_y += line_height_val
+		# Move to next character position
+		if char == '\n':
+			pos.x = text_margin.x
+			pos.y += actual_line_height
+		else:
+			var segment_info = find_segment_at_position(i)
+			var font = get_segment_font(segment_info.segment)
+			var segment_font_size = get_segment_font_size(segment_info.segment)
+			var char_size = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size)
+			pos.x += char_size.x
 	
-	# If clicked beyond all text, return end position
 	return full_text.length()
 
 func get_text_position_at_extended(visual_pos: Vector2) -> int:
@@ -1558,10 +1501,6 @@ func toggle_specific_formatting_in_selection(format_type: String, enable: bool):
 	var start_pos = min(selection_start, selection_end)
 	var end_pos = max(selection_start, selection_end)
 	
-	# Store original selection for restoration
-	var original_start = start_pos
-	var original_end = end_pos
-	
 	var new_segments: Array[TextSegment] = []
 	var current_pos = 0
 	
@@ -1622,10 +1561,8 @@ func toggle_specific_formatting_in_selection(format_type: String, enable: bool):
 	
 	segments = new_segments
 	
-	# Restore selection with same text positions
-	selection_start = original_start
-	selection_end = original_end
-	cursor_position = original_end
+	# Clear selection after formatting to prevent coordinate mismatch with new segment structure
+	clear_selection()
 	
 	text_changed.emit()
 	queue_redraw()
@@ -1690,6 +1627,10 @@ func apply_formatting_to_selection(bold: bool, italic: bool, underline: bool, st
 		current_pos += segment.text.length()
 	
 	segments = new_segments
+	
+	# Clear selection after formatting to prevent coordinate mismatch with new segment structure
+	clear_selection()
+	
 	text_changed.emit()
 	queue_redraw()
 
