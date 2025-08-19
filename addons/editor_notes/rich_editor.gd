@@ -751,54 +751,70 @@ func draw_selection():
 		# For zero-width drag selections, don't draw anything
 		return
 		
-	# Use the comprehensive multi-line drawing for actual selections
+	# Use the multi-line drawing for actual selections
 	draw_multi_line_selection(start_pos, end_pos)
 
 func draw_empty_line_selection(pos: int):
 	# Draw selection for empty line (zero-width selection)
 	var visual_pos = get_visual_position(pos)
 	var actual_line_height = get_line_height_at_position(pos)
-	var space_width = base_font.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	# Make empty line selection more visible - use width of several characters
+	var selection_width = base_font.get_string_size("    ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x  # 4 spaces
 	var selection_color = Color(0.3, 0.6, 1.0, 0.3)
-	draw_rect(Rect2(visual_pos, Vector2(space_width, actual_line_height)), selection_color)
+	draw_rect(Rect2(visual_pos, Vector2(selection_width, actual_line_height)), selection_color)
 
 func draw_multi_line_selection(start_pos: int, end_pos: int):
 	var text_content = get_text()
 	var selection_color = Color(0.3, 0.6, 1.0, 0.3)
+	var selection_width_for_empty = base_font.get_string_size("    ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x  # 4 spaces
 	
-	# Simple character-by-character approach for selection drawing
+	# Character-by-character selection drawing with empty line handling
 	var current_pos = text_margin
-	var text_pos = 0
+	var i = 0
 	
-	for i in range(text_content.length()):
-		var char = text_content[i]
-		
-		# Check if this character is within selection
+	while i <= text_content.length():  # <= to handle position at end of text
+		# Check if this position is within selection
 		if i >= start_pos and i < end_pos:
-			# Find which segment this character belongs to
-			var segment_info = find_segment_at_position(i)
-			var segment = segment_info.segment
-			var font = get_segment_font(segment)
-			var segment_font_size = get_segment_font_size(segment)
-			
-			var char_width = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
-			var line_height_for_pos = get_line_height_at_position(i)
-			
-			# Draw selection rectangle for this character
-			var selection_rect = Rect2(current_pos, Vector2(char_width, line_height_for_pos))
-			draw_rect(selection_rect, selection_color)
+			if i < text_content.length():
+				var char = text_content[i]
+				
+				if char == '\n':
+					# This is a newline within selection - draw empty line selection
+					var line_height_for_pos = get_line_height_at_position(i)
+					var selection_rect = Rect2(current_pos, Vector2(selection_width_for_empty, line_height_for_pos))
+					draw_rect(selection_rect, selection_color)
+				else:
+					# Regular character
+					var segment_info = find_segment_at_position(i)
+					var segment = segment_info.segment
+					var font = get_segment_font(segment)
+					var segment_font_size = get_segment_font_size(segment)
+					
+					var char_width = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+					var line_height_for_pos = get_line_height_at_position(i)
+					
+					var selection_rect = Rect2(current_pos, Vector2(char_width, line_height_for_pos))
+					draw_rect(selection_rect, selection_color)
+			else:
+				# Position beyond text - treat as empty line
+				var selection_rect = Rect2(current_pos, Vector2(selection_width_for_empty, line_height))
+				draw_rect(selection_rect, selection_color)
 		
-		# Move to next character position
-		if char == '\n':
-			current_pos.x = text_margin.x
-			current_pos.y += get_line_height_at_position(i)
-		else:
-			var segment_info = find_segment_at_position(i)
-			var segment = segment_info.segment
-			var font = get_segment_font(segment)
-			var segment_font_size = get_segment_font_size(segment)
-			var char_width = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
-			current_pos.x += char_width
+		# Move to next position
+		if i < text_content.length():
+			var char = text_content[i]
+			if char == '\n':
+				current_pos.x = text_margin.x
+				current_pos.y += get_line_height_at_position(i)
+			else:
+				var segment_info = find_segment_at_position(i)
+				var segment = segment_info.segment
+				var font = get_segment_font(segment)
+				var segment_font_size = get_segment_font_size(segment)
+				var char_width = font.get_string_size(char, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+				current_pos.x += char_width
+		
+		i += 1
 
 func advance_draw_pos_for_segment(pos: Vector2, segment: TextSegment) -> Vector2:
 	var font = get_segment_font(segment)
@@ -1830,19 +1846,22 @@ func get_line_number_at_y(y_pos: float) -> int:
 	if y_pos < text_margin.y:
 		return 1
 	
-	# Calculate line based on position
-	var line_index = int((y_pos - text_margin.y) / line_height)
-	var calculated_line = line_index + 1
+	# Use line data for accurate positioning with dynamic heights
+	var line_data = build_line_data()
+	var current_y = text_margin.y
 	
-	# Get actual line count to prevent going beyond available lines
-	var text_content = get_text()
-	var actual_line_count = 1
-	for i in range(text_content.length()):
-		if text_content[i] == '\n':
-			actual_line_count += 1
+	for i in range(line_data.size()):
+		var line_info = line_data[i]
+		var line_height_val = line_info.height
+		
+		# Check if Y position is within this line
+		if y_pos >= current_y and y_pos < current_y + line_height_val:
+			return i + 1  # Return 1-based line number
+		
+		current_y += line_height_val
 	
-	# Clamp to valid range
-	return clamp(calculated_line, 1, actual_line_count)
+	# If beyond all lines, return the last line number
+	return max(1, line_data.size())
 
 func get_line_at_position(text_pos: int) -> int:
 	# Convert text position to line number (1-based)
