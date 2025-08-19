@@ -36,6 +36,10 @@ func setup_rich_editor():
 	rich_editor = RichEditor.new()
 	rich_editor.name = "RichEditor"
 	rich_editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	rich_editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	# Ensure clipping is enabled
+	rich_editor.clip_contents = true
 	
 	# Ensure proper z-order by adding to VBoxContainer (toolbar will stay on top)
 	$VBoxContainer.add_child(rich_editor)

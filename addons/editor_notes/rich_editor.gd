@@ -96,8 +96,20 @@ var drag_threshold: float = 3.0  # Minimum pixels to start selection
 var intentional_empty_line_selection: bool = false  # Track if empty line was selected intentionally
 
 func _ready():
+	# Enable content clipping to prevent drawing outside bounds
+	clip_contents = true
+	
+	# Set up focus and input handling
+	set_focus_mode(Control.FOCUS_ALL)
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# Initialize fonts
 	setup_fonts()
+	
+	# Set up initial text content
 	setup_initial_text()
+	
+	# Set up context menu
 	setup_context_menu()
 	
 	# Enable input handling
@@ -330,8 +342,11 @@ func _draw():
 	# Clamp scroll offset to valid range
 	clamp_scroll_offset()
 	
-	# Ensure we only draw within our bounds
-	var clip_rect = Rect2(Vector2.ZERO, size)
+	# Debug: Ensure we have proper bounds
+	if size.x <= 0 or size.y <= 0:
+		return  # Don't draw if we don't have proper size
+	
+	# Note: Using clip_contents = true for automatic clipping
 	
 	draw_background()
 	draw_line_numbers()
@@ -2545,3 +2560,4 @@ func scroll_down():
 func clamp_scroll_offset():
 	var max_scroll = max(0, total_content_height - size.y)
 	scroll_offset = clamp(scroll_offset, 0, max_scroll)
+	queue_redraw()
