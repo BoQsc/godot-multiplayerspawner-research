@@ -366,23 +366,39 @@ func draw_background():
 	draw_rect(Rect2(Vector2.ZERO, size), border_color, false, 1.0)
 
 func draw_current_line_highlight(bg_color: Color):
+	# Find which line the cursor is on using line data
+	var line_data = build_line_data()
+	var current_pos = 0
+	var y_pos = text_margin.y
+	var target_line_height = line_height  # Default fallback
+	var found_line = false
 	
-	# Find which line the cursor is on
-	var text_content = get_text()
-	var cursor_line = 1
-	for i in range(min(cursor_position, text_content.length())):
-		if text_content[i] == '\n':
-			cursor_line += 1
-	
-	# Calculate the Y position for this line
-	var current_line_y = text_margin.y + (cursor_line - 1) * line_height
+	for line_info in line_data:
+		var line_segments = line_info.segments
+		var line_height_val = line_info.height
+		
+		# Calculate line length
+		var line_length = 0
+		for segment_info in line_segments:
+			line_length += segment_info.text.length()
+		
+		var line_end_pos = current_pos + line_length
+		
+		# Check if cursor is on this line
+		if cursor_position >= current_pos and cursor_position <= line_end_pos:
+			target_line_height = line_height_val
+			found_line = true
+			break
+		
+		y_pos += line_height_val
+		current_pos = line_end_pos + 1  # +1 for newline
 	
 	# Create a subtle highlight color (lighter than background)
 	var highlight_color = bg_color.lightened(0.03)  # Very subtle highlight
 	highlight_color.a = 0.8
 	
 	# Draw highlight across entire line (both line number area and text area)
-	var highlight_rect = Rect2(Vector2(0, current_line_y), Vector2(size.x, line_height))
+	var highlight_rect = Rect2(Vector2(0, y_pos), Vector2(size.x, target_line_height))
 	draw_rect(highlight_rect, highlight_color)
 
 func draw_line_numbers():
@@ -397,89 +413,154 @@ func draw_line_numbers():
 	else:
 		line_number_color = Color(0.6, 0.6, 0.6, 0.5)
 	
-	# Count lines in text
-	var text_content = get_text()
-	var line_count = 1
-	for i in range(text_content.length()):
-		if text_content[i] == '\n':
-			line_count += 1
-	
-	# Ensure at least one line number is shown
-	line_count = max(1, line_count)
-	
-	# Draw line numbers
+	# Draw line numbers using dynamic line heights
+	var line_data = build_line_data()
 	var line_number_font = base_font
-	for line_num in range(1, line_count + 1):
-		var y_pos = text_margin.y + (line_num - 1) * line_height + line_number_font.get_ascent(font_size)
+	var y_pos = text_margin.y
+	
+	for line_idx in range(line_data.size()):
+		var line_info = line_data[line_idx]
+		var line_height_val = line_info.height
+		
+		var line_num = line_idx + 1
 		var line_text = str(line_num)
 		var text_width = line_number_font.get_string_size(line_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 		var x_pos = line_number_width - text_width - 5  # Right-align with 5px margin
 		
-		line_number_font.draw_string(get_canvas_item(), Vector2(x_pos, y_pos), line_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, line_number_color)
+		# Center the line number vertically within the line height
+		var text_y = y_pos + line_number_font.get_ascent(font_size) + (line_height_val - line_number_font.get_height(font_size)) / 2
+		
+		line_number_font.draw_string(get_canvas_item(), Vector2(x_pos, text_y), line_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, line_number_color)
+		
+		y_pos += line_height_val
+	
+	# Handle case where there's no text - show line number 1
+	if line_data.is_empty():
+		var line_text = "1"
+		var text_width = line_number_font.get_string_size(line_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		var x_pos = line_number_width - text_width - 5
+		var text_y = text_margin.y + line_number_font.get_ascent(font_size)
+		line_number_font.draw_string(get_canvas_item(), Vector2(x_pos, text_y), line_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, line_number_color)
 
 func draw_text_segments():
-	var pos = text_margin  # Use text_margin instead of margin
-	var current_pos = 0
+	# NEW APPROACH: Build line data first, then render line by line with dynamic heights
+	var line_data = build_line_data()
 	
-	for segment in segments:
-		if segment.text.is_empty():
-			continue
-			
-		var font = get_segment_font(segment)
-		var segment_font_size = get_segment_font_size(segment)
-		var color = get_segment_color(segment)
+	var pos = text_margin
+	for line_info in line_data:
+		var line_segments = line_info.segments
+		var current_line_height = line_info.height
 		
-		# Draw the entire segment at once for better alignment
-		var segment_lines = segment.text.split('\n')
-		
-		for line_idx in range(segment_lines.size()):
-			var line = segment_lines[line_idx]
+		# Draw each segment on this line
+		var line_x = pos.x
+		for segment_info in line_segments:
+			var segment = segment_info.segment
+			var text = segment_info.text
+			var font = get_segment_font(segment)
+			var segment_font_size = get_segment_font_size(segment)
+			var color = get_segment_color(segment)
 			
-			if line.length() > 0:
-				# OPTIMIZED: Draw entire line at once instead of character-by-character
-				var line_width = font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
-				var text_pos = Vector2(pos.x, pos.y + font.get_ascent(segment_font_size))
+			if text.length() > 0:
+				var line_width = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+				var text_pos = Vector2(line_x, pos.y + font.get_ascent(segment_font_size))
 				
 				# Draw background for code segments
 				if segment.code:
 					var code_bg_color = color.lerp(Color.BLACK, 0.3)
 					code_bg_color.a = 0.2
-					draw_rect(Rect2(Vector2(pos.x - 2, pos.y), Vector2(line_width + 4, line_height)), code_bg_color)
+					draw_rect(Rect2(Vector2(line_x - 2, pos.y), Vector2(line_width + 4, current_line_height)), code_bg_color)
 				
-				# Draw the entire line with styling effects
+				# Draw the text with styling effects
 				if segment.bold and not segment.code:
-					# Simulate bold by drawing text multiple times with slight offset
-					font.draw_string(get_canvas_item(), text_pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
-					font.draw_string(get_canvas_item(), text_pos + Vector2(0.5, 0), line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
+					font.draw_string(get_canvas_item(), text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
+					font.draw_string(get_canvas_item(), text_pos + Vector2(0.5, 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
 					if segment.italic:
-						# Also add italic effect with skew simulation
-						font.draw_string(get_canvas_item(), text_pos + Vector2(1, 0), line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
+						font.draw_string(get_canvas_item(), text_pos + Vector2(1, 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
 				elif segment.italic and not segment.code:
-					# Simulate italic with slight color variation and offset
 					var italic_color = color.lerp(Color.WHITE, 0.1)
-					font.draw_string(get_canvas_item(), text_pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, italic_color)
+					font.draw_string(get_canvas_item(), text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, italic_color)
 				else:
-					# Normal text
-					font.draw_string(get_canvas_item(), text_pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
+					font.draw_string(get_canvas_item(), text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
 				
 				# Draw underline if needed
 				if segment.underline and not segment.code:
 					var underline_y = text_pos.y + 2
-					draw_line(Vector2(pos.x, underline_y), Vector2(pos.x + line_width, underline_y), color, 1.0)
+					draw_line(Vector2(line_x, underline_y), Vector2(line_x + line_width, underline_y), color, 1.0)
 				
 				# Draw strikethrough if needed
 				if segment.strikethrough and not segment.code:
 					var strikethrough_y = text_pos.y - font.get_ascent(segment_font_size) / 2
-					draw_line(Vector2(pos.x, strikethrough_y), Vector2(pos.x + line_width, strikethrough_y), color, 1.0)
+					draw_line(Vector2(line_x, strikethrough_y), Vector2(line_x + line_width, strikethrough_y), color, 1.0)
 				
-				pos.x += line_width
-			
-			# Move to next line if there's a newline
-			if line_idx < segment_lines.size() - 1:
-				pos.x = text_margin.x  # Use text_margin instead of margin
-				pos.y += line_height
+				line_x += line_width
 		
-		current_pos += segment.text.length()
+		# Move to next line using dynamic height
+		pos.x = text_margin.x
+		pos.y += current_line_height
+
+func build_line_data() -> Array:
+	# Build an array of line information with dynamic heights
+	var line_data = []
+	var current_pos = 0
+	var current_line_segments = []
+	var current_line_start = 0
+	
+	for segment in segments:
+		if segment.text.is_empty():
+			continue
+		
+		var segment_lines = segment.text.split('\n')
+		
+		for line_idx in range(segment_lines.size()):
+			var line_text = segment_lines[line_idx]
+			
+			# Add this line part to current line
+			if line_text.length() > 0:
+				current_line_segments.append({
+					"segment": segment,
+					"text": line_text
+				})
+			
+			# If this is the end of a line (newline or last line of segment)
+			if line_idx < segment_lines.size() - 1:
+				# End of line - calculate height and add to line_data
+				var line_segments_only = []
+				for seg_info in current_line_segments:
+					line_segments_only.append(seg_info.segment)
+				
+				var current_line_height = get_line_height_for_segments(line_segments_only)
+				
+				line_data.append({
+					"segments": current_line_segments,
+					"height": current_line_height,
+					"start_pos": current_line_start
+				})
+				
+				# Reset for next line
+				current_line_segments = []
+				current_line_start = current_pos + line_text.length() + 1  # +1 for newline
+			
+			current_pos += line_text.length()
+		
+		# Add newline character positions
+		for line_idx in range(segment_lines.size() - 1):
+			current_pos += 1
+	
+	# Don't forget the last line if it has content
+	if current_line_segments.size() > 0:
+		var line_segments_only = []
+		for seg_info in current_line_segments:
+			line_segments_only.append(seg_info.segment)
+		
+		var current_line_height = get_line_height_for_segments(line_segments_only)
+		
+		line_data.append({
+			"segments": current_line_segments,
+			"height": current_line_height,
+			"start_pos": current_line_start
+		})
+	
+	return line_data
 
 func get_segment_font(segment: TextSegment) -> Font:
 	if segment.code:
@@ -501,6 +582,35 @@ func get_segment_font_size(segment: TextSegment) -> int:
 		return int(font_size * scale)
 	else:
 		return font_size
+
+func get_line_height_for_segments(segments_on_line: Array) -> float:
+	# Calculate the maximum line height needed for all segments on a line
+	var max_height = line_height  # Start with base line height
+	
+	for segment in segments_on_line:
+		var font = get_segment_font(segment)
+		var segment_font_size = get_segment_font_size(segment)
+		var segment_height = font.get_height(segment_font_size) + 4  # Add some padding
+		max_height = max(max_height, segment_height)
+	
+	return max_height
+
+func calculate_line_segments(line_start_pos: int, line_end_pos: int) -> Array:
+	# Get all segments that affect a specific line
+	var line_segments: Array = []
+	var current_pos = 0
+	
+	for segment in segments:
+		var segment_start = current_pos
+		var segment_end = current_pos + segment.text.length()
+		
+		# Check if this segment overlaps with the line
+		if segment_end > line_start_pos and segment_start < line_end_pos:
+			line_segments.append(segment)
+		
+		current_pos += segment.text.length()
+	
+	return line_segments
 
 func get_segment_color(segment: TextSegment) -> Color:
 	# Get the actual editor theme
@@ -658,57 +768,64 @@ func advance_draw_pos_for_segment(pos: Vector2, segment: TextSegment) -> Vector2
 	return pos
 
 func get_visual_position(text_pos: int) -> Vector2:
-	# OPTIMIZED: Calculate position by processing segments instead of individual characters
+	# OPTIMIZED: Use pre-built line data with dynamic heights
 	text_pos = clamp(text_pos, 0, get_total_text_length())
 	
+	var line_data = build_line_data()
 	var pos = text_margin
 	var current_pos = 0
 	
-	for segment in segments:
-		var segment_start = current_pos
-		var segment_end = current_pos + segment.text.length()
+	for line_info in line_data:
+		var line_segments = line_info.segments
+		var line_height_val = line_info.height
+		var line_start_pos = current_pos
 		
-		# If target position is completely before this segment, we're done
-		if text_pos <= segment_start:
-			break
-			
-		var font = get_segment_font(segment)
-		var segment_font_size = get_segment_font_size(segment)
-		var segment_lines = segment.text.split('\n')
-		var line_pos = current_pos
+		# Calculate total length of this line
+		var line_length = 0
+		for segment_info in line_segments:
+			line_length += segment_info.text.length()
 		
-		for line_idx in range(segment_lines.size()):
-			var line = segment_lines[line_idx]
-			var line_start = line_pos
-			var line_end = line_pos + line.length()
-			
-			if text_pos <= line_start:
-				# Target is at start of this line
-				return pos
-			elif text_pos <= line_end:
-				# Target is within this line - calculate partial line width
-				var chars_into_line = text_pos - line_start
-				var partial_text = line.substr(0, chars_into_line)
-				var partial_width = font.get_string_size(partial_text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
-				pos.x += partial_width
-				return pos
-			else:
-				# Add full line width and continue
-				if line.length() > 0:
-					pos.x += font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
-			
-			line_pos += line.length()
-			
-			# Handle newlines
-			if line_idx < segment_lines.size() - 1:
-				if text_pos == line_pos:
-					# Target is exactly at the newline
-					return pos
-				line_pos += 1  # For the newline character
-				pos.x = text_margin.x
-				pos.y += line_height
+		var line_end_pos = line_start_pos + line_length
 		
-		current_pos = segment_end
+		# Check if target position is on this line
+		if text_pos <= line_start_pos:
+			# Target is at start of this line
+			return pos
+		elif text_pos <= line_end_pos:
+			# Target is within this line - calculate position
+			var line_x = pos.x
+			var chars_processed = 0
+			
+			for segment_info in line_segments:
+				var segment = segment_info.segment
+				var text = segment_info.text
+				var font = get_segment_font(segment)
+				var segment_font_size = get_segment_font_size(segment)
+				
+				var chars_into_segment = text_pos - line_start_pos - chars_processed
+				
+				if chars_into_segment <= 0:
+					# Target is at the start of this segment
+					return Vector2(line_x, pos.y)
+				elif chars_into_segment >= text.length():
+					# Target is beyond this segment - add full width
+					var segment_width = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+					line_x += segment_width
+					chars_processed += text.length()
+				else:
+					# Target is within this segment
+					var partial_text = text.substr(0, chars_into_segment)
+					var partial_width = font.get_string_size(partial_text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size).x
+					line_x += partial_width
+					return Vector2(line_x, pos.y)
+			
+			# If we get here, target is at end of line
+			return Vector2(line_x, pos.y)
+		
+		# Move to next line
+		pos.x = text_margin.x
+		pos.y += line_height_val
+		current_pos = line_end_pos + 1  # +1 for newline character (if exists)
 	
 	return pos
 
