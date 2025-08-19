@@ -85,6 +85,9 @@ func _ready():
 	# Make sure we can receive focus
 	focus_mode = Control.FOCUS_ALL
 	
+	# Connect focus signals to hide context menu when unfocused
+	focus_exited.connect(_on_focus_exited)
+	
 	# Set mouse cursor to text edit cursor
 	mouse_default_cursor_shape = Control.CURSOR_IBEAM
 	
@@ -130,81 +133,161 @@ func setup_initial_text():
 	cursor_position = 0
 
 func setup_context_menu():
-	# Create custom context menu that forwards events to text editor
+	# Create custom control that forwards events (non-modal)
 	context_menu = Control.new()
 	add_child(context_menu)
 	context_menu.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	context_menu.size = Vector2(120, 100)
+	context_menu.size = Vector2(120, 120)
 	context_menu.visible = false
 	
-	# Connect mouse events to forward them to the text editor
+	# Connect events to forward them
 	context_menu.gui_input.connect(_on_context_menu_input)
 	
-	# Create panel background with default styling
+	# Create background panel with PopupMenu styling
 	var panel = Panel.new()
 	context_menu.add_child(panel)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	# Style panel to match PopupMenu
+	var editor_interface = Engine.get_singleton("EditorInterface")
+	var editor_theme = editor_interface.get_editor_theme() if editor_interface else null
+	var panel_bg = Color(0.2, 0.23, 0.31)  # Default dark theme
+	
+	if editor_theme:
+		var theme_bg = editor_theme.get_color("panel_bg", "PopupMenu")
+		if theme_bg != Color.BLACK:
+			panel_bg = theme_bg
+		else:
+			theme_bg = editor_theme.get_color("bg", "Panel")
+			if theme_bg != Color.BLACK:
+				panel_bg = theme_bg
+	
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = panel_bg
+	panel_style.set_border_width_all(1)
+	panel_style.border_color = panel_bg.darkened(0.2)
+	panel_style.set_corner_radius_all(0)
+	panel_style.shadow_size = 4
+	panel_style.shadow_color = Color(0, 0, 0, 0.3)
+	panel.add_theme_stylebox_override("panel", panel_style)
 	
 	# Create vertical container for menu items
 	var vbox = VBoxContainer.new()
 	context_menu.add_child(vbox)
 	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	vbox.add_theme_constant_override("separation", 2)
+	vbox.add_theme_constant_override("separation", 0)
 	
-	# Add menu buttons with proper styling
-	var cut_btn = Button.new()
-	cut_btn.text = "Cut"
-	cut_btn.flat = true
-	cut_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	style_menu_button(cut_btn)
-	cut_btn.pressed.connect(func(): cut_selection(); context_menu.hide())
-	vbox.add_child(cut_btn)
+	# Add menu buttons
+	create_menu_item(vbox, "Cut", func(): cut_selection(); context_menu.hide())
+	create_menu_item(vbox, "Copy", func(): copy_selection(); context_menu.hide())
+	create_menu_item(vbox, "Paste", func(): paste_from_clipboard(); context_menu.hide())
 	
-	var copy_btn = Button.new()
-	copy_btn.text = "Copy" 
-	copy_btn.flat = true
-	copy_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	style_menu_button(copy_btn)
-	copy_btn.pressed.connect(func(): copy_selection(); context_menu.hide())
-	vbox.add_child(copy_btn)
+	# Add separator
+	var separator = HSeparator.new()
+	vbox.add_child(separator)
 	
-	var paste_btn = Button.new()
-	paste_btn.text = "Paste"
-	paste_btn.flat = true
-	paste_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	style_menu_button(paste_btn)
-	paste_btn.pressed.connect(func(): paste_from_clipboard(); context_menu.hide())
-	vbox.add_child(paste_btn)
-	
-	var select_btn = Button.new()
-	select_btn.text = "Select All"
-	select_btn.flat = true
-	select_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	style_menu_button(select_btn)
-	select_btn.pressed.connect(func(): select_all(); context_menu.hide())
-	vbox.add_child(select_btn)
+	create_menu_item(vbox, "Select All", func(): select_all(); context_menu.hide())
 
-func style_menu_button(button: Button):
-	# Style buttons to look like menu items
+func create_menu_item(parent: VBoxContainer, text: String, callback: Callable):
+	var btn = Button.new()
+	btn.text = text
+	btn.flat = false
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.custom_minimum_size.y = 24
+	
+	# Get actual PopupMenu colors from editor theme
+	var editor_interface = Engine.get_singleton("EditorInterface")
+	var editor_theme = editor_interface.get_editor_theme() if editor_interface else null
+	
+	var menu_bg_color: Color = Color(0.2, 0.23, 0.31)  # Default dark theme
+	var menu_hover_color: Color = Color(0.26, 0.32, 0.46)  # Default hover
+	var menu_font_color: Color = Color(0.875, 0.875, 0.875)  # Default text
+	var menu_font_hover_color: Color = Color.WHITE  # Default hover text
+	
+	if editor_theme:
+		# Try extracting actual PopupMenu colors
+		var theme_bg = editor_theme.get_color("panel_bg", "PopupMenu")
+		if theme_bg != Color.BLACK:
+			menu_bg_color = theme_bg
+		else:
+			# Try Panel as fallback
+			theme_bg = editor_theme.get_color("bg", "Panel")
+			if theme_bg != Color.BLACK:
+				menu_bg_color = theme_bg
+		
+		var theme_hover = editor_theme.get_color("hover", "PopupMenu")
+		if theme_hover != Color.BLACK:
+			menu_hover_color = theme_hover
+		else:
+			# Try Button hover as fallback
+			theme_hover = editor_theme.get_color("hover", "Button")
+			if theme_hover != Color.BLACK:
+				menu_hover_color = theme_hover
+		
+		var theme_font = editor_theme.get_color("font_color", "PopupMenu")
+		if theme_font != Color.BLACK:
+			menu_font_color = theme_font
+		else:
+			# Try Label font color as fallback
+			theme_font = editor_theme.get_color("font_color", "Label")
+			if theme_font != Color.BLACK:
+				menu_font_color = theme_font
+	
+	# Create button states with theme colors - ensure flat appearance like PopupMenu
 	var normal_style = StyleBoxFlat.new()
-	normal_style.bg_color = Color.TRANSPARENT
+	normal_style.bg_color = menu_bg_color
+	normal_style.set_border_width_all(0)
+	normal_style.set_corner_radius_all(0)
 	normal_style.content_margin_left = 8
 	normal_style.content_margin_right = 8
 	normal_style.content_margin_top = 4
 	normal_style.content_margin_bottom = 4
 	
 	var hover_style = StyleBoxFlat.new()
-	hover_style.bg_color = Color(0.3, 0.6, 1.0, 0.3)  # Light blue highlight
+	hover_style.bg_color = menu_hover_color
+	hover_style.set_border_width_all(0)
+	hover_style.set_corner_radius_all(0)
 	hover_style.content_margin_left = 8
 	hover_style.content_margin_right = 8
 	hover_style.content_margin_top = 4
 	hover_style.content_margin_bottom = 4
 	
-	button.add_theme_stylebox_override("normal", normal_style)
-	button.add_theme_stylebox_override("hover", hover_style)
-	button.add_theme_stylebox_override("pressed", hover_style)
-	button.add_theme_color_override("font_color", Color.WHITE)
-	button.add_theme_color_override("font_hover_color", Color.WHITE)
+	# Apply states with proper PopupMenu styling
+	btn.add_theme_stylebox_override("normal", normal_style)
+	btn.add_theme_stylebox_override("hover", hover_style)
+	btn.add_theme_stylebox_override("pressed", hover_style)
+	btn.add_theme_stylebox_override("focus", normal_style)
+	
+	# Apply font colors
+	btn.add_theme_color_override("font_color", menu_font_color)
+	btn.add_theme_color_override("font_hover_color", menu_font_hover_color)
+	btn.add_theme_color_override("font_pressed_color", menu_font_hover_color)
+	
+	btn.pressed.connect(callback)
+	parent.add_child(btn)
+
+func _on_focus_exited():
+	# Hide context menu when editor loses focus
+	if context_menu and context_menu.visible:
+		context_menu.hide()
+
+func _on_context_menu_input(event):
+	# Forward mouse events that don't hit buttons to the text editor underneath
+	if event is InputEventMouseButton:
+		# Calculate the position relative to the text editor
+		var editor_pos = event.position + context_menu.position
+		
+		# Create new event with correct position
+		var new_event = InputEventMouseButton.new()
+		new_event.button_index = event.button_index
+		new_event.pressed = event.pressed
+		new_event.double_click = event.double_click
+		new_event.position = editor_pos
+		
+		# Close context menu and process the event
+		context_menu.hide()
+		handle_mouse_input(new_event)
 
 func _draw():
 	draw_background()
@@ -1256,22 +1339,6 @@ func _can_drop_data(position, data):
 func _drop_data(position, data):
 	pass
 
-func _on_context_menu_input(event):
-	# Forward mouse events that don't hit buttons to the text editor underneath
-	if event is InputEventMouseButton:
-		# Calculate the position relative to the text editor
-		var editor_pos = event.position + context_menu.position
-		
-		# Create new event with correct position
-		var new_event = InputEventMouseButton.new()
-		new_event.button_index = event.button_index
-		new_event.pressed = event.pressed
-		new_event.double_click = event.double_click
-		new_event.position = editor_pos
-		
-		# Close context menu and process the event
-		context_menu.hide()
-		handle_mouse_input(new_event)
 
 func select_word_at_position(pos: int):
 	var text_content = get_text()
