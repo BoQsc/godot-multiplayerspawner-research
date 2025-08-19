@@ -786,6 +786,9 @@ func handle_mouse_input(event: InputEventMouseButton):
 				var line_number = get_line_number_at_y(event.position.y)
 				select_entire_line(line_number)
 				line_drag_active = false  # Reset drag state
+				# Reset caret blinking animation
+				cursor_visible = true
+				cursor_blink_time = 0.0
 				queue_redraw()
 				return
 			elif event.pressed:
@@ -794,6 +797,9 @@ func handle_mouse_input(event: InputEventMouseButton):
 				line_drag_active = true
 				line_drag_start_line = line_number
 				select_entire_line(line_number)
+				# Reset caret blinking animation
+				cursor_visible = true
+				cursor_blink_time = 0.0
 				queue_redraw()
 				return
 			else:
@@ -810,6 +816,9 @@ func handle_mouse_input(event: InputEventMouseButton):
 			# Check for double-click
 			if event.double_click:
 				select_word_at_position(click_pos)
+				# Reset caret blinking animation on double-click
+				cursor_visible = true
+				cursor_blink_time = 0.0
 			else:
 				cursor_position = click_pos
 				# Clear any existing selection on click
@@ -820,6 +829,9 @@ func handle_mouse_input(event: InputEventMouseButton):
 				mouse_down_position = event.position
 				# Capture mouse to continue tracking even outside bounds
 				Input.set_default_cursor_shape(Input.CURSOR_IBEAM)
+				# Reset caret blinking animation on click
+				cursor_visible = true
+				cursor_blink_time = 0.0
 		else:
 			# End selection on mouse up
 			if selection_start == selection_end:
