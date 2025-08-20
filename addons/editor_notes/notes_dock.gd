@@ -5,6 +5,7 @@ const RichEditor = preload("res://addons/editor_notes/rich_editor.gd")
 
 var rich_editor: RichEditor
 var render_display: RichTextLabel  # Original render mode
+var render_context_menu: PopupMenu  # Context menu for render mode
 var current_mode: int = 1  # 0 = source, 1 = render
 var mode_toggle_btn: Button
 
@@ -74,12 +75,18 @@ func setup_render_display():
 	render_display.bbcode_enabled = true
 	render_display.scroll_following = false
 	
+	# Enable text selection in render mode
+	render_display.selection_enabled = true
+	
 	# Set proper mouse filter for dock integration
 	render_display.mouse_filter = Control.MOUSE_FILTER_STOP
 	
 	# Force the control to respect container bounds
 	render_display.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	render_display.custom_minimum_size = Vector2(0, 200)  # Minimum height for usability
+	
+	# Setup context menu for render display
+	setup_render_context_menu()
 	
 	# Add to main container
 	add_child(render_display)
@@ -741,3 +748,41 @@ func _apply_code_formatting():
 			insert_markdown_formatting("`")
 		1: # Render mode (display only)
 			insert_markdown_formatting("`")
+
+# Context menu for render display
+func setup_render_context_menu():
+	render_context_menu = PopupMenu.new()
+	render_context_menu.name = "RenderContextMenu"
+	add_child(render_context_menu)
+	
+	# Add copy option
+	render_context_menu.add_item("Copy", 0)
+	render_context_menu.add_item("Select All", 1)
+	
+	# Connect menu signals
+	render_context_menu.id_pressed.connect(_on_render_context_menu_selected)
+	
+	# Connect right-click on render display
+	render_display.gui_input.connect(_on_render_display_input)
+
+func _on_render_display_input(event: InputEvent):
+	if event is InputEventMouseButton:
+		var mouse_event = event as InputEventMouseButton
+		if mouse_event.button_index == MOUSE_BUTTON_RIGHT and mouse_event.pressed:
+			# Show context menu at mouse position
+			render_context_menu.position = get_global_mouse_position()
+			render_context_menu.popup()
+
+func _on_render_context_menu_selected(id: int):
+	match id:
+		0: # Copy
+			_copy_render_selection()
+		1: # Select All
+			_select_all_render()
+
+func _copy_render_selection():
+	if render_display.get_selected_text() != "":
+		DisplayServer.clipboard_set(render_display.get_selected_text())
+
+func _select_all_render():
+	render_display.select_all()
