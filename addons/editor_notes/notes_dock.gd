@@ -470,7 +470,7 @@ func setup_list_menu():
 	popup.id_pressed.connect(_on_list_selected)
 
 func _on_markdown_heading_selected(id: int):
-	if not rich_editor:
+	if not rich_editor or current_mode == 1:  # Don't format in render mode
 		return
 	
 	# Insert markdown heading syntax
@@ -485,7 +485,7 @@ func _on_heading_selected(id: int):
 	rich_editor.insert_heading(heading_level)
 
 func _on_markdown_list_selected(id: int):
-	if not rich_editor:
+	if not rich_editor or current_mode == 1:  # Don't format in render mode
 		return
 	
 	match id:
@@ -526,9 +526,13 @@ func _on_list_selected(id: int):
 			rich_editor.insert_list_item("checklist")
 
 func _insert_markdown_blockquote():
+	if current_mode == 1:  # Don't format in render mode
+		return
 	insert_line_start_formatting("> ")
 
 func _insert_markdown_code_block():
+	if current_mode == 1:  # Don't format in render mode
+		return
 	var code_block = "```\ncode here\n```\n"
 	insert_text(code_block)
 	# Move cursor to select "code here"
@@ -538,9 +542,13 @@ func _insert_markdown_code_block():
 	rich_editor.selection_end = cursor_pos - 4  # Before "\n```"
 
 func _insert_markdown_horizontal_rule():
+	if current_mode == 1:  # Don't format in render mode
+		return
 	insert_text("\n---\n")
 
 func _insert_markdown_link():
+	if current_mode == 1:  # Don't format in render mode
+		return
 	if rich_editor.has_selection():
 		var selected_text = rich_editor.get_selected_text()
 		var link_text = "[" + selected_text + "](url)"
@@ -559,6 +567,8 @@ func _insert_markdown_link():
 		rich_editor.selection_end = cursor_pos - 6  # Before "]"
 
 func _insert_markdown_image():
+	if current_mode == 1:  # Don't format in render mode
+		return
 	var image_text = "![alt text](image_url)"
 	insert_text(image_text)
 	# Select "alt text" for easy editing
@@ -567,6 +577,8 @@ func _insert_markdown_image():
 	rich_editor.selection_end = cursor_pos - 13  # Before "]"
 
 func _insert_markdown_table():
+	if current_mode == 1:  # Don't format in render mode
+		return
 	var table_text = """| Header 1 | Header 2 | Header 3 |
 |----------|----------|----------|
 | Cell 1   | Cell 2   | Cell 3   |
@@ -725,36 +737,36 @@ func _apply_bold_formatting():
 	match current_mode:
 		0: # Source mode
 			insert_markdown_formatting("**")
-		1: # Render mode (display only)
-			insert_markdown_formatting("**")
+		1: # Render mode (display only - do nothing)
+			return
 
 func _apply_italic_formatting():
 	match current_mode:
 		0: # Source mode
 			insert_markdown_formatting("*")
-		1: # Render mode (display only)
-			insert_markdown_formatting("*")
+		1: # Render mode (display only - do nothing)
+			return
 
 func _apply_underline_formatting():
 	match current_mode:
 		0: # Source mode
 			insert_markdown_formatting("<u>", "</u>")
-		1: # Render mode (display only)
-			insert_markdown_formatting("<u>", "</u>")
+		1: # Render mode (display only - do nothing)
+			return
 
 func _apply_strikethrough_formatting():
 	match current_mode:
 		0: # Source mode
 			insert_markdown_formatting("~~")
-		1: # Render mode (display only)
-			insert_markdown_formatting("~~")
+		1: # Render mode (display only - do nothing)
+			return
 
 func _apply_code_formatting():
 	match current_mode:
 		0: # Source mode
 			insert_markdown_formatting("`")
-		1: # Render mode (display only)
-			insert_markdown_formatting("`")
+		1: # Render mode (display only - do nothing)
+			return
 
 # Context menu for render display
 func setup_render_context_menu():
