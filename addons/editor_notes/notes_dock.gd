@@ -77,6 +77,9 @@ func setup_render_display():
 	# Enable text selection in render mode
 	render_display.selection_enabled = true
 	
+	# Enable clickable links
+	render_display.meta_clicked.connect(_on_link_clicked)
+	
 	# Try to get Godot's editor monospace font for better code rendering
 	var editor_settings = EditorInterface.get_editor_settings()
 	if editor_settings:
@@ -790,3 +793,7 @@ func _copy_render_selection():
 
 func _select_all_render():
 	render_display.select_all()
+
+func _on_link_clicked(meta):
+	# Open URL in the default system browser
+	OS.shell_open(str(meta))
