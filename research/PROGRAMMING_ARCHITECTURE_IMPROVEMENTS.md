@@ -91,22 +91,22 @@ class_name GameConfiguration extends Resource
 class_name NetworkCommand extends Node
 
 func send_reliable_to_server(command: String, data: Dictionary):
-    rpc_id(1, "handle_command", command, data)
+	rpc_id(1, "handle_command", command, data)
 
 func send_unreliable_to_all(command: String, data: Dictionary):
-    rpc("handle_command", command, data)
-    
+	rpc("handle_command", command, data)
+	
 func send_to_client(client_id: int, command: String, data: Dictionary):
-    rpc_id(client_id, "handle_command", command, data)
+	rpc_id(client_id, "handle_command", command, data)
 
 # Single RPC handler
 @rpc("any_peer", "call_remote", "reliable")
 func handle_command(command: String, data: Dictionary):
-    match command:
-        "player_move":
-            _handle_player_move(data)
-        "world_modify":
-            _handle_world_modify(data)
+	match command:
+		"player_move":
+			_handle_player_move(data)
+		"world_modify":
+			_handle_world_modify(data)
 ```
 
 ### 5. Introduce State Machines
@@ -114,16 +114,16 @@ func handle_command(command: String, data: Dictionary):
 ```gdscript
 # Replace scattered state checks
 enum ConnectionState { 
-    DISCONNECTED, 
-    CONNECTING, 
-    CONNECTED, 
-    RECONNECTING 
+	DISCONNECTED, 
+	CONNECTING, 
+	CONNECTED, 
+	RECONNECTING 
 }
 
 enum GameState { 
-    MENU, 
-    PLAYING, 
-    PAUSED 
+	MENU, 
+	PLAYING, 
+	PAUSED 
 }
 
 class_name StateMachine extends Node
@@ -133,9 +133,9 @@ var current_state
 var previous_state
 
 func change_state(new_state):
-    previous_state = current_state
-    current_state = new_state
-    state_changed.emit(previous_state, current_state)
+	previous_state = current_state
+	current_state = new_state
+	state_changed.emit(previous_state, current_state)
 ```
 
 ### 6. Extract Data Models
@@ -174,14 +174,14 @@ var ui_manager: UIManager
 var network_sync: NetworkSyncManager
 
 func _init(conn_mgr: ConnectionManager, player_mgr: PlayerManager, ui_mgr: UIManager, net_sync: NetworkSyncManager):
-    connection_manager = conn_mgr
-    player_manager = player_mgr
-    ui_manager = ui_mgr
-    network_sync = net_sync
-    
-    # Wire up events
-    connection_manager.player_connected.connect(player_manager.on_player_connected)
-    connection_manager.connection_lost.connect(ui_manager.show_reconnection_ui)
+	connection_manager = conn_mgr
+	player_manager = player_mgr
+	ui_manager = ui_mgr
+	network_sync = net_sync
+	
+	# Wire up events
+	connection_manager.player_connected.connect(player_manager.on_player_connected)
+	connection_manager.connection_lost.connect(ui_manager.show_reconnection_ui)
 ```
 
 ### 8. Command Pattern for User Actions
@@ -198,7 +198,7 @@ var port: int
 var connection_manager: ConnectionManager
 
 func execute():
-    connection_manager.connect_to_server(ip, port)
+	connection_manager.connect_to_server(ip, port)
 
 class_name SpawnPlayerCommand extends Command
 class_name SaveWorldCommand extends Command
@@ -209,8 +209,8 @@ var command_queue: Array[Command] = []
 var undo_stack: Array[Command] = []
 
 func execute_command(command: Command):
-    command.execute()
-    undo_stack.push_back(command)
+	command.execute()
+	undo_stack.push_back(command)
 ```
 
 ## Immediate Refactoring Steps
