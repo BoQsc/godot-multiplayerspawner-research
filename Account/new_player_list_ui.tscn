@@ -52,7 +52,7 @@ layout_mode = 2
 
 [node name="GridContainer" type="GridContainer" parent="PanelContainer/VBoxContainer/VBoxContainer3"]
 layout_mode = 2
-columns = 2
+columns = 3
 
 [node name="Label" type="Label" parent="PanelContainer/VBoxContainer/VBoxContainer3/GridContainer"]
 layout_mode = 2
@@ -62,6 +62,10 @@ text = "ID: test"
 layout_mode = 2
 text = "Player: test"
 
+[node name="Label5" type="Label" parent="PanelContainer/VBoxContainer/VBoxContainer3/GridContainer"]
+layout_mode = 2
+text = "Pos: test"
+
 [node name="Label3" type="Label" parent="PanelContainer/VBoxContainer/VBoxContainer3/GridContainer"]
 layout_mode = 2
 text = "ID: test"
@@ -69,3 +73,7 @@ text = "ID: test"
 [node name="Label4" type="Label" parent="PanelContainer/VBoxContainer/VBoxContainer3/GridContainer"]
 layout_mode = 2
 text = "Player: test"
+
+[node name="Label6" type="Label" parent="PanelContainer/VBoxContainer/VBoxContainer3/GridContainer"]
+layout_mode = 2
+text = "Pos: test"
