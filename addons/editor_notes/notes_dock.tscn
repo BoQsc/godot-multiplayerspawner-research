@@ -138,6 +138,18 @@ text = "⊞"
 tooltip_text = "Insert Table"
 custom_minimum_size = Vector2(24, 24)
 
+[node name="VSeparator2" type="VSeparator" parent="VBoxContainer/Toolbar"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 24)
+
+[node name="ModeToggleBtn" type="Button" parent="VBoxContainer/Toolbar"]
+layout_mode = 2
+focus_mode = 0
+flat = false
+text = "👁"
+tooltip_text = "Toggle Render Mode"
+custom_minimum_size = Vector2(32, 24)
+
 [node name="ClearBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0

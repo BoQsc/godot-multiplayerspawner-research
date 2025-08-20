@@ -4,6 +4,9 @@ extends Control
 const RichEditor = preload("res://addons/editor_notes/rich_editor.gd")
 
 var rich_editor: RichEditor
+var render_display: RichTextLabel
+var is_render_mode: bool = true  # Default to render mode
+var mode_toggle_btn: Button
 
 # All buttons - will be found manually
 var bold_btn: Button
@@ -27,9 +30,11 @@ var last_modified_time: int = 0
 
 func _ready():
 	setup_rich_editor()
+	setup_render_display()
 	setup_markdown_toolbar()  # New markdown-based toolbar
 	setup_file_monitoring()
 	load_notes()
+	set_render_mode(is_render_mode)  # Set initial mode
 
 func setup_rich_editor():
 	# Create the rich editor
@@ -51,6 +56,25 @@ func setup_rich_editor():
 	
 	# Connect signals
 	rich_editor.text_changed.connect(_on_text_changed)
+
+func setup_render_display():
+	# Create the render display
+	render_display = RichTextLabel.new()
+	render_display.name = "RenderDisplay"
+	render_display.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	render_display.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	render_display.clip_contents = true
+	render_display.bbcode_enabled = true
+	render_display.scroll_following = false
+	
+	# Add to VBoxContainer
+	$VBoxContainer.add_child(render_display)
+	
+	# Ensure proper z-order
+	$VBoxContainer.move_child($VBoxContainer/Header, 0)
+	$VBoxContainer.move_child($VBoxContainer/Toolbar, 1)
+	$VBoxContainer.move_child(rich_editor, 2)
+	$VBoxContainer.move_child(render_display, 3)
 
 func setup_legacy_toolbar():
 	# LEGACY: Find all toolbar buttons manually - this is the old rich text approach
@@ -126,6 +150,7 @@ func setup_markdown_toolbar():
 	image_btn = get_node_or_null("VBoxContainer/Toolbar/ImageBtn")
 	table_btn = get_node_or_null("VBoxContainer/Toolbar/TableBtn")
 	clear_btn = get_node_or_null("VBoxContainer/Toolbar/ClearBtn")
+	mode_toggle_btn = get_node_or_null("VBoxContainer/Toolbar/ModeToggleBtn")
 	
 	# Add transparent normal state to all buttons
 	add_transparent_normal_style(bold_btn)
@@ -142,6 +167,7 @@ func setup_markdown_toolbar():
 	add_transparent_normal_style(image_btn)
 	add_transparent_normal_style(table_btn)
 	add_transparent_normal_style(clear_btn)
+	add_transparent_normal_style(mode_toggle_btn)
 	
 	# Connect markdown formatting buttons
 	if bold_btn:
@@ -178,6 +204,10 @@ func setup_markdown_toolbar():
 		table_btn.pressed.connect(_insert_markdown_table)
 	if clear_btn:
 		clear_btn.pressed.connect(_clear_all)
+	
+	# Mode toggle button
+	if mode_toggle_btn:
+		mode_toggle_btn.pressed.connect(_toggle_render_mode)
 
 func insert_markdown_formatting(start_marker: String, end_marker: String = ""):
 	if not rich_editor:
@@ -271,6 +301,8 @@ func _clear_all():
 
 func _on_text_changed():
 	call_deferred("save_notes")
+	if is_render_mode:
+		call_deferred("update_render_display")
 
 func save_notes():
 	if not rich_editor:
@@ -305,6 +337,8 @@ func load_notes():
 		
 		if rich_editor:
 			rich_editor.set_text(content)
+			if is_render_mode:
+				call_deferred("update_render_display")
 
 func setup_file_monitoring():
 	# Create timer for file monitoring
@@ -356,6 +390,8 @@ func load_notes_without_losing_cursor():
 				rich_editor.selection_end = clamp(selection_end, 0, max_pos)
 			
 			rich_editor.queue_redraw()
+			if is_render_mode:
+				call_deferred("update_render_display")
 
 func setup_markdown_heading_menu():
 	if not heading_btn:
@@ -531,3 +567,121 @@ func _insert_image():
 func _insert_table():
 	if rich_editor:
 		rich_editor.insert_table()
+
+# Render mode functions
+func _toggle_render_mode():
+	set_render_mode(not is_render_mode)
+
+func set_render_mode(render_mode: bool):
+	is_render_mode = render_mode
+	
+	if is_render_mode:
+		# Show render display, hide editor
+		rich_editor.visible = false
+		render_display.visible = true
+		update_render_display()
+		# Update button text to indicate source mode is available
+		if mode_toggle_btn:
+			mode_toggle_btn.text = "📝"
+			mode_toggle_btn.tooltip_text = "Switch to Source Mode"
+	else:
+		# Show editor, hide render display
+		rich_editor.visible = true
+		render_display.visible = false
+		# Update button text to indicate render mode is available
+		if mode_toggle_btn:
+			mode_toggle_btn.text = "👁"
+			mode_toggle_btn.tooltip_text = "Switch to Render Mode"
+
+func update_render_display():
+	if not render_display or not rich_editor:
+		return
+	
+	var markdown_text = rich_editor.get_text()
+	var bbcode_text = markdown_to_bbcode(markdown_text)
+	render_display.text = bbcode_text
+
+func markdown_to_bbcode(markdown: String) -> String:
+	var bbcode = markdown
+	
+	# Process line by line for easier regex handling
+	var lines = bbcode.split("\n")
+	var processed_lines = []
+	
+	for line in lines:
+		var processed_line = line
+		
+		# Headers (process first)
+		if line.begins_with("######"):
+			processed_line = "[font_size=14][b]" + line.substr(6).strip_edges() + "[/b][/font_size]"
+		elif line.begins_with("#####"):
+			processed_line = "[font_size=16][b]" + line.substr(5).strip_edges() + "[/b][/font_size]"
+		elif line.begins_with("####"):
+			processed_line = "[font_size=18][b]" + line.substr(4).strip_edges() + "[/b][/font_size]"
+		elif line.begins_with("###"):
+			processed_line = "[font_size=20][b]" + line.substr(3).strip_edges() + "[/b][/font_size]"
+		elif line.begins_with("##"):
+			processed_line = "[font_size=24][b]" + line.substr(2).strip_edges() + "[/b][/font_size]"
+		elif line.begins_with("#"):
+			processed_line = "[font_size=28][b]" + line.substr(1).strip_edges() + "[/b][/font_size]"
+		
+		# Blockquotes
+		elif line.begins_with("> "):
+			processed_line = "[i]> " + line.substr(2) + "[/i]"
+		
+		# Lists
+		elif line.begins_with("- [ ] "):
+			processed_line = "☐ " + line.substr(6)
+		elif line.begins_with("- [x] "):
+			processed_line = "☑ " + line.substr(6)
+		elif line.begins_with("- "):
+			processed_line = "• " + line.substr(2)
+		elif line.length() > 3 and line[0].is_valid_int() and line.find(". ") > 0:
+			var regex = RegEx.new()
+			regex.compile("^([0-9]+)\\. (.*)")
+			var result = regex.search(line)
+			if result:
+				processed_line = result.get_string(1) + ". " + result.get_string(2)
+		
+		# Horizontal rules
+		elif line.begins_with("---"):
+			processed_line = "─────────────────────"
+		
+		processed_lines.append(processed_line)
+	
+	bbcode = "\n".join(processed_lines)
+	
+	# Inline formatting (process globally)
+	var regex: RegEx
+	
+	# Bold **text**
+	regex = RegEx.new()
+	regex.compile("\\*\\*([^*]+)\\*\\*")
+	bbcode = regex.sub(bbcode, "[b]$1[/b]", true)
+	
+	# Italic *text*
+	regex = RegEx.new()
+	regex.compile("\\*([^*]+)\\*")
+	bbcode = regex.sub(bbcode, "[i]$1[/i]", true)
+	
+	# Strikethrough ~~text~~
+	regex = RegEx.new()
+	regex.compile("~~([^~]+)~~")
+	bbcode = regex.sub(bbcode, "[s]$1[/s]", true)
+	
+	# Inline code `text`
+	regex = RegEx.new()
+	regex.compile("`([^`]+)`")
+	bbcode = regex.sub(bbcode, "[code]$1[/code]", true)
+	
+	# Code blocks ```text```
+	regex = RegEx.new()
+	regex.compile("```([\\s\\S]*?)```")
+	bbcode = regex.sub(bbcode, "[code]$1[/code]", true)
+	
+	# Links [text](url)
+	regex = RegEx.new()
+	regex.compile("\\[([^\\]]+)\\]\\(([^)]+)\\)")
+	bbcode = regex.sub(bbcode, "[url=$2]$1[/url]", true)
+	
+	return bbcode
