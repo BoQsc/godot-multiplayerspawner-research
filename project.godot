@@ -14,7 +14,7 @@ config/name="godot-multiplayer-spawner-test"
 run/main_scene="uid://dslh1c7rihy52"
 config/features=PackedStringArray("4.4", "GL Compatibility")
 run/low_processor_mode=true
-config/icon="res://icon.svg"
+config/icon="res://releases/icon.svg"
 
 [editor_plugins]
 
