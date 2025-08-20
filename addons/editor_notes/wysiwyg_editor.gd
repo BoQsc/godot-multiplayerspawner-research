@@ -18,7 +18,7 @@ var italic_font: Font
 var bold_italic_font: Font
 var code_font: Font
 var font_size: int = 16
-var line_height: float = 20.0
+var line_height: float = 24.0
 var margin: Vector2 = Vector2(10, 10)
 
 # Colors
@@ -99,22 +99,23 @@ func draw_text_content():
 		var segment_color = get_color_for_segment(segment)
 		var segment_size = get_font_size_for_segment(segment)
 		
+		# Calculate actual line height based on font
+		var font_height = segment_font.get_height(segment_size)
+		current_line_height = max(current_line_height, font_height)
+		
 		# Handle line wrapping
 		var text_width = segment_font.get_string_size(segment.text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_size).x
-		if pos.x + text_width > size.x - margin.x:
+		if pos.x + text_width > size.x - margin.x and pos.x > margin.x:
 			pos.y += current_line_height
 			pos.x = margin.x
-			current_line_height = line_height
+			current_line_height = font_height
 		
-		# Draw text
-		draw_string(segment_font, pos, segment.text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_size, segment_color)
+		# Draw text at baseline position
+		var baseline_offset = segment_font.get_ascent(segment_size)
+		draw_string(segment_font, Vector2(pos.x, pos.y + baseline_offset), segment.text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_size, segment_color)
 		
 		# Update position
 		pos.x += text_width
-		
-		# Update line height for headers
-		if segment.has_formatting("header"):
-			current_line_height = max(current_line_height, segment_size * 1.2)
 
 func get_font_for_segment(segment: FormattedSegment) -> Font:
 	var is_bold = segment.has_formatting("bold")
@@ -145,14 +146,17 @@ func get_color_for_segment(segment: FormattedSegment) -> Color:
 func get_font_size_for_segment(segment: FormattedSegment) -> int:
 	if segment.has_formatting("header"):
 		var level = segment.formatting.get("header_level", 1)
+		var size: int
 		match level:
-			1: return font_size + 12
-			2: return font_size + 8
-			3: return font_size + 4
-			4: return font_size + 2
-			5: return font_size + 1
-			6: return font_size
-			_: return font_size
+			1: size = font_size + 8
+			2: size = font_size + 6
+			3: size = font_size + 4
+			4: size = font_size + 2
+			5: size = font_size + 1
+			6: size = font_size
+			_: size = font_size
+		print("Header detected: level=", level, " size=", size, " text='", segment.text, "'")
+		return size
 	else:
 		return font_size
 
@@ -160,76 +164,136 @@ func draw_cursor():
 	if not has_focus() or not cursor_visible:
 		return
 		
-	var cursor_pos = get_visual_position_for_char(cursor_position)
-	draw_line(cursor_pos, cursor_pos + Vector2(0, line_height), cursor_color, 2)
+	var cursor_info = get_visual_position_for_char(cursor_position)
+	var cursor_pos = cursor_info.position
+	var cursor_height = cursor_info.height
+	draw_line(cursor_pos, cursor_pos + Vector2(0, cursor_height), cursor_color, 2)
 
 func draw_selection():
 	if selection_start == -1 or selection_end == -1 or selection_start == selection_end:
 		return
 		
-	var start_pos = get_visual_position_for_char(min(selection_start, selection_end))
-	var end_pos = get_visual_position_for_char(max(selection_start, selection_end))
+	var start_info = get_visual_position_for_char(min(selection_start, selection_end))
+	var end_info = get_visual_position_for_char(max(selection_start, selection_end))
 	
-	# Simple selection rectangle (can be improved for multi-line)
-	var selection_rect = Rect2(start_pos, end_pos - start_pos + Vector2(0, line_height))
-	draw_rect(selection_rect, selection_color)
+	var start_pos = start_info.position
+	var end_pos = end_info.position
+	var selection_height = max(start_info.height, end_info.height)
+	
+	# Handle single line selection
+	if start_pos.y == end_pos.y:
+		var selection_rect = Rect2(start_pos, Vector2(end_pos.x - start_pos.x, selection_height))
+		draw_rect(selection_rect, selection_color)
+	else:
+		# Multi-line selection - draw multiple rectangles
+		var current_y = start_pos.y
+		var rect_height = selection_height
+		
+		# First line
+		var first_line_rect = Rect2(start_pos, Vector2(size.x - margin.x - start_pos.x, rect_height))
+		draw_rect(first_line_rect, selection_color)
+		
+		# Middle lines (if any)
+		current_y += rect_height
+		while current_y < end_pos.y:
+			var middle_rect = Rect2(Vector2(margin.x, current_y), Vector2(size.x - 2 * margin.x, rect_height))
+			draw_rect(middle_rect, selection_color)
+			current_y += rect_height
+		
+		# Last line
+		if end_pos.y > start_pos.y:
+			var last_line_rect = Rect2(Vector2(margin.x, end_pos.y), Vector2(end_pos.x - margin.x, rect_height))
+			draw_rect(last_line_rect, selection_color)
 
-func get_visual_position_for_char(char_index: int) -> Vector2:
+func get_visual_position_for_char(char_index: int) -> Dictionary:
 	var pos = margin
 	var char_count = 0
+	var current_line_height = line_height
 	
 	for segment in formatted_segments:
 		if segment.text == "\n":
 			if char_count >= char_index:
-				return pos
-			pos.y += line_height
+				return {"position": pos, "height": current_line_height}
+			pos.y += current_line_height
 			pos.x = margin.x
+			current_line_height = line_height
 			char_count += 1
 			continue
 			
 		var segment_font = get_font_for_segment(segment)
 		var segment_size = get_font_size_for_segment(segment)
+		var font_height = segment_font.get_height(segment_size)
+		current_line_height = max(current_line_height, font_height)
 		
 		if char_count + segment.text.length() >= char_index:
 			# Character is in this segment
 			var offset = char_index - char_count
 			var partial_text = segment.text.substr(0, offset)
 			var text_width = segment_font.get_string_size(partial_text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_size).x
-			return Vector2(pos.x + text_width, pos.y)
+			
+			# Handle line wrapping
+			if pos.x + text_width > size.x - margin.x and pos.x > margin.x:
+				pos.y += current_line_height
+				pos.x = margin.x
+				text_width = 0
+			
+			return {"position": Vector2(pos.x + text_width, pos.y), "height": font_height}
 		
 		# Move past this segment
 		var text_width = segment_font.get_string_size(segment.text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_size).x
+		
+		# Handle line wrapping
+		if pos.x + text_width > size.x - margin.x and pos.x > margin.x:
+			pos.y += current_line_height
+			pos.x = margin.x
+			current_line_height = font_height
+		
 		pos.x += text_width
 		char_count += segment.text.length()
 	
-	return pos
+	return {"position": pos, "height": current_line_height}
 
 func get_char_index_for_position(position: Vector2) -> int:
 	var pos = margin
 	var char_count = 0
-	var current_line_start = char_count
+	var current_line_height = line_height
 	
 	for segment in formatted_segments:
 		if segment.text == "\n":
-			if position.y <= pos.y + line_height:
+			if position.y <= pos.y + current_line_height:
 				return char_count
-			pos.y += line_height
+			pos.y += current_line_height
 			pos.x = margin.x
 			char_count += 1
-			current_line_start = char_count
+			current_line_height = line_height
 			continue
 			
 		var segment_font = get_font_for_segment(segment)
 		var segment_size = get_font_size_for_segment(segment)
+		var font_height = segment_font.get_height(segment_size)
+		current_line_height = max(current_line_height, font_height)
+		
 		var text_width = segment_font.get_string_size(segment.text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_size).x
 		
-		if position.y <= pos.y + line_height and position.x <= pos.x + text_width:
-			# Find character within this segment
-			for i in range(segment.text.length()):
-				var partial_width = segment_font.get_string_size(segment.text.substr(0, i + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, segment_size).x
-				if position.x <= pos.x + partial_width:
-					return char_count + i
-			return char_count + segment.text.length()
+		# Handle line wrapping
+		if pos.x + text_width > size.x - margin.x and pos.x > margin.x:
+			if position.y <= pos.y + current_line_height:
+				return char_count  # Click was on previous line
+			pos.y += current_line_height
+			pos.x = margin.x
+			current_line_height = font_height
+		
+		if position.y <= pos.y + current_line_height:
+			if position.x <= pos.x:
+				return char_count  # Before this segment
+			elif position.x <= pos.x + text_width:
+				# Find character within this segment
+				for i in range(segment.text.length()):
+					var partial_width = segment_font.get_string_size(segment.text.substr(0, i + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, segment_size).x
+					if position.x <= pos.x + partial_width:
+						return char_count + i
+				return char_count + segment.text.length()
+			# else continue to next segment on same line
 		
 		pos.x += text_width
 		char_count += segment.text.length()
@@ -269,14 +333,17 @@ func parse_line(line: String, start_pos: int):
 			header_level += 1
 			pos += 1
 		
+		# Headers need a space after # to be valid
 		if pos < line.length() and line[pos] == " ":
 			pos += 1  # Skip space after #
 			var header_text = line.substr(pos)
-			var segment = FormattedSegment.new(header_text, char_pos + pos, char_pos + line.length())
-			segment.set_formatting("header", true)
-			segment.set_formatting("header_level", header_level)
-			formatted_segments.append(segment)
-			return
+			if not header_text.is_empty():
+				var segment = FormattedSegment.new(header_text, char_pos + pos, char_pos + line.length())
+				segment.set_formatting("header", true)
+				segment.set_formatting("header_level", header_level)
+				formatted_segments.append(segment)
+				return
+		# If no space or no text after #, treat as regular text
 	
 	# Parse inline formatting
 	parse_inline_formatting(line, char_pos)
@@ -348,15 +415,18 @@ func _gui_input(event):
 				mouse_pressed = true
 				var char_index = get_char_index_for_position(event.position)
 				set_cursor_position(char_index)
-				clear_selection()
+				# Start selection at click position
+				selection_start = char_index
+				selection_end = char_index
 			else:
 				mouse_pressed = false
+				# If no actual selection was made, clear it
+				if selection_start == selection_end:
+					clear_selection()
 		queue_redraw()
 		
 	elif event is InputEventMouseMotion and mouse_pressed:
 		var char_index = get_char_index_for_position(event.position)
-		if selection_start == -1:
-			selection_start = cursor_position
 		selection_end = char_index
 		cursor_position = char_index
 		queue_redraw()
@@ -393,9 +463,9 @@ func handle_key_input(event: InputEventKey):
 			if event.ctrl_pressed:
 				cut_selection()
 		_:
-			if event.unicode > 0 and event.unicode < 128:
+			if event.unicode > 0 and event.unicode < 127:
 				var char = char(event.unicode)
-				if char.is_valid_unicode():
+				if char.length() > 0 and not char.is_empty():
 					insert_text(char)
 
 func set_cursor_position(pos: int):
@@ -461,7 +531,9 @@ func get_selected_text() -> String:
 		return ""
 	var start = min(selection_start, selection_end)
 	var end = max(selection_start, selection_end)
-	return content.substr(start, end - start)
+	var selected = content.substr(start, end - start)
+	print("Selection: start=", start, " end=", end, " text='", selected, "'")
+	return selected
 
 func delete_selection():
 	if not has_selection():
@@ -539,7 +611,10 @@ func apply_formatting(format_type: String, start_marker: String, end_marker: Str
 		var selected_text = content.substr(start, end - start)
 		var formatted_text = start_marker + selected_text + end_mark
 		
+		# Replace the selected text with formatted version
 		content = content.substr(0, start) + formatted_text + content.substr(end)
+		
+		# Position cursor after the formatted text
 		cursor_position = start + formatted_text.length()
 		clear_selection()
 	else:
@@ -547,7 +622,7 @@ func apply_formatting(format_type: String, start_marker: String, end_marker: Str
 		var formatted_text = start_marker + placeholder + end_mark
 		content = content.insert(cursor_position, formatted_text)
 		
-		# Select the placeholder
+		# Select the placeholder for easy editing
 		selection_start = cursor_position + start_marker.length()
 		selection_end = selection_start + placeholder.length()
 		cursor_position = selection_end
