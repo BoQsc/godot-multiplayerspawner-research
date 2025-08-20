@@ -30,7 +30,8 @@
       "Bash(del \"C:\\Users\\Windows10_new\\Documents\\godot-multiplayerspawner-research\\Account\\register_system.gd\")",
       "Bash(for file in \"Account/register.gd\" \"Account/login.gd\" \"Account/signin_ui.gd\" \"Account/user_identity.gd\" \"Account/device_binding.gd\" \"Account/device_binding_ui.gd\")",
       "Bash(do echo \"✅ $file\")",
-      "WebFetch(domain:docs.godotengine.org)"
+      "WebFetch(domain:docs.godotengine.org)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": [],

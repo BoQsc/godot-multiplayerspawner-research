@@ -5,7 +5,6 @@
 [ext_resource type="Script" uid="uid://c3am23wolfaqa" path="res://Account/user_identity.gd" id="2_client"]
 [ext_resource type="Script" uid="uid://s6h567f0i7pu" path="res://Account/login.gd" id="2_login"]
 [ext_resource type="Script" uid="uid://dnf2q8muyuek3" path="res://Account/register.gd" id="2_register"]
-[ext_resource type="Resource" path="../user:/world_data.tres" id="3_8mm7a"]
 [ext_resource type="Texture2D" uid="uid://bbkxfau70a8fc" path="res://assets/kenney_voxel-pack/Spritesheets/spritesheet_tiles.png" id="3_d5x1h"]
 [ext_resource type="Script" uid="uid://plwytekgsub" path="res://world_manager.gd" id="3_world"]
 [ext_resource type="Script" uid="uid://cpl17ylpgg0qb" path="res://game_manager.gd" id="4_game"]
@@ -1341,7 +1340,7 @@ script = ExtResource("4_game")
 [node name="WorldManager" type="Node2D" parent="." node_paths=PackedStringArray("world_tile_map_layer") groups=["world_manager"]]
 script = ExtResource("3_world")
 world_tile_map_layer = NodePath("WorldTileMapLayer")
-world_data = ExtResource("3_8mm7a")
+world_data = null
 player_to_move = "player_4"
 new_position = Vector2(158.905, 300)
 hide_insignificant_players = false
