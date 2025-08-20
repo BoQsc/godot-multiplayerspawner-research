@@ -59,6 +59,7 @@ layout_mode = 2
 layout_mode = 2
 
 [node name="VBoxContainer" type="HBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3"]
+visible = false
 layout_mode = 2
 
 [node name="Label2" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/VBoxContainer"]
