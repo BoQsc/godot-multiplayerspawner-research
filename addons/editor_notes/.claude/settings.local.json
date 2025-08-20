@@ -10,7 +10,8 @@
       "Bash(mv:*)",
       "Bash(rm:*)",
       "Bash(godot:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
