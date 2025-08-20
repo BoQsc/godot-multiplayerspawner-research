@@ -27,7 +27,7 @@ var last_modified_time: int = 0
 
 func _ready():
 	setup_rich_editor()
-	setup_toolbar()
+	setup_markdown_toolbar()  # New markdown-based toolbar
 	setup_file_monitoring()
 	load_notes()
 
@@ -52,8 +52,8 @@ func setup_rich_editor():
 	# Connect signals
 	rich_editor.text_changed.connect(_on_text_changed)
 
-func setup_toolbar():
-	# Find all toolbar buttons manually
+func setup_legacy_toolbar():
+	# LEGACY: Find all toolbar buttons manually - this is the old rich text approach
 	bold_btn = get_node_or_null("VBoxContainer/Toolbar/BoldBtn")
 	italic_btn = get_node_or_null("VBoxContainer/Toolbar/ItalicBtn")
 	underline_btn = get_node_or_null("VBoxContainer/Toolbar/UnderlineBtn")
@@ -71,18 +71,18 @@ func setup_toolbar():
 	
 	# Formatting buttons - with null checks
 	if bold_btn:
-		bold_btn.pressed.connect(func(): toggle_formatting("bold"))
+		bold_btn.pressed.connect(func(): toggle_formatting_legacy("bold"))
 	else:
 		print("ERROR: bold_btn is null!")
 	
 	if italic_btn:
-		italic_btn.pressed.connect(func(): toggle_formatting("italic"))
+		italic_btn.pressed.connect(func(): toggle_formatting_legacy("italic"))
 	if underline_btn:
-		underline_btn.pressed.connect(func(): toggle_formatting("underline"))
+		underline_btn.pressed.connect(func(): toggle_formatting_legacy("underline"))
 	if strikethrough_btn:
-		strikethrough_btn.pressed.connect(func(): toggle_formatting("strikethrough"))
+		strikethrough_btn.pressed.connect(func(): toggle_formatting_legacy("strikethrough"))
 	if code_btn:
-		code_btn.pressed.connect(func(): toggle_formatting("code"))
+		code_btn.pressed.connect(func(): toggle_formatting_legacy("code"))
 	
 	# Setup heading menu
 	setup_heading_menu()
@@ -108,7 +108,98 @@ func setup_toolbar():
 	if clear_btn:
 		clear_btn.pressed.connect(_clear_all)
 
-func toggle_formatting(format_type: String):
+func setup_markdown_toolbar():
+	# NEW: Markdown-based toolbar - inserts markdown syntax instead of rich formatting
+	
+	# Find all toolbar buttons manually
+	bold_btn = get_node_or_null("VBoxContainer/Toolbar/BoldBtn")
+	italic_btn = get_node_or_null("VBoxContainer/Toolbar/ItalicBtn")
+	underline_btn = get_node_or_null("VBoxContainer/Toolbar/UnderlineBtn")
+	strikethrough_btn = get_node_or_null("VBoxContainer/Toolbar/StrikethroughBtn")
+	code_btn = get_node_or_null("VBoxContainer/Toolbar/CodeBtn")
+	heading_btn = get_node_or_null("VBoxContainer/Toolbar/HeadingBtn")
+	list_btn = get_node_or_null("VBoxContainer/Toolbar/ListBtn")
+	quote_btn = get_node_or_null("VBoxContainer/Toolbar/QuoteBtn")
+	code_block_btn = get_node_or_null("VBoxContainer/Toolbar/CodeBlockBtn")
+	hr_btn = get_node_or_null("VBoxContainer/Toolbar/HRBtn")
+	link_btn = get_node_or_null("VBoxContainer/Toolbar/LinkBtn")
+	image_btn = get_node_or_null("VBoxContainer/Toolbar/ImageBtn")
+	table_btn = get_node_or_null("VBoxContainer/Toolbar/TableBtn")
+	clear_btn = get_node_or_null("VBoxContainer/Toolbar/ClearBtn")
+	
+	# Connect markdown formatting buttons
+	if bold_btn:
+		bold_btn.pressed.connect(func(): insert_markdown_formatting("**"))
+	if italic_btn:
+		italic_btn.pressed.connect(func(): insert_markdown_formatting("*"))
+	if underline_btn:
+		underline_btn.pressed.connect(func(): insert_markdown_formatting("<u>", "</u>"))  # HTML fallback
+	if strikethrough_btn:
+		strikethrough_btn.pressed.connect(func(): insert_markdown_formatting("~~"))
+	if code_btn:
+		code_btn.pressed.connect(func(): insert_markdown_formatting("`"))
+	
+	# Setup heading menu for markdown
+	setup_markdown_heading_menu()
+	
+	# Setup list menu for markdown
+	setup_markdown_list_menu()
+	
+	# Structure buttons for markdown
+	if quote_btn:
+		quote_btn.pressed.connect(_insert_markdown_blockquote)
+	if code_block_btn:
+		code_block_btn.pressed.connect(_insert_markdown_code_block)
+	if hr_btn:
+		hr_btn.pressed.connect(_insert_markdown_horizontal_rule)
+	
+	# Insert buttons for markdown
+	if link_btn:
+		link_btn.pressed.connect(_insert_markdown_link)
+	if image_btn:
+		image_btn.pressed.connect(_insert_markdown_image)
+	if table_btn:
+		table_btn.pressed.connect(_insert_markdown_table)
+	if clear_btn:
+		clear_btn.pressed.connect(_clear_all)
+
+func insert_markdown_formatting(start_marker: String, end_marker: String = ""):
+	if not rich_editor:
+		return
+	
+	# If no end marker provided, use the same as start (for **bold**, *italic*, etc.)
+	var end_mark = end_marker if end_marker != "" else start_marker
+	
+	if rich_editor.has_selection():
+		# Wrap selected text with markdown syntax
+		var selected_text = rich_editor.get_selected_text()
+		var formatted_text = start_marker + selected_text + end_mark
+		rich_editor.delete_selection()
+		insert_text(formatted_text)
+	else:
+		# Insert markers at cursor position and place cursor between them
+		var placeholder = "text"
+		var formatted_text = start_marker + placeholder + end_mark
+		insert_text(formatted_text)
+		# Move cursor to select the placeholder
+		var cursor_pos = rich_editor.cursor_position
+		rich_editor.cursor_position = cursor_pos - placeholder.length() - end_mark.length()
+		rich_editor.selection_start = cursor_pos - placeholder.length() - end_mark.length()
+		rich_editor.selection_end = cursor_pos - end_mark.length()
+
+func insert_text(text: String):
+	if not rich_editor:
+		return
+	
+	# Insert text at current cursor position
+	var cursor_pos = rich_editor.cursor_position
+	var current_text = rich_editor.get_text()
+	var new_text = current_text.insert(cursor_pos, text)
+	rich_editor.set_text(new_text)
+	rich_editor.cursor_position = cursor_pos + text.length()
+
+func toggle_formatting_legacy(format_type: String):
+	# LEGACY: Rich text formatting approach
 	if not rich_editor:
 		return
 	
@@ -219,6 +310,19 @@ func load_notes_without_losing_cursor():
 			
 			rich_editor.queue_redraw()
 
+func setup_markdown_heading_menu():
+	if not heading_btn:
+		return
+	var popup = heading_btn.get_popup()
+	popup.clear()  # Clear any existing items
+	popup.add_item("# H1", 1)
+	popup.add_item("## H2", 2)
+	popup.add_item("### H3", 3)
+	popup.add_item("#### H4", 4)
+	popup.add_item("##### H5", 5)
+	popup.add_item("###### H6", 6)
+	popup.id_pressed.connect(_on_markdown_heading_selected)
+
 func setup_heading_menu():
 	if not heading_btn:
 		return
@@ -231,6 +335,16 @@ func setup_heading_menu():
 	popup.add_item("H6", 5)
 	popup.id_pressed.connect(_on_heading_selected)
 
+func setup_markdown_list_menu():
+	if not list_btn:
+		return
+	var popup = list_btn.get_popup()
+	popup.clear()  # Clear any existing items
+	popup.add_item("- Bullet List", 0)
+	popup.add_item("1. Numbered List", 1)
+	popup.add_item("- [ ] Checklist", 2)
+	popup.id_pressed.connect(_on_markdown_list_selected)
+
 func setup_list_menu():
 	if not list_btn:
 		return
@@ -240,11 +354,50 @@ func setup_list_menu():
 	popup.add_item("☐ Checklist", 2)
 	popup.id_pressed.connect(_on_list_selected)
 
+func _on_markdown_heading_selected(id: int):
+	if not rich_editor:
+		return
+	
+	# Insert markdown heading syntax
+	var heading_markers = ["", "#", "##", "###", "####", "#####", "######"]
+	if id >= 1 and id <= 6:
+		insert_line_start_formatting(heading_markers[id] + " ")
+
 func _on_heading_selected(id: int):
 	if not rich_editor:
 		return
 	var heading_level = id + 1
 	rich_editor.insert_heading(heading_level)
+
+func _on_markdown_list_selected(id: int):
+	if not rich_editor:
+		return
+	
+	match id:
+		0: # Bullet list
+			insert_line_start_formatting("- ")
+		1: # Numbered list
+			insert_line_start_formatting("1. ")
+		2: # Checklist
+			insert_line_start_formatting("- [ ] ")
+
+func insert_line_start_formatting(prefix: String):
+	if not rich_editor:
+		return
+	
+	# Get current cursor position and find start of line
+	var cursor_pos = rich_editor.cursor_position
+	var text = rich_editor.get_text()
+	var line_start = cursor_pos
+	
+	# Find the start of current line
+	while line_start > 0 and text[line_start - 1] != '\n':
+		line_start -= 1
+	
+	# Insert prefix at start of line
+	var new_text = text.insert(line_start, prefix)
+	rich_editor.set_text(new_text)
+	rich_editor.cursor_position = cursor_pos + prefix.length()
 
 func _on_list_selected(id: int):
 	if not rich_editor:
@@ -257,6 +410,57 @@ func _on_list_selected(id: int):
 		2: # Checklist
 			rich_editor.insert_list_item("checklist")
 
+func _insert_markdown_blockquote():
+	insert_line_start_formatting("> ")
+
+func _insert_markdown_code_block():
+	var code_block = "```\ncode here\n```\n"
+	insert_text(code_block)
+	# Move cursor to select "code here"
+	var cursor_pos = rich_editor.cursor_position
+	rich_editor.cursor_position = cursor_pos - code_block.length() + 4  # After "```\n"
+	rich_editor.selection_start = cursor_pos - code_block.length() + 4
+	rich_editor.selection_end = cursor_pos - 4  # Before "\n```"
+
+func _insert_markdown_horizontal_rule():
+	insert_text("\n---\n")
+
+func _insert_markdown_link():
+	if rich_editor.has_selection():
+		var selected_text = rich_editor.get_selected_text()
+		var link_text = "[" + selected_text + "](url)"
+		rich_editor.delete_selection()
+		insert_text(link_text)
+		# Select "url" part for easy editing
+		var cursor_pos = rich_editor.cursor_position
+		rich_editor.selection_start = cursor_pos - 4  # Start of "url)"
+		rich_editor.selection_end = cursor_pos - 1   # End of "url"
+	else:
+		var link_text = "[text](url)"
+		insert_text(link_text)
+		# Select "text" part for easy editing
+		var cursor_pos = rich_editor.cursor_position
+		rich_editor.selection_start = cursor_pos - link_text.length() + 1  # After "["
+		rich_editor.selection_end = cursor_pos - 6  # Before "]"
+
+func _insert_markdown_image():
+	var image_text = "![alt text](image_url)"
+	insert_text(image_text)
+	# Select "alt text" for easy editing
+	var cursor_pos = rich_editor.cursor_position
+	rich_editor.selection_start = cursor_pos - image_text.length() + 2  # After "!["
+	rich_editor.selection_end = cursor_pos - 13  # Before "]"
+
+func _insert_markdown_table():
+	var table_text = """| Header 1 | Header 2 | Header 3 |
+|----------|----------|----------|
+| Cell 1   | Cell 2   | Cell 3   |
+| Cell 4   | Cell 5   | Cell 6   |
+
+"""
+	insert_text(table_text)
+
+# Legacy functions
 func _insert_blockquote():
 	if rich_editor:
 		rich_editor.insert_blockquote()
