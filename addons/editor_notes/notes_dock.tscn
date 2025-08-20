@@ -43,13 +43,6 @@ text = "I"
 tooltip_text = "Italic (Ctrl+I)"
 custom_minimum_size = Vector2(24, 24)
 
-[node name="UnderlineBtn" type="Button" parent="Toolbar"]
-layout_mode = 2
-focus_mode = 0
-flat = false
-text = "U"
-tooltip_text = "Underline (Ctrl+U)"
-custom_minimum_size = Vector2(24, 24)
 
 [node name="StrikethroughBtn" type="Button" parent="Toolbar"]
 layout_mode = 2

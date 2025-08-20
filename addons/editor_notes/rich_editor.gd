@@ -7,22 +7,20 @@ class TextSegment:
 	var text: String
 	var bold: bool = false
 	var italic: bool = false
-	var underline: bool = false
 	var strikethrough: bool = false
 	var code: bool = false
 	var heading_level: int = 0  # 0 = not a heading, 1-6 = H1-H6
 	
-	func _init(txt: String = "", b: bool = false, i: bool = false, u: bool = false, s: bool = false, c: bool = false, h: int = 0):
+	func _init(txt: String = "", b: bool = false, i: bool = false, s: bool = false, c: bool = false, h: int = 0):
 		text = txt
 		bold = b
 		italic = i
-		underline = u
 		strikethrough = s
 		code = c
 		heading_level = h
 	
 	func copy() -> TextSegment:
-		return TextSegment.new(text, bold, italic, underline, strikethrough, code, heading_level)
+		return TextSegment.new(text, bold, italic, strikethrough, code, heading_level)
 
 # Editor state
 var segments: Array[TextSegment] = []
@@ -612,11 +610,6 @@ func draw_text_segments():
 				else:
 					font.draw_string(get_canvas_item(), text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, segment_font_size, color)
 				
-				# Draw underline if needed
-				if segment.underline and not segment.code:
-					var underline_y = text_pos.y + 2
-					draw_line(Vector2(line_x, underline_y), Vector2(line_x + line_width, underline_y), color, 1.0)
-				
 				# Draw strikethrough if needed
 				if segment.strikethrough and not segment.code:
 					var strikethrough_y = text_pos.y - font.get_ascent(segment_font_size) / 2
@@ -746,8 +739,7 @@ func cleanup_segments():
 func segments_have_same_formatting(seg1: TextSegment, seg2: TextSegment) -> bool:
 	return (seg1.bold == seg2.bold and 
 			seg1.italic == seg2.italic and 
-			seg1.underline == seg2.underline and 
-			seg1.strikethrough == seg2.strikethrough and 
+					seg1.strikethrough == seg2.strikethrough and 
 			seg1.code == seg2.code and 
 			seg1.heading_level == seg2.heading_level)
 
@@ -1703,16 +1695,15 @@ func get_total_text_length() -> int:
 		total += segment.text.length()
 	return total
 
-func apply_formatting(bold: bool = false, italic: bool = false, underline: bool = false, strikethrough: bool = false, code: bool = false):
+func apply_formatting(bold: bool = false, italic: bool = false, strikethrough: bool = false, code: bool = false):
 	current_format.bold = bold
-	current_format.italic = italic  
-	current_format.underline = underline
+	current_format.italic = italic
 	current_format.strikethrough = strikethrough
 	current_format.code = code
 	
 	# If there's a selection, apply formatting to selected text
 	if selection_start != -1 and selection_end != -1:
-		apply_formatting_to_selection(bold, italic, underline, strikethrough, code)
+		apply_formatting_to_selection(bold, italic, strikethrough, code)
 	
 	queue_redraw()
 
@@ -1724,8 +1715,6 @@ func toggle_formatting_type(format_type: String):
 				current_format.bold = not current_format.bold
 			"italic":
 				current_format.italic = not current_format.italic
-			"underline":
-				current_format.underline = not current_format.underline
 			"strikethrough":
 				current_format.strikethrough = not current_format.strikethrough
 			"code":
@@ -1734,7 +1723,6 @@ func toggle_formatting_type(format_type: String):
 				if current_format.code:
 					current_format.bold = false
 					current_format.italic = false
-					current_format.underline = false
 					current_format.strikethrough = false
 		return
 	
@@ -1751,12 +1739,10 @@ func toggle_formatting_type(format_type: String):
 			toggle_specific_formatting_in_selection("bold", not has_formatting)
 		"italic":
 			toggle_specific_formatting_in_selection("italic", not has_formatting)
-		"underline":
-			toggle_specific_formatting_in_selection("underline", not has_formatting)
 		"strikethrough":
 			toggle_specific_formatting_in_selection("strikethrough", not has_formatting)
 		"code":
-			apply_formatting_to_selection(false, false, false, false, not has_formatting)
+			apply_formatting_to_selection(false, false, false, not has_formatting)
 	
 	queue_redraw()
 
@@ -1781,9 +1767,6 @@ func check_selection_has_formatting(format_type: String) -> bool:
 						return true
 				"italic":
 					if segment.italic:
-						return true
-				"underline":
-					if segment.underline:
 						return true
 				"strikethrough":
 					if segment.strikethrough:
@@ -1823,8 +1806,6 @@ func toggle_specific_formatting_in_selection(format_type: String, enable: bool):
 					new_segment.bold = enable
 				"italic":
 					new_segment.italic = enable
-				"underline":
-					new_segment.underline = enable
 				"strikethrough":
 					new_segment.strikethrough = enable
 			new_segments.append(new_segment)
@@ -1849,8 +1830,6 @@ func toggle_specific_formatting_in_selection(format_type: String, enable: bool):
 						selected_segment.bold = enable
 					"italic":
 						selected_segment.italic = enable
-					"underline":
-						selected_segment.underline = enable
 					"strikethrough":
 						selected_segment.strikethrough = enable
 				new_segments.append(selected_segment)
@@ -1874,7 +1853,7 @@ func toggle_specific_formatting_in_selection(format_type: String, enable: bool):
 	text_changed.emit()
 	queue_redraw()
 
-func apply_formatting_to_selection(bold: bool, italic: bool, underline: bool, strikethrough: bool, code: bool):
+func apply_formatting_to_selection(bold: bool, italic: bool, strikethrough: bool, code: bool):
 	if not has_selection():
 		return
 	
@@ -1898,7 +1877,6 @@ func apply_formatting_to_selection(bold: bool, italic: bool, underline: bool, st
 			var new_segment = segment.copy()
 			new_segment.bold = bold
 			new_segment.italic = italic
-			new_segment.underline = underline
 			new_segment.strikethrough = strikethrough
 			new_segment.code = code
 			new_segments.append(new_segment)
@@ -1920,7 +1898,6 @@ func apply_formatting_to_selection(bold: bool, italic: bool, underline: bool, st
 				selected_segment.text = selected_text
 				selected_segment.bold = bold
 				selected_segment.italic = italic
-				selected_segment.underline = underline
 				selected_segment.strikethrough = strikethrough
 				selected_segment.code = code
 				new_segments.append(selected_segment)

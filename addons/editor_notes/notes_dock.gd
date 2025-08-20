@@ -12,7 +12,6 @@ var mode_toggle_btn: Button
 # All buttons - will be found manually
 var bold_btn: Button
 var italic_btn: Button
-var underline_btn: Button
 var strikethrough_btn: Button
 var code_btn: Button
 var heading_btn: MenuButton
@@ -109,7 +108,6 @@ func setup_legacy_toolbar():
 	# LEGACY: Find all toolbar buttons manually - this is the old rich text approach
 	bold_btn = get_node_or_null("Toolbar/BoldBtn")
 	italic_btn = get_node_or_null("Toolbar/ItalicBtn")
-	underline_btn = get_node_or_null("Toolbar/UnderlineBtn")
 	strikethrough_btn = get_node_or_null("Toolbar/StrikethroughBtn")
 	code_btn = get_node_or_null("Toolbar/CodeBtn")
 	heading_btn = get_node_or_null("Toolbar/HeadingBtn")
@@ -130,8 +128,6 @@ func setup_legacy_toolbar():
 	
 	if italic_btn:
 		italic_btn.pressed.connect(func(): toggle_formatting_legacy("italic"))
-	if underline_btn:
-		underline_btn.pressed.connect(func(): toggle_formatting_legacy("underline"))
 	if strikethrough_btn:
 		strikethrough_btn.pressed.connect(func(): toggle_formatting_legacy("strikethrough"))
 	if code_btn:
@@ -167,7 +163,6 @@ func setup_markdown_toolbar():
 	# Find all toolbar buttons manually
 	bold_btn = get_node_or_null("Toolbar/BoldBtn")
 	italic_btn = get_node_or_null("Toolbar/ItalicBtn")
-	underline_btn = get_node_or_null("Toolbar/UnderlineBtn")
 	strikethrough_btn = get_node_or_null("Toolbar/StrikethroughBtn")
 	code_btn = get_node_or_null("Toolbar/CodeBtn")
 	heading_btn = get_node_or_null("Toolbar/HeadingBtn")
@@ -184,7 +179,6 @@ func setup_markdown_toolbar():
 	# Add transparent normal state to all buttons
 	add_transparent_normal_style(bold_btn)
 	add_transparent_normal_style(italic_btn)
-	add_transparent_normal_style(underline_btn)
 	add_transparent_normal_style(strikethrough_btn)
 	add_transparent_normal_style(code_btn)
 	add_transparent_normal_style(heading_btn)
@@ -203,8 +197,6 @@ func setup_markdown_toolbar():
 		bold_btn.pressed.connect(_apply_bold_formatting)
 	if italic_btn:
 		italic_btn.pressed.connect(_apply_italic_formatting)
-	if underline_btn:
-		underline_btn.pressed.connect(_apply_underline_formatting)
 	if strikethrough_btn:
 		strikethrough_btn.pressed.connect(_apply_strikethrough_formatting)
 	if code_btn:
@@ -315,8 +307,6 @@ func toggle_formatting_legacy(format_type: String):
 			rich_editor.toggle_formatting_type("bold")
 		"italic":
 			rich_editor.toggle_formatting_type("italic")
-		"underline":
-			rich_editor.toggle_formatting_type("underline")
 		"strikethrough":
 			rich_editor.toggle_formatting_type("strikethrough")
 		"code":
@@ -748,12 +738,6 @@ func _apply_italic_formatting():
 		1: # Render mode (display only - do nothing)
 			return
 
-func _apply_underline_formatting():
-	match current_mode:
-		0: # Source mode
-			insert_markdown_formatting("<u>", "</u>")
-		1: # Render mode (display only - do nothing)
-			return
 
 func _apply_strikethrough_formatting():
 	match current_mode:
