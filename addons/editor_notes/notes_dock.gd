@@ -2,9 +2,10 @@
 extends Control
 
 const RichEditor = preload("res://addons/editor_notes/rich_editor.gd")
+const WysiwygEditor = preload("res://addons/editor_notes/wysiwyg_editor.gd")
 
 var rich_editor: RichEditor
-var render_display: RichTextLabel
+var render_display: WysiwygEditor
 var is_render_mode: bool = true  # Default to render mode
 var mode_toggle_btn: Button
 
@@ -58,17 +59,18 @@ func setup_rich_editor():
 	rich_editor.text_changed.connect(_on_text_changed)
 
 func setup_render_display():
-	# Create the render display
-	render_display = RichTextLabel.new()
-	render_display.name = "RenderDisplay"
+	# Create the WYSIWYG render display
+	render_display = WysiwygEditor.new()
+	render_display.name = "WysiwygDisplay"
 	render_display.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	render_display.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	render_display.clip_contents = true
-	render_display.bbcode_enabled = true
-	render_display.scroll_following = false
 	
 	# Add to VBoxContainer
 	$VBoxContainer.add_child(render_display)
+	
+	# Connect signals
+	render_display.text_changed.connect(_on_wysiwyg_text_changed)
 	
 	# Ensure proper z-order
 	$VBoxContainer.move_child($VBoxContainer/Header, 0)
@@ -169,17 +171,17 @@ func setup_markdown_toolbar():
 	add_transparent_normal_style(clear_btn)
 	add_transparent_normal_style(mode_toggle_btn)
 	
-	# Connect markdown formatting buttons
+	# Connect formatting buttons that work in both modes
 	if bold_btn:
-		bold_btn.pressed.connect(func(): insert_markdown_formatting("**"))
+		bold_btn.pressed.connect(_apply_bold_formatting)
 	if italic_btn:
-		italic_btn.pressed.connect(func(): insert_markdown_formatting("*"))
+		italic_btn.pressed.connect(_apply_italic_formatting)
 	if underline_btn:
-		underline_btn.pressed.connect(func(): insert_markdown_formatting("<u>", "</u>"))  # HTML fallback
+		underline_btn.pressed.connect(_apply_underline_formatting)
 	if strikethrough_btn:
-		strikethrough_btn.pressed.connect(func(): insert_markdown_formatting("~~"))
+		strikethrough_btn.pressed.connect(_apply_strikethrough_formatting)
 	if code_btn:
-		code_btn.pressed.connect(func(): insert_markdown_formatting("`"))
+		code_btn.pressed.connect(_apply_code_formatting)
 	
 	# Setup heading menu for markdown
 	setup_markdown_heading_menu()
@@ -598,8 +600,7 @@ func update_render_display():
 		return
 	
 	var markdown_text = rich_editor.get_text()
-	var bbcode_text = markdown_to_bbcode(markdown_text)
-	render_display.text = bbcode_text
+	render_display.set_text(markdown_text)
 
 func markdown_to_bbcode(markdown: String) -> String:
 	var bbcode = markdown
@@ -685,3 +686,49 @@ func markdown_to_bbcode(markdown: String) -> String:
 	bbcode = regex.sub(bbcode, "[url=$2]$1[/url]", true)
 	
 	return bbcode
+
+func _on_wysiwyg_text_changed():
+	if not is_render_mode:
+		return
+	
+	# Update source editor when WYSIWYG content changes
+	var wysiwyg_text = render_display.get_text()
+	
+	# Temporarily disconnect to avoid infinite loop
+	rich_editor.text_changed.disconnect(_on_text_changed)
+	rich_editor.set_text(wysiwyg_text)
+	rich_editor.text_changed.connect(_on_text_changed)
+	
+	# Save changes
+	call_deferred("save_notes")
+
+# Formatting functions that work in both modes
+func _apply_bold_formatting():
+	if is_render_mode:
+		render_display.apply_formatting("bold", "**")
+	else:
+		insert_markdown_formatting("**")
+
+func _apply_italic_formatting():
+	if is_render_mode:
+		render_display.apply_formatting("italic", "*")
+	else:
+		insert_markdown_formatting("*")
+
+func _apply_underline_formatting():
+	if is_render_mode:
+		render_display.apply_formatting("underline", "<u>", "</u>")
+	else:
+		insert_markdown_formatting("<u>", "</u>")
+
+func _apply_strikethrough_formatting():
+	if is_render_mode:
+		render_display.apply_formatting("strikethrough", "~~")
+	else:
+		insert_markdown_formatting("~~")
+
+func _apply_code_formatting():
+	if is_render_mode:
+		render_display.apply_formatting("code", "`")
+	else:
+		insert_markdown_formatting("`")
