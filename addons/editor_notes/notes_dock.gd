@@ -715,9 +715,10 @@ func markdown_to_bbcode(markdown: String) -> String:
 	bbcode = regex.sub(bbcode, "[s]$1[/s]", true)
 	
 	# Code blocks ```text``` - process FIRST to avoid conflicts with inline code
+	# Handle code blocks with optional newlines after opening and before closing
 	regex = RegEx.new()
-	regex.compile("```([\\s\\S]*?)```")
-	bbcode = regex.sub(bbcode, "\n[bgcolor=#0d1117][color=#e6edf3]\n$1\n[/color][/bgcolor]\n", true)
+	regex.compile("```\\s*\\n([\\s\\S]*?)\\n\\s*```")
+	bbcode = regex.sub(bbcode, "[bgcolor=#0d1117][color=#e6edf3]\n$1\n[/color][/bgcolor]", true)
 	
 	# Inline code `text` - process after code blocks
 	regex = RegEx.new()
