@@ -2,12 +2,10 @@
 extends Control
 
 const RichEditor = preload("res://addons/editor_notes/rich_editor.gd")
-const WysiwygEditor = preload("res://addons/editor_notes/wysiwyg_editor.gd")
 
 var rich_editor: RichEditor
 var render_display: RichTextLabel  # Original render mode
-var wysiwyg_editor: WysiwygEditor   # New WYSIWYG editing mode
-var current_mode: int = 1  # 0 = source, 1 = render, 2 = wysiwyg
+var current_mode: int = 1  # 0 = source, 1 = render
 var mode_toggle_btn: Button
 
 # All buttons - will be found manually
@@ -33,7 +31,6 @@ var last_modified_time: int = 0
 func _ready():
 	setup_rich_editor()
 	setup_render_display()
-	setup_wysiwyg_editor()
 	setup_markdown_toolbar()  # New markdown-based toolbar
 	setup_file_monitoring()
 	load_notes()
@@ -79,26 +76,6 @@ func setup_render_display():
 	$VBoxContainer.move_child(rich_editor, 2)
 	$VBoxContainer.move_child(render_display, 3)
 
-func setup_wysiwyg_editor():
-	# Create the WYSIWYG editor
-	wysiwyg_editor = WysiwygEditor.new()
-	wysiwyg_editor.name = "WysiwygEditor"
-	wysiwyg_editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	wysiwyg_editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wysiwyg_editor.clip_contents = true
-	
-	# Add to VBoxContainer
-	$VBoxContainer.add_child(wysiwyg_editor)
-	
-	# Connect signals
-	wysiwyg_editor.text_changed.connect(_on_wysiwyg_text_changed)
-	
-	# Ensure proper z-order
-	$VBoxContainer.move_child($VBoxContainer/Header, 0)
-	$VBoxContainer.move_child($VBoxContainer/Toolbar, 1)
-	$VBoxContainer.move_child(rich_editor, 2)
-	$VBoxContainer.move_child(render_display, 3)
-	$VBoxContainer.move_child(wysiwyg_editor, 4)
 
 func setup_legacy_toolbar():
 	# LEGACY: Find all toolbar buttons manually - this is the old rich text approach
@@ -328,8 +305,6 @@ func _on_text_changed():
 	match current_mode:
 		1: # Render mode
 			call_deferred("update_render_display")
-		2: # WYSIWYG mode
-			call_deferred("update_wysiwyg_display")
 
 func save_notes():
 	if not rich_editor:
@@ -367,8 +342,6 @@ func load_notes():
 			match current_mode:
 				1: # Render mode
 					call_deferred("update_render_display")
-				2: # WYSIWYG mode
-					call_deferred("update_wysiwyg_display")
 
 func setup_file_monitoring():
 	# Create timer for file monitoring
@@ -423,8 +396,6 @@ func load_notes_without_losing_cursor():
 			match current_mode:
 				1: # Render mode
 					call_deferred("update_render_display")
-				2: # WYSIWYG mode
-					call_deferred("update_wysiwyg_display")
 
 func setup_markdown_heading_menu():
 	if not heading_btn:
@@ -601,9 +572,9 @@ func _insert_table():
 	if rich_editor:
 		rich_editor.insert_table()
 
-# Three-mode functions
+# Two-mode functions
 func _toggle_mode():
-	current_mode = (current_mode + 1) % 3
+	current_mode = (current_mode + 1) % 2
 	set_mode(current_mode)
 
 func set_mode(mode: int):
@@ -612,7 +583,6 @@ func set_mode(mode: int):
 	# Hide all displays first
 	rich_editor.visible = false
 	render_display.visible = false
-	wysiwyg_editor.visible = false
 	
 	match current_mode:
 		0: # Source mode
@@ -620,17 +590,11 @@ func set_mode(mode: int):
 			if mode_toggle_btn:
 				mode_toggle_btn.text = "👁"
 				mode_toggle_btn.tooltip_text = "Switch to Render Mode"
-		1: # Render mode (original BBCode display)
+		1: # Render mode
 			render_display.visible = true
 			update_render_display()
 			if mode_toggle_btn:
 				mode_toggle_btn.text = "✏️"
-				mode_toggle_btn.tooltip_text = "Switch to WYSIWYG Mode"
-		2: # WYSIWYG editing mode
-			wysiwyg_editor.visible = true
-			update_wysiwyg_display()
-			if mode_toggle_btn:
-				mode_toggle_btn.text = "📝"
 				mode_toggle_btn.tooltip_text = "Switch to Source Mode"
 
 func update_render_display():
@@ -641,12 +605,6 @@ func update_render_display():
 	var bbcode_text = markdown_to_bbcode(markdown_text)
 	render_display.text = bbcode_text
 
-func update_wysiwyg_display():
-	if not wysiwyg_editor or not rich_editor:
-		return
-	
-	var markdown_text = rich_editor.get_text()
-	wysiwyg_editor.set_text(markdown_text)
 
 func markdown_to_bbcode(markdown: String) -> String:
 	var bbcode = markdown
@@ -733,30 +691,14 @@ func markdown_to_bbcode(markdown: String) -> String:
 	
 	return bbcode
 
-func _on_wysiwyg_text_changed():
-	if current_mode != 2:  # Only update if in WYSIWYG mode
-		return
-	
-	# Update source editor when WYSIWYG content changes
-	var wysiwyg_text = wysiwyg_editor.get_text()
-	
-	# Temporarily disconnect to avoid infinite loop
-	rich_editor.text_changed.disconnect(_on_text_changed)
-	rich_editor.set_text(wysiwyg_text)
-	rich_editor.text_changed.connect(_on_text_changed)
-	
-	# Save changes
-	call_deferred("save_notes")
 
-# Formatting functions that work in all three modes
+# Formatting functions that work in both modes
 func _apply_bold_formatting():
 	match current_mode:
 		0: # Source mode
 			insert_markdown_formatting("**")
 		1: # Render mode (display only)
 			insert_markdown_formatting("**")
-		2: # WYSIWYG mode
-			wysiwyg_editor.apply_formatting("bold", "**")
 
 func _apply_italic_formatting():
 	match current_mode:
@@ -764,8 +706,6 @@ func _apply_italic_formatting():
 			insert_markdown_formatting("*")
 		1: # Render mode (display only)
 			insert_markdown_formatting("*")
-		2: # WYSIWYG mode
-			wysiwyg_editor.apply_formatting("italic", "*")
 
 func _apply_underline_formatting():
 	match current_mode:
@@ -773,8 +713,6 @@ func _apply_underline_formatting():
 			insert_markdown_formatting("<u>", "</u>")
 		1: # Render mode (display only)
 			insert_markdown_formatting("<u>", "</u>")
-		2: # WYSIWYG mode
-			wysiwyg_editor.apply_formatting("underline", "<u>", "</u>")
 
 func _apply_strikethrough_formatting():
 	match current_mode:
@@ -782,8 +720,6 @@ func _apply_strikethrough_formatting():
 			insert_markdown_formatting("~~")
 		1: # Render mode (display only)
 			insert_markdown_formatting("~~")
-		2: # WYSIWYG mode
-			wysiwyg_editor.apply_formatting("strikethrough", "~~")
 
 func _apply_code_formatting():
 	match current_mode:
@@ -791,5 +727,3 @@ func _apply_code_formatting():
 			insert_markdown_formatting("`")
 		1: # Render mode (display only)
 			insert_markdown_formatting("`")
-		2: # WYSIWYG mode
-			wysiwyg_editor.apply_formatting("code", "`")
