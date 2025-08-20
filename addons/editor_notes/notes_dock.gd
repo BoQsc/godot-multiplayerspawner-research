@@ -6,6 +6,7 @@ const RichEditor = preload("res://addons/editor_notes/rich_editor.gd")
 var rich_editor: RichEditor
 var render_display: RichTextLabel  # Original render mode
 var render_container: ScrollContainer  # Container for render content with images
+var custom_render_container: VBoxContainer  # Custom container for mixed text/image content
 var image_overlays: Array[TextureRect] = []  # Track image overlay controls
 var created_overlays: Dictionary = {}  # Track which images we've already created overlays for
 var render_context_menu: PopupMenu  # Context menu for render mode
@@ -637,12 +638,72 @@ func update_render_display():
 	if not render_display or not rich_editor:
 		return
 	
-	# Clear any previous image overlays (external TextureRect controls)
-	clear_image_overlays()
-	
 	var markdown_text = rich_editor.get_text()
 	var bbcode_text = markdown_to_bbcode(markdown_text)
 	render_display.text = bbcode_text
+
+func create_mixed_content_display(bbcode_text: String):
+	# Create custom container if it doesn't exist
+	if not custom_render_container:
+		custom_render_container = VBoxContainer.new()
+		custom_render_container.name = "CustomRenderContainer"
+		custom_render_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		custom_render_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		render_display.get_parent().add_child(custom_render_container)
+		# Position it in the same place as render_display
+		custom_render_container.position = render_display.position
+		custom_render_container.size = render_display.size
+	
+	# Clear existing content
+	for child in custom_render_container.get_children():
+		child.queue_free()
+	
+	# Hide regular render display and show custom container
+	render_display.visible = false
+	custom_render_container.visible = true
+	
+	# Split content by image markers and create mixed layout
+	var parts = bbcode_text.split("<<<IMAGE:")
+	
+	# Add first text part (before any images)
+	if parts.size() > 0 and parts[0].strip_edges() != "":
+		add_text_block(parts[0])
+	
+	# Process remaining parts (each starts with image info)
+	for i in range(1, parts.size()):
+		var part = parts[i]
+		var marker_end = part.find(">>>")
+		if marker_end != -1:
+			var image_info = part.substr(0, marker_end)
+			var remaining_text = part.substr(marker_end + 3)
+			
+			# Parse image info: "path:alt_text"
+			var info_parts = image_info.split(":", 2)
+			if info_parts.size() >= 2:
+				var image_path = info_parts[0]
+				var alt_text = info_parts[1]
+				add_image_block(image_path, alt_text)
+			
+			# Add remaining text after image
+			if remaining_text.strip_edges() != "":
+				add_text_block(remaining_text)
+
+func add_text_block(bbcode_text: String):
+	var label = RichTextLabel.new()
+	label.bbcode_enabled = true
+	label.text = bbcode_text
+	label.fit_content = true
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	custom_render_container.add_child(label)
+
+func add_image_block(image_path: String, alt_text: String):
+	var texture = load_image_texture(image_path)
+	if texture:
+		var texture_rect = TextureRect.new()
+		texture_rect.texture = texture
+		texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		texture_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		custom_render_container.add_child(texture_rect)
 
 func clear_image_overlays():
 	# Remove all existing image overlay controls
@@ -778,31 +839,27 @@ func process_remote_image(url: String, alt_text: String) -> String:
 		file_extension = "." + url.get_extension()
 	
 	var cached_file_path = cache_dir + str(url_hash) + file_extension
+	var image_key = "img_" + str(url_hash)
 	
 	# Check if image is cached
 	if FileAccess.file_exists(cached_file_path):
-		# Load and register the image texture with RichTextLabel
-		return register_image_with_rtl(cached_file_path, alt_text, url_hash)
+		# Load image and create a texture resource that can be referenced
+		var texture = load_image_texture(cached_file_path)
+		if texture:
+			# Store texture in a resource file that BBCode can reference
+			var temp_resource_path = "user://temp_img_" + str(url_hash) + ".tres"
+			ResourceSaver.save(texture, temp_resource_path)
+			return "[img]" + temp_resource_path + "[/img]"
+		else:
+			return "[color=red]Failed to load: " + alt_text + "[/color]"
 	else:
 		# Download and show loading placeholder
-		download_image_with_callback(url, cached_file_path, alt_text, url_hash)
-		return "\n[color=#6a6a6a]Loading: " + alt_text + "...[/color]\n"
+		download_image_with_callback(url, cached_file_path, alt_text, url_hash)  
+		return "[color=#6a6a6a]Loading: " + alt_text + "...[/color]"
 
 func process_local_image(image_src: String, alt_text: String) -> String:
-	# Convert relative paths to absolute
-	var absolute_path = image_src
-	if not image_src.begins_with("res://") and not image_src.begins_with("user://"):
-		if not image_src.begins_with("/"):
-			absolute_path = "res://" + image_src
-		else:
-			absolute_path = "res://" + image_src
-	
-	# For local images, try to load if it exists
-	if FileAccess.file_exists(absolute_path) or ResourceLoader.exists(absolute_path):
-		var path_hash = absolute_path.hash()
-		return register_image_with_rtl(absolute_path, alt_text, path_hash)
-	else:
-		return "\n[color=red]Missing: " + alt_text + " (" + image_src + ")[/color]\n"
+	# For now, just show a simple placeholder for local images to avoid res:// errors
+	return "[color=#6a9955]📁 Local Image: " + alt_text + "[/color]"
 
 func register_image_with_rtl(image_path: String, alt_text: String, hash_id: int) -> String:
 	# Check if we've already registered this image
@@ -813,19 +870,15 @@ func register_image_with_rtl(image_path: String, alt_text: String, hash_id: int)
 	if not texture:
 		return "\n[color=red]Failed to load: " + alt_text + "[/color]\n"
 	
-	# Register the image with RichTextLabel using correct parameters
+	# Register the image with RichTextLabel during processing
 	if render_display:
-		# Clear images first to avoid conflicts
-		if render_display.has_method("clear_images"):
-			render_display.clear_images()
-		
 		# Add the resized image with correct parameters for Godot 4
 		render_display.add_image(texture, 0, 0, Color.WHITE, INLINE_ALIGNMENT_CENTER, Rect2(), image_key)
 		
-		# Return BBCode to display the image inline
-		return "\n[img=" + image_key + "]\n"
+		# Return BBCode to display the image inline at this exact position
+		return "[img=" + image_key + "]"
 	
-	return "\n[color=red]Display not available: " + alt_text + "[/color]\n"
+	return "[color=red]Failed to load: " + alt_text + "[/color]"
 
 func download_and_cache_image_simple(url: String, alt_text: String):
 	# Simple download without image registration - just for caching
@@ -1166,6 +1219,11 @@ func download_image_with_callback(url: String, cache_path: String, alt_text: Str
 				file.store_buffer(body)
 				file.close()
 				print("Downloaded: ", alt_text)
+				# Save the image as a resource file so BBCode can reference it
+				var texture = load_image_texture(cache_path)
+				if texture:
+					var temp_resource_path = "user://temp_img_" + str(url_hash) + ".tres"
+					ResourceSaver.save(texture, temp_resource_path)
 				# Refresh the entire display to replace loading text with image
 				call_deferred("update_render_display")
 	
