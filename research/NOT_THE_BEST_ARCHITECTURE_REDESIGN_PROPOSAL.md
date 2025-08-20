@@ -234,40 +234,77 @@ GameEvents.terrain_modification_requested.emit(coords, tile_data)
 GameEvents.dialog_requested.emit("connection", {})
 ```
 
-## File Structure
+## File Structure (Domain-Driven Organization)
+
+**MUCH BETTER APPROACH: Organize by Feature/Domain**
+
+The original proposal separated data and logic artificially. Here's the intuitive approach:
 
 ```
 res://
 ├── core/
 │   ├── GameSession.gd          # Main coordinator
-│   ├── GameConfig.gd           # Configuration constants
+│   ├── GameConfig.gd           # Global configuration
 │   └── GameEvents.gd           # Event definitions
-├── systems/
-│   ├── NetworkSystem.gd        # Network communication
-│   ├── PlayerSystem.gd         # Player management  
-│   ├── WorldSystem.gd          # World/terrain only
-│   ├── UIManager.gd            # All UI handling
-│   ├── AuthSystem.gd           # Authentication
-│   └── DataSystem.gd           # Save/load operations
-├── ui/
-│   ├── menus/
-│   │   ├── MainMenu.gd
-│   │   └── ConnectionDialog.gd
-│   ├── hud/
-│   │   ├── PlayerHUD.gd
-│   │   └── PlayerList.gd
-│   └── dialogs/
-│       ├── DeviceBinding.gd
-│       └── Registration.gd
-├── data/
+├── networking/
+│   ├── NetworkSystem.gd        # Connection management
+│   ├── NetworkData.gd          # Network-related data structures
+│   ├── ReconnectionHandler.gd  # Reconnection logic
+│   └── RPCManager.gd           # RPC routing and rate limiting
+├── players/
+│   ├── PlayerSystem.gd         # Player management logic
 │   ├── PlayerData.gd           # Player data model
-│   ├── WorldData.gd            # World data model
+│   ├── PlayerEntity.gd         # Player scene/entity
+│   ├── PlayerSpawner.gd        # Spawning logic
+│   └── ui/
+│       ├── PlayerList.gd       # Player list UI
+│       └── PlayerHUD.gd        # Player HUD
+├── world/
+│   ├── WorldSystem.gd          # World management logic
+│   ├── WorldData.gd            # World data model  
+│   ├── TerrainManager.gd       # Tile operations
+│   ├── SpawnPointManager.gd    # Spawn management
+│   └── editor/
+│       ├── WorldEditor.gd      # Editor-specific world tools
+│       └── WorldEditorUI.gd    # Editor UI panels
+├── authentication/
+│   ├── AuthSystem.gd           # Authentication logic
 │   ├── ClientData.gd           # Client identity model
-│   └── GameSave.gd             # Save file format
-└── entities/
-    ├── Player.gd               # Player entity
-    └── Entity.gd               # Base entity
+│   ├── DeviceBinding.gd        # Device binding logic
+│   └── ui/
+│       ├── LoginDialog.gd      # Login UI
+│       ├── RegisterDialog.gd   # Registration UI
+│       └── DeviceBindingUI.gd  # Device binding UI
+├── persistence/
+│   ├── DataSystem.gd           # Save/load coordination
+│   ├── WorldSaver.gd           # World persistence
+│   ├── PlayerSaver.gd          # Player persistence
+│   ├── GameSave.gd             # Save file format
+│   └── SaveMigrator.gd         # Handle save format changes
+└── ui/
+    ├── UIManager.gd            # UI coordination only
+    ├── ConnectionDialog.gd     # Server connection UI
+    ├── MainMenu.gd             # Main menu
+    └── shared/
+        ├── Dialog.gd           # Base dialog class
+        └── UIHelpers.gd        # Reusable UI utilities
 ```
+
+**Why Domain-Driven is Much Better:**
+
+1. **Everything related to players is in one place** - data, logic, UI, spawning
+2. **Want to modify networking?** Everything is in the `networking/` folder  
+3. **Working on authentication?** All related files are together
+4. **Adding world features?** You know exactly where to look and add code
+5. **Each folder can be developed independently** by different team members
+6. **When you think "I need to fix player spawning"** → go to `players/` folder
+7. **New developer asks "where's the auth code?"** → point to `authentication/` folder
+
+**The Technical Layer Approach is Backwards:**
+- Splits related functionality across multiple folders
+- Forces you to remember "data goes here, logic goes there, UI goes over there"  
+- Makes simple changes require editing files in 3+ different locations
+- Optimizes for framework categories instead of human mental models
 
 ## Centralized Configuration
 
