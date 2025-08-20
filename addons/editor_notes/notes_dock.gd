@@ -5,6 +5,9 @@ const RichEditor = preload("res://addons/editor_notes/rich_editor.gd")
 
 var rich_editor: RichEditor
 var render_display: RichTextLabel  # Original render mode
+var render_container: ScrollContainer  # Container for render content with images
+var image_overlays: Array[TextureRect] = []  # Track image overlay controls
+var created_overlays: Dictionary = {}  # Track which images we've already created overlays for
 var render_context_menu: PopupMenu  # Context menu for render mode
 var current_mode: int = 1  # 0 = source, 1 = render
 var mode_toggle_btn: Button
@@ -634,6 +637,26 @@ func update_render_display():
 	if not render_display or not rich_editor:
 		return
 	
+	# Clear any previous image overlays (external TextureRect controls)
+	clear_image_overlays()
+	
+	var markdown_text = rich_editor.get_text()
+	var bbcode_text = markdown_to_bbcode(markdown_text)
+	render_display.text = bbcode_text
+
+func clear_image_overlays():
+	# Remove all existing image overlay controls
+	for overlay in image_overlays:
+		if is_instance_valid(overlay):
+			overlay.queue_free()
+	image_overlays.clear()
+	created_overlays.clear()  # Reset the tracking dictionary
+
+func update_render_text_only():
+	# Update just the text content without recreating image overlays
+	if not render_display or not rich_editor:
+		return
+	
 	var markdown_text = rich_editor.get_text()
 	var bbcode_text = markdown_to_bbcode(markdown_text)
 	render_display.text = bbcode_text
@@ -718,12 +741,250 @@ func markdown_to_bbcode(markdown: String) -> String:
 	regex.compile("`([^`]+)`")
 	bbcode = regex.sub(bbcode, "[bgcolor=#1a1a1a][color=#f0f0f0] $1 [/color][/bgcolor]", true)
 	
+	# Images ![alt](src) - process before links to avoid conflicts
+	regex = RegEx.new()
+	regex.compile("!\\[([^\\]]*)\\]\\(([^)]+)\\)")
+	var matches = regex.search_all(bbcode)
+	for match in matches:
+		var alt_text = match.get_string(1)
+		var image_src = match.get_string(2)
+		var image_bbcode = process_image(image_src, alt_text)
+		bbcode = bbcode.replace(match.get_string(0), image_bbcode)
+	
 	# Links [text](url)
 	regex = RegEx.new()
 	regex.compile("\\[([^\\]]+)\\]\\(([^)]+)\\)")
 	bbcode = regex.sub(bbcode, "[url=$2]$1[/url]", true)
 	
 	return bbcode
+
+func process_image(image_src: String, alt_text: String) -> String:
+	if image_src.begins_with("http://") or image_src.begins_with("https://"):
+		# For remote images, check if cached and load, otherwise download
+		return process_remote_image(image_src, alt_text)
+	else:
+		# For local images, try to load directly
+		return process_local_image(image_src, alt_text)
+
+func process_remote_image(url: String, alt_text: String) -> String:
+	# Create cache path
+	var cache_dir = "user://image_cache/"
+	if not DirAccess.dir_exists_absolute(cache_dir):
+		DirAccess.open("user://").make_dir_recursive("image_cache")
+	
+	var url_hash = url.hash()
+	var file_extension = ".jpg"  # Default
+	if url.get_extension() in ["jpg", "jpeg", "png", "gif", "bmp", "webp"]:
+		file_extension = "." + url.get_extension()
+	
+	var cached_file_path = cache_dir + str(url_hash) + file_extension
+	
+	# Check if image is cached
+	if FileAccess.file_exists(cached_file_path):
+		# Load and register the image texture with RichTextLabel
+		return register_image_with_rtl(cached_file_path, alt_text, url_hash)
+	else:
+		# Download and show loading placeholder
+		download_image_with_callback(url, cached_file_path, alt_text, url_hash)
+		return "\n[color=#6a6a6a]Loading: " + alt_text + "...[/color]\n"
+
+func process_local_image(image_src: String, alt_text: String) -> String:
+	# Convert relative paths to absolute
+	var absolute_path = image_src
+	if not image_src.begins_with("res://") and not image_src.begins_with("user://"):
+		if not image_src.begins_with("/"):
+			absolute_path = "res://" + image_src
+		else:
+			absolute_path = "res://" + image_src
+	
+	# For local images, try to load if it exists
+	if FileAccess.file_exists(absolute_path) or ResourceLoader.exists(absolute_path):
+		var path_hash = absolute_path.hash()
+		return register_image_with_rtl(absolute_path, alt_text, path_hash)
+	else:
+		return "\n[color=red]Missing: " + alt_text + " (" + image_src + ")[/color]\n"
+
+func register_image_with_rtl(image_path: String, alt_text: String, hash_id: int) -> String:
+	# Check if we've already registered this image
+	var image_key = "img_" + str(hash_id)
+	
+	# Load and resize the image
+	var texture = load_image_texture(image_path)
+	if not texture:
+		return "\n[color=red]Failed to load: " + alt_text + "[/color]\n"
+	
+	# Register the image with RichTextLabel using correct parameters
+	if render_display:
+		# Clear images first to avoid conflicts
+		if render_display.has_method("clear_images"):
+			render_display.clear_images()
+		
+		# Add the resized image with correct parameters for Godot 4
+		render_display.add_image(texture, 0, 0, Color.WHITE, INLINE_ALIGNMENT_CENTER, Rect2(), image_key)
+		
+		# Return BBCode to display the image inline
+		return "\n[img=" + image_key + "]\n"
+	
+	return "\n[color=red]Display not available: " + alt_text + "[/color]\n"
+
+func download_and_cache_image_simple(url: String, alt_text: String):
+	# Simple download without image registration - just for caching
+	var cache_dir = "user://image_cache/"
+	if not DirAccess.dir_exists_absolute(cache_dir):
+		DirAccess.open("user://").make_dir_recursive("image_cache")
+	
+	var url_hash = url.hash()
+	var file_extension = ".png"
+	if url.get_extension() in ["jpg", "jpeg", "png", "gif", "bmp", "webp"]:
+		file_extension = "." + url.get_extension()
+	
+	var cached_file_path = cache_dir + str(url_hash) + file_extension
+	
+	if not FileAccess.file_exists(cached_file_path):
+		download_image_async_simple(url, cached_file_path, alt_text)
+
+func download_image_async_simple(url: String, cache_path: String, alt_text: String):
+	var http_request = HTTPRequest.new()
+	add_child(http_request)
+	
+	var callable = func(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray):
+		http_request.queue_free()
+		if response_code == 200 and body.size() > 0:
+			var file = FileAccess.open(cache_path, FileAccess.WRITE)
+			if file:
+				file.store_buffer(body)
+				file.close()
+				print("Downloaded and cached image: ", alt_text)
+	
+	http_request.request_completed.connect(callable)
+	http_request.request(url)
+
+func download_and_cache_image_sync(url: String, alt_text: String) -> String:
+	# Create a cache directory for downloaded images
+	var cache_dir = "user://image_cache/"
+	if not DirAccess.dir_exists_absolute(cache_dir):
+		DirAccess.open("user://").make_dir_recursive("image_cache")
+	
+	# Generate a filename from the URL hash
+	var url_hash = url.hash()
+	var file_extension = ".png"  # Default extension
+	if url.get_extension() in ["jpg", "jpeg", "png", "gif", "bmp", "webp"]:
+		file_extension = "." + url.get_extension()
+	
+	var cached_file_path = cache_dir + str(url_hash) + file_extension
+	
+	# Check if image is already cached
+	if FileAccess.file_exists(cached_file_path):
+		# Try to load the cached image
+		return try_load_cached_image(cached_file_path, alt_text, url_hash)
+	else:
+		# If not cached, start async download and return placeholder
+		download_image_async(url, cached_file_path, alt_text, url_hash)
+		return "[color=#4a9eff][🔄 Loading: " + alt_text + "...][/color]"
+
+func try_load_local_image(file_path: String, alt_text: String) -> String:
+	print("DEBUG: try_load_local_image called with file_path='", file_path, "' alt='", alt_text, "'")
+	
+	# Validate the file path first
+	if file_path == "" or file_path == "res://":
+		print("DEBUG: Empty or invalid file_path detected: '", file_path, "'")
+		return "[color=red][❌ Empty image path: " + alt_text + "][/color]"
+	
+	# For imported resources (res:// paths), verify the file exists first
+	if file_path.begins_with("res://"):
+		print("DEBUG: Checking if resource exists: ", file_path)
+		if ResourceLoader.exists(file_path):
+			print("DEBUG: Resource exists, returning BBCode")
+			return "[img]" + file_path + "[/img]"
+		else:
+			print("DEBUG: Resource does not exist")
+			return "[color=red][❌ Resource not found: " + alt_text + " (" + file_path + ")][/color]"
+	else:
+		# For non-imported files, show info
+		print("DEBUG: Non-res:// path, showing placeholder")
+		return "[color=#6a9955][📁 Local Image: " + alt_text + " (" + file_path + ")][/color]"
+
+func try_load_cached_image(file_path: String, alt_text: String, url_hash: int) -> String:
+	var image_key = "cached_img_" + str(url_hash)
+	
+	# Load the image data and create an ImageTexture
+	var image = Image.new()
+	var error = load_image_from_file(image, file_path)
+	
+	if error == OK:
+		# Create texture and register it with RichTextLabel
+		var texture = ImageTexture.new()
+		texture.set_image(image)
+		
+		# Add the texture with a unique key
+		if render_display:
+			print("DEBUG: Registering image: ", image_key)
+			render_display.add_image(texture, 400, 0, Color.WHITE, INLINE_ALIGNMENT_CENTER, Rect2(), image_key)
+			return "[img=" + image_key + "][/img]"
+	
+	# If loading failed, show error
+	return "[color=red][❌ Failed to load: " + alt_text + "][/color]"
+
+func load_image_from_file(image: Image, file_path: String) -> int:
+	var file = FileAccess.open(file_path, FileAccess.READ)
+	if not file:
+		return ERR_FILE_CANT_OPEN
+	
+	var file_data = file.get_buffer(file.get_length())
+	file.close()
+	
+	# Try different image formats based on extension
+	var ext = file_path.get_extension().to_lower()
+	match ext:
+		"jpg", "jpeg":
+			return image.load_jpg_from_buffer(file_data)
+		"png":
+			return image.load_png_from_buffer(file_data)
+		"webp":
+			return image.load_webp_from_buffer(file_data)
+		_:
+			# Try PNG first, then JPG
+			var error = image.load_png_from_buffer(file_data)
+			if error != OK:
+				error = image.load_jpg_from_buffer(file_data)
+			return error
+
+func download_image_async(url: String, cache_path: String, alt_text: String, url_hash: int):
+	# Create an HTTP request
+	var http_request = HTTPRequest.new()
+	add_child(http_request)
+	
+	# Set up the completion handler
+	var callable = func(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray):
+		http_request.queue_free()
+		
+		if response_code == 200 and body.size() > 0:
+			# Save the image to cache
+			var file = FileAccess.open(cache_path, FileAccess.WRITE)
+			if file:
+				file.store_buffer(body)
+				file.close()
+				print("Downloaded and cached image: ", alt_text)
+				
+				# Load the image and add it to RichTextLabel
+				var image = Image.new()
+				var error = load_image_from_file(image, cache_path)
+				if error == OK:
+					var texture = ImageTexture.new()
+					texture.set_image(image)
+					var image_key = "cached_img_" + str(url_hash)
+					if render_display:
+						render_display.add_image(texture, 400, 0, Color.WHITE, INLINE_ALIGNMENT_CENTER, Rect2(), image_key)
+				
+				# Refresh the render to show the downloaded image
+				call_deferred("update_render_display")
+		else:
+			print("Failed to download image from: ", url, " (Code: ", response_code, ")")
+	
+	http_request.request_completed.connect(callable)
+	
+	# Start the download
+	http_request.request(url)
 
 
 # Formatting functions that work in both modes
@@ -797,3 +1058,116 @@ func _select_all_render():
 func _on_link_clicked(meta):
 	# Open URL in the default system browser
 	OS.shell_open(str(meta))
+
+func create_image_overlay(image_path: String, alt_text: String, hash_id: int):
+	if not render_display or not render_display.visible:
+		return
+	
+	# Check if we've already created an overlay for this image
+	var overlay_key = str(hash_id)
+	if created_overlays.has(overlay_key):
+		print("Overlay already exists for: ", alt_text)
+		return
+	
+	# Load the image texture
+	var texture = load_image_texture(image_path)
+	if not texture:
+		print("Failed to create texture from: ", image_path)
+		return
+	
+	# Mark this overlay as created
+	created_overlays[overlay_key] = true
+	
+	# Create TextureRect overlay
+	var texture_rect = TextureRect.new()
+	texture_rect.texture = texture
+	texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
+	
+	# Calculate size maintaining aspect ratio with 200px max width
+	var img_size = texture.get_size()
+	var max_width = 200
+	var display_width = min(max_width, img_size.x)
+	var display_height = int(display_width * img_size.y / img_size.x)
+	
+	print("Setting image size to: ", Vector2(display_width, display_height))
+	
+	# Force the size in multiple ways
+	texture_rect.size = Vector2(display_width, display_height)
+	texture_rect.custom_minimum_size = Vector2(display_width, display_height)
+	texture_rect.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	
+	# Prevent it from expanding beyond our size
+	texture_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	texture_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	
+	# Position the image
+	texture_rect.position = Vector2(10, 50 + image_overlays.size() * (display_height + 10))
+	
+	# Add to render display parent
+	render_display.get_parent().add_child(texture_rect)
+	image_overlays.append(texture_rect)
+	
+	print("Created image overlay for: ", alt_text)
+
+func load_image_texture(file_path: String) -> Texture2D:
+	# Try to load as resource first (for res:// paths)
+	if file_path.begins_with("res://") and ResourceLoader.exists(file_path):
+		var texture = load(file_path)
+		return resize_texture_if_needed(texture)
+	
+	# For cached files, load manually
+	var image = Image.new()
+	var error = load_image_from_file(image, file_path)
+	
+	if error == OK:
+		# Resize the image to our desired max width before creating texture
+		var original_size = image.get_size()
+		var max_width = 200
+		if original_size.x > max_width:
+			var new_height = int(max_width * original_size.y / original_size.x)
+			image.resize(max_width, new_height, Image.INTERPOLATE_LANCZOS)
+			print("Resized image from ", original_size, " to ", image.get_size())
+		
+		var texture = ImageTexture.new()
+		texture.set_image(image)
+		return texture
+	
+	return null
+
+func resize_texture_if_needed(texture: Texture2D) -> Texture2D:
+	if not texture:
+		return null
+	
+	var original_size = texture.get_size()
+	var max_width = 200
+	
+	if original_size.x <= max_width:
+		return texture
+	
+	# Need to resize - convert to image, resize, then back to texture
+	var image = texture.get_image()
+	var new_height = int(max_width * original_size.y / original_size.x)
+	image.resize(max_width, new_height, Image.INTERPOLATE_LANCZOS)
+	
+	var new_texture = ImageTexture.new()
+	new_texture.set_image(image)
+	print("Resized texture from ", original_size, " to ", image.get_size())
+	return new_texture
+
+func download_image_with_callback(url: String, cache_path: String, alt_text: String, url_hash: int):
+	var http_request = HTTPRequest.new()
+	add_child(http_request)
+	
+	var callable = func(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray):
+		http_request.queue_free()
+		if response_code == 200 and body.size() > 0:
+			var file = FileAccess.open(cache_path, FileAccess.WRITE)
+			if file:
+				file.store_buffer(body)
+				file.close()
+				print("Downloaded: ", alt_text)
+				# Refresh the entire display to replace loading text with image
+				call_deferred("update_render_display")
+	
+	http_request.request_completed.connect(callable)
+	http_request.request(url)
