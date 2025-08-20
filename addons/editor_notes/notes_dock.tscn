@@ -37,7 +37,7 @@ custom_minimum_size = Vector2(0, 24)
 [node name="BoldBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0
-flat = true
+flat = false
 text = "B"
 tooltip_text = "Bold (Ctrl+B)"
 custom_minimum_size = Vector2(24, 24)
@@ -45,7 +45,7 @@ custom_minimum_size = Vector2(24, 24)
 [node name="ItalicBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0
-flat = true
+flat = false
 text = "I"
 tooltip_text = "Italic (Ctrl+I)"
 custom_minimum_size = Vector2(24, 24)
@@ -53,7 +53,7 @@ custom_minimum_size = Vector2(24, 24)
 [node name="UnderlineBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0
-flat = true
+flat = false
 text = "U"
 tooltip_text = "Underline (Ctrl+U)"
 custom_minimum_size = Vector2(24, 24)
@@ -61,7 +61,7 @@ custom_minimum_size = Vector2(24, 24)
 [node name="StrikethroughBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0
-flat = true
+flat = false
 text = "S"
 tooltip_text = "Strikethrough (Ctrl+Shift+X)"
 custom_minimum_size = Vector2(24, 24)
@@ -69,7 +69,7 @@ custom_minimum_size = Vector2(24, 24)
 [node name="CodeBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0
-flat = true
+flat = false
 text = "</>"
 tooltip_text = "Inline Code (Ctrl+`)"
 custom_minimum_size = Vector2(32, 24)
@@ -93,7 +93,7 @@ custom_minimum_size = Vector2(24, 24)
 [node name="QuoteBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0
-flat = true
+flat = false
 text = "❝"
 tooltip_text = "Blockquote"
 custom_minimum_size = Vector2(24, 24)
@@ -101,7 +101,7 @@ custom_minimum_size = Vector2(24, 24)
 [node name="CodeBlockBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0
-flat = true
+flat = false
 text = "{ }"
 tooltip_text = "Code Block"
 custom_minimum_size = Vector2(32, 24)
@@ -109,7 +109,7 @@ custom_minimum_size = Vector2(32, 24)
 [node name="HRBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0
-flat = true
+flat = false
 text = "—"
 tooltip_text = "Horizontal Rule"
 custom_minimum_size = Vector2(24, 24)
@@ -117,7 +117,7 @@ custom_minimum_size = Vector2(24, 24)
 [node name="LinkBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0
-flat = true
+flat = false
 text = "🔗"
 tooltip_text = "Insert Link (Ctrl+K)"
 custom_minimum_size = Vector2(24, 24)
@@ -125,7 +125,7 @@ custom_minimum_size = Vector2(24, 24)
 [node name="ImageBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0
-flat = true
+flat = false
 text = "🖼"
 tooltip_text = "Insert Image"
 custom_minimum_size = Vector2(24, 24)
@@ -133,7 +133,7 @@ custom_minimum_size = Vector2(24, 24)
 [node name="TableBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0
-flat = true
+flat = false
 text = "⊞"
 tooltip_text = "Insert Table"
 custom_minimum_size = Vector2(24, 24)
@@ -141,7 +141,7 @@ custom_minimum_size = Vector2(24, 24)
 [node name="ClearBtn" type="Button" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0
-flat = true
+flat = false
 text = "Clear"
 tooltip_text = "Clear all"
 custom_minimum_size = Vector2(40, 24)

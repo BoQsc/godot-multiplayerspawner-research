@@ -127,6 +127,20 @@ func setup_markdown_toolbar():
 	table_btn = get_node_or_null("VBoxContainer/Toolbar/TableBtn")
 	clear_btn = get_node_or_null("VBoxContainer/Toolbar/ClearBtn")
 	
+	# Add transparent normal state to all buttons
+	add_transparent_normal_style(bold_btn)
+	add_transparent_normal_style(italic_btn)
+	add_transparent_normal_style(underline_btn)
+	add_transparent_normal_style(strikethrough_btn)
+	add_transparent_normal_style(code_btn)
+	add_transparent_normal_style(quote_btn)
+	add_transparent_normal_style(code_block_btn)
+	add_transparent_normal_style(hr_btn)
+	add_transparent_normal_style(link_btn)
+	add_transparent_normal_style(image_btn)
+	add_transparent_normal_style(table_btn)
+	add_transparent_normal_style(clear_btn)
+	
 	# Connect markdown formatting buttons
 	if bold_btn:
 		bold_btn.pressed.connect(func(): insert_markdown_formatting("**"))
@@ -186,6 +200,34 @@ func insert_markdown_formatting(start_marker: String, end_marker: String = ""):
 		rich_editor.cursor_position = cursor_pos - placeholder.length() - end_mark.length()
 		rich_editor.selection_start = cursor_pos - placeholder.length() - end_mark.length()
 		rich_editor.selection_end = cursor_pos - end_mark.length()
+
+func add_button_hover_effect(button: Button):
+	if not button:
+		return
+	
+	# Create a visible hover background
+	var hover_style = StyleBoxFlat.new()
+	hover_style.bg_color = Color(0.3, 0.3, 0.3, 0.8)  # Dark gray with transparency
+	hover_style.corner_radius_top_left = 3
+	hover_style.corner_radius_top_right = 3
+	hover_style.corner_radius_bottom_left = 3
+	hover_style.corner_radius_bottom_right = 3
+	
+	button.add_theme_stylebox_override("hover", hover_style)
+
+func add_transparent_normal_style(button: Button):
+	if not button:
+		return
+	
+	# Create transparent normal state
+	var normal_style = StyleBoxFlat.new()
+	normal_style.bg_color = Color(0, 0, 0, 0)  # Completely transparent
+	normal_style.border_width_left = 0
+	normal_style.border_width_right = 0
+	normal_style.border_width_top = 0
+	normal_style.border_width_bottom = 0
+	
+	button.add_theme_stylebox_override("normal", normal_style)
 
 func insert_text(text: String):
 	if not rich_editor:
