@@ -67,6 +67,7 @@ text = "llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll
 
 [node name="GridContainer" type="GridContainer" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3"]
 layout_mode = 2
+theme_override_constants/h_separation = 50
 columns = 4
 
 [node name="Label" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/GridContainer"]
