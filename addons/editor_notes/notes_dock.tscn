@@ -77,7 +77,7 @@ custom_minimum_size = Vector2(32, 24)
 [node name="HeadingBtn" type="MenuButton" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0
-flat = true
+flat = false
 text = "H"
 tooltip_text = "Headings"
 custom_minimum_size = Vector2(24, 24)
@@ -85,7 +85,7 @@ custom_minimum_size = Vector2(24, 24)
 [node name="ListBtn" type="MenuButton" parent="VBoxContainer/Toolbar"]
 layout_mode = 2
 focus_mode = 0
-flat = true
+flat = false
 text = "≡"
 tooltip_text = "Lists"
 custom_minimum_size = Vector2(24, 24)

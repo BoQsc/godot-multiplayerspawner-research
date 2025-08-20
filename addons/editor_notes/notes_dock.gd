@@ -133,6 +133,8 @@ func setup_markdown_toolbar():
 	add_transparent_normal_style(underline_btn)
 	add_transparent_normal_style(strikethrough_btn)
 	add_transparent_normal_style(code_btn)
+	add_transparent_normal_style(heading_btn)
+	add_transparent_normal_style(list_btn)
 	add_transparent_normal_style(quote_btn)
 	add_transparent_normal_style(code_block_btn)
 	add_transparent_normal_style(hr_btn)
@@ -239,6 +241,9 @@ func insert_text(text: String):
 	var new_text = current_text.insert(cursor_pos, text)
 	rich_editor.set_text(new_text)
 	rich_editor.cursor_position = cursor_pos + text.length()
+	
+	# Manually trigger save since set_text() doesn't emit text_changed signal
+	call_deferred("save_notes")
 
 func toggle_formatting_legacy(format_type: String):
 	# LEGACY: Rich text formatting approach
