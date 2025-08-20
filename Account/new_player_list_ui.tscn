@@ -72,38 +72,39 @@ columns = 4
 
 [node name="Label" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/GridContainer"]
 layout_mode = 2
-text = "ID: test"
+text = "ID: 000000000"
 
 [node name="Label2" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/GridContainer"]
 layout_mode = 2
-text = "Player: test"
+text = "Player: 000000000"
 
 [node name="VBoxContainer" type="HBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/GridContainer"]
 layout_mode = 2
 
 [node name="Label5" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/GridContainer/VBoxContainer"]
 layout_mode = 2
-text = "Pos: test"
+text = "Pos: 0000"
 
 [node name="CheckBox" type="CheckBox" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/GridContainer/VBoxContainer"]
+visible = false
 layout_mode = 2
 
 [node name="Label7" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/GridContainer"]
 layout_mode = 2
-text = "Details: test"
+text = "Details: None"
 
 [node name="Label3" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/GridContainer"]
 layout_mode = 2
-text = "ID: test"
+text = "ID: 000000000"
 
 [node name="Label4" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/GridContainer"]
 layout_mode = 2
-text = "Player: test"
+text = "Player: 000000000"
 
 [node name="Label6" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/GridContainer"]
 layout_mode = 2
-text = "Pos: test"
+text = "Pos: 0000"
 
 [node name="Label8" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer3/GridContainer"]
 layout_mode = 2
-text = "Details: test"
+text = "Details: None"
