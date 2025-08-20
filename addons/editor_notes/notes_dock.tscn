@@ -3,38 +3,31 @@
 [ext_resource type="Script" path="res://addons/editor_notes/notes_dock.gd" id="1_0v8xj"]
 [ext_resource type="Script" path="res://addons/editor_notes/rich_editor.gd" id="2_rich_editor"]
 
-[node name="Notes" type="Control"]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+[node name="Notes" type="VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 script = ExtResource("1_0v8xj")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-
-[node name="Header" type="HBoxContainer" parent="VBoxContainer"]
+[node name="Header" type="HBoxContainer" parent="."]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="VBoxContainer/Header"]
+[node name="Title" type="Label" parent="Header"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Editor Notes"
 horizontal_alignment = 1
 
-[node name="Toolbar" type="HBoxContainer" parent="VBoxContainer"]
+[node name="Toolbar" type="HBoxContainer" parent="."]
 layout_mode = 2
 size_flags_horizontal = 3
 add_theme_constant_override("separation", 2)
 
-[node name="VSeparator" type="VSeparator" parent="VBoxContainer/Toolbar"]
+[node name="VSeparator" type="VSeparator" parent="Toolbar"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 24)
 
-[node name="BoldBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="BoldBtn" type="Button" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false
@@ -42,7 +35,7 @@ text = "B"
 tooltip_text = "Bold (Ctrl+B)"
 custom_minimum_size = Vector2(24, 24)
 
-[node name="ItalicBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="ItalicBtn" type="Button" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false
@@ -50,7 +43,7 @@ text = "I"
 tooltip_text = "Italic (Ctrl+I)"
 custom_minimum_size = Vector2(24, 24)
 
-[node name="UnderlineBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="UnderlineBtn" type="Button" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false
@@ -58,7 +51,7 @@ text = "U"
 tooltip_text = "Underline (Ctrl+U)"
 custom_minimum_size = Vector2(24, 24)
 
-[node name="StrikethroughBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="StrikethroughBtn" type="Button" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false
@@ -66,7 +59,7 @@ text = "S"
 tooltip_text = "Strikethrough (Ctrl+Shift+X)"
 custom_minimum_size = Vector2(24, 24)
 
-[node name="CodeBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="CodeBtn" type="Button" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false
@@ -74,7 +67,7 @@ text = "</>"
 tooltip_text = "Inline Code (Ctrl+`)"
 custom_minimum_size = Vector2(32, 24)
 
-[node name="HeadingBtn" type="MenuButton" parent="VBoxContainer/Toolbar"]
+[node name="HeadingBtn" type="MenuButton" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false
@@ -82,7 +75,7 @@ text = "H"
 tooltip_text = "Headings"
 custom_minimum_size = Vector2(24, 24)
 
-[node name="ListBtn" type="MenuButton" parent="VBoxContainer/Toolbar"]
+[node name="ListBtn" type="MenuButton" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false
@@ -90,7 +83,7 @@ text = "≡"
 tooltip_text = "Lists"
 custom_minimum_size = Vector2(24, 24)
 
-[node name="QuoteBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="QuoteBtn" type="Button" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false
@@ -98,7 +91,7 @@ text = "❝"
 tooltip_text = "Blockquote"
 custom_minimum_size = Vector2(24, 24)
 
-[node name="CodeBlockBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="CodeBlockBtn" type="Button" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false
@@ -106,7 +99,7 @@ text = "{ }"
 tooltip_text = "Code Block"
 custom_minimum_size = Vector2(32, 24)
 
-[node name="HRBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="HRBtn" type="Button" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false
@@ -114,7 +107,7 @@ text = "—"
 tooltip_text = "Horizontal Rule"
 custom_minimum_size = Vector2(24, 24)
 
-[node name="LinkBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="LinkBtn" type="Button" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false
@@ -122,7 +115,7 @@ text = "🔗"
 tooltip_text = "Insert Link (Ctrl+K)"
 custom_minimum_size = Vector2(24, 24)
 
-[node name="ImageBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="ImageBtn" type="Button" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false
@@ -130,7 +123,7 @@ text = "🖼"
 tooltip_text = "Insert Image"
 custom_minimum_size = Vector2(24, 24)
 
-[node name="TableBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="TableBtn" type="Button" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false
@@ -138,11 +131,11 @@ text = "⊞"
 tooltip_text = "Insert Table"
 custom_minimum_size = Vector2(24, 24)
 
-[node name="VSeparator2" type="VSeparator" parent="VBoxContainer/Toolbar"]
+[node name="VSeparator2" type="VSeparator" parent="Toolbar"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 24)
 
-[node name="ModeToggleBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="ModeToggleBtn" type="Button" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false
@@ -150,7 +143,7 @@ text = "👁"
 tooltip_text = "Toggle Render Mode"
 custom_minimum_size = Vector2(32, 24)
 
-[node name="ClearBtn" type="Button" parent="VBoxContainer/Toolbar"]
+[node name="ClearBtn" type="Button" parent="Toolbar"]
 layout_mode = 2
 focus_mode = 0
 flat = false

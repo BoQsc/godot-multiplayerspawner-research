@@ -46,13 +46,20 @@ func setup_rich_editor():
 	# Ensure clipping is enabled
 	rich_editor.clip_contents = true
 	
-	# Ensure proper z-order by adding to VBoxContainer (toolbar will stay on top)
-	$VBoxContainer.add_child(rich_editor)
+	# Set proper mouse filter for dock integration
+	rich_editor.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# Force the control to respect container bounds
+	rich_editor.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	rich_editor.custom_minimum_size = Vector2(0, 200)  # Minimum height for usability
+	
+	# Add to the main VBox container (which is now the root)
+	add_child(rich_editor)
 	
 	# Explicitly ensure toolbar and header stay on top
-	$VBoxContainer.move_child($VBoxContainer/Header, 0)
-	$VBoxContainer.move_child($VBoxContainer/Toolbar, 1)
-	$VBoxContainer.move_child(rich_editor, 2)
+	move_child($Header, 0)
+	move_child($Toolbar, 1)
+	move_child(rich_editor, 2)
 	
 	# Connect signals
 	rich_editor.text_changed.connect(_on_text_changed)
@@ -67,32 +74,39 @@ func setup_render_display():
 	render_display.bbcode_enabled = true
 	render_display.scroll_following = false
 	
-	# Add to VBoxContainer
-	$VBoxContainer.add_child(render_display)
+	# Set proper mouse filter for dock integration
+	render_display.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# Force the control to respect container bounds
+	render_display.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	render_display.custom_minimum_size = Vector2(0, 200)  # Minimum height for usability
+	
+	# Add to main container
+	add_child(render_display)
 	
 	# Ensure proper z-order
-	$VBoxContainer.move_child($VBoxContainer/Header, 0)
-	$VBoxContainer.move_child($VBoxContainer/Toolbar, 1)
-	$VBoxContainer.move_child(rich_editor, 2)
-	$VBoxContainer.move_child(render_display, 3)
+	move_child($Header, 0)
+	move_child($Toolbar, 1)
+	move_child(rich_editor, 2)
+	move_child(render_display, 3)
 
 
 func setup_legacy_toolbar():
 	# LEGACY: Find all toolbar buttons manually - this is the old rich text approach
-	bold_btn = get_node_or_null("VBoxContainer/Toolbar/BoldBtn")
-	italic_btn = get_node_or_null("VBoxContainer/Toolbar/ItalicBtn")
-	underline_btn = get_node_or_null("VBoxContainer/Toolbar/UnderlineBtn")
-	strikethrough_btn = get_node_or_null("VBoxContainer/Toolbar/StrikethroughBtn")
-	code_btn = get_node_or_null("VBoxContainer/Toolbar/CodeBtn")
-	heading_btn = get_node_or_null("VBoxContainer/Toolbar/HeadingBtn")
-	list_btn = get_node_or_null("VBoxContainer/Toolbar/ListBtn")
-	quote_btn = get_node_or_null("VBoxContainer/Toolbar/QuoteBtn")
-	code_block_btn = get_node_or_null("VBoxContainer/Toolbar/CodeBlockBtn")
-	hr_btn = get_node_or_null("VBoxContainer/Toolbar/HRBtn")
-	link_btn = get_node_or_null("VBoxContainer/Toolbar/LinkBtn")
-	image_btn = get_node_or_null("VBoxContainer/Toolbar/ImageBtn")
-	table_btn = get_node_or_null("VBoxContainer/Toolbar/TableBtn")
-	clear_btn = get_node_or_null("VBoxContainer/Toolbar/ClearBtn")
+	bold_btn = get_node_or_null("Toolbar/BoldBtn")
+	italic_btn = get_node_or_null("Toolbar/ItalicBtn")
+	underline_btn = get_node_or_null("Toolbar/UnderlineBtn")
+	strikethrough_btn = get_node_or_null("Toolbar/StrikethroughBtn")
+	code_btn = get_node_or_null("Toolbar/CodeBtn")
+	heading_btn = get_node_or_null("Toolbar/HeadingBtn")
+	list_btn = get_node_or_null("Toolbar/ListBtn")
+	quote_btn = get_node_or_null("Toolbar/QuoteBtn")
+	code_block_btn = get_node_or_null("Toolbar/CodeBlockBtn")
+	hr_btn = get_node_or_null("Toolbar/HRBtn")
+	link_btn = get_node_or_null("Toolbar/LinkBtn")
+	image_btn = get_node_or_null("Toolbar/ImageBtn")
+	table_btn = get_node_or_null("Toolbar/TableBtn")
+	clear_btn = get_node_or_null("Toolbar/ClearBtn")
 	
 	# Formatting buttons - with null checks
 	if bold_btn:
@@ -137,21 +151,21 @@ func setup_markdown_toolbar():
 	# NEW: Markdown-based toolbar - inserts markdown syntax instead of rich formatting
 	
 	# Find all toolbar buttons manually
-	bold_btn = get_node_or_null("VBoxContainer/Toolbar/BoldBtn")
-	italic_btn = get_node_or_null("VBoxContainer/Toolbar/ItalicBtn")
-	underline_btn = get_node_or_null("VBoxContainer/Toolbar/UnderlineBtn")
-	strikethrough_btn = get_node_or_null("VBoxContainer/Toolbar/StrikethroughBtn")
-	code_btn = get_node_or_null("VBoxContainer/Toolbar/CodeBtn")
-	heading_btn = get_node_or_null("VBoxContainer/Toolbar/HeadingBtn")
-	list_btn = get_node_or_null("VBoxContainer/Toolbar/ListBtn")
-	quote_btn = get_node_or_null("VBoxContainer/Toolbar/QuoteBtn")
-	code_block_btn = get_node_or_null("VBoxContainer/Toolbar/CodeBlockBtn")
-	hr_btn = get_node_or_null("VBoxContainer/Toolbar/HRBtn")
-	link_btn = get_node_or_null("VBoxContainer/Toolbar/LinkBtn")
-	image_btn = get_node_or_null("VBoxContainer/Toolbar/ImageBtn")
-	table_btn = get_node_or_null("VBoxContainer/Toolbar/TableBtn")
-	clear_btn = get_node_or_null("VBoxContainer/Toolbar/ClearBtn")
-	mode_toggle_btn = get_node_or_null("VBoxContainer/Toolbar/ModeToggleBtn")
+	bold_btn = get_node_or_null("Toolbar/BoldBtn")
+	italic_btn = get_node_or_null("Toolbar/ItalicBtn")
+	underline_btn = get_node_or_null("Toolbar/UnderlineBtn")
+	strikethrough_btn = get_node_or_null("Toolbar/StrikethroughBtn")
+	code_btn = get_node_or_null("Toolbar/CodeBtn")
+	heading_btn = get_node_or_null("Toolbar/HeadingBtn")
+	list_btn = get_node_or_null("Toolbar/ListBtn")
+	quote_btn = get_node_or_null("Toolbar/QuoteBtn")
+	code_block_btn = get_node_or_null("Toolbar/CodeBlockBtn")
+	hr_btn = get_node_or_null("Toolbar/HRBtn")
+	link_btn = get_node_or_null("Toolbar/LinkBtn")
+	image_btn = get_node_or_null("Toolbar/ImageBtn")
+	table_btn = get_node_or_null("Toolbar/TableBtn")
+	clear_btn = get_node_or_null("Toolbar/ClearBtn")
+	mode_toggle_btn = get_node_or_null("Toolbar/ModeToggleBtn")
 	
 	# Add transparent normal state to all buttons
 	add_transparent_normal_style(bold_btn)
