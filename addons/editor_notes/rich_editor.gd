@@ -518,8 +518,8 @@ func draw_line_numbers():
 	var y_pos = text_margin.y - scroll_offset  # Apply scroll offset
 	
 	# Viewport culling for line numbers
-	var visible_start_y = -scroll_offset
-	var visible_end_y = size.y - scroll_offset
+	var visible_start_y = 0
+	var visible_end_y = size.y
 	
 	for line_idx in range(line_data.size()):
 		var line_info = line_data[line_idx]
@@ -564,8 +564,8 @@ func draw_text_segments():
 	pos.y -= scroll_offset  # Apply scroll offset
 	
 	# Viewport culling - only draw visible lines
-	var visible_start_y = -scroll_offset
-	var visible_end_y = size.y - scroll_offset
+	var visible_start_y = 0
+	var visible_end_y = size.y
 	
 	for line_info in line_data:
 		var line_segments = line_info.segments
@@ -969,8 +969,8 @@ func draw_multi_line_selection(start_pos: int, end_pos: int):
 	var current_pos = 0
 	
 	# Viewport culling for selection drawing
-	var visible_start_y = -scroll_offset
-	var visible_end_y = size.y - scroll_offset
+	var visible_start_y = 0
+	var visible_end_y = size.y
 	
 	for line_info in line_data:
 		var line_segments = line_info.segments
