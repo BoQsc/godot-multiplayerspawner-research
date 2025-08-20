@@ -78,6 +78,13 @@ func setup_render_display():
 	# Enable text selection in render mode
 	render_display.selection_enabled = true
 	
+	# Try to get Godot's editor monospace font for better code rendering
+	var editor_settings = EditorInterface.get_editor_settings()
+	if editor_settings:
+		var code_font = editor_settings.get_setting("interface/editor/code_font")
+		if code_font:
+			render_display.add_theme_font_override("mono_font", code_font)
+	
 	# Set proper mouse filter for dock integration
 	render_display.mouse_filter = Control.MOUSE_FILTER_STOP
 	
@@ -695,10 +702,10 @@ func markdown_to_bbcode(markdown: String) -> String:
 	regex.compile("~~([^~]+)~~")
 	bbcode = regex.sub(bbcode, "[s]$1[/s]", true)
 	
-	# Inline code `text`
+	# Inline code `text` - use simple background with better visual separation
 	regex = RegEx.new()
 	regex.compile("`([^`]+)`")
-	bbcode = regex.sub(bbcode, "[code]$1[/code]", true)
+	bbcode = regex.sub(bbcode, "[bgcolor=#1a1a1a][color=#f0f0f0] $1 [/color][/bgcolor]", true)
 	
 	# Code blocks ```text```
 	regex = RegEx.new()
