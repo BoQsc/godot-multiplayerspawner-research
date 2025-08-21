@@ -32,19 +32,23 @@
 
 ## 📈 Development Changelog
 
-### **🎉 Major Milestone: Entity Refactoring (January 21, 2025)**
-**Impact:** TRANSFORMATIVE - Opened unlimited expansion possibilities
+### **🎉 Major Milestone: Entity Refactoring + NPC Persistence (January 21, 2025)**
+**Impact:** TRANSFORMATIVE - Complete NPC ecosystem with persistence
 
 #### **What We Accomplished:**
 - ✅ **Split entity_scene** into BaseEntity + PlayerEntity hierarchy
 - ✅ **Created NPC system** with server-authoritative spawning
 - ✅ **Implemented TestNPC** with working patrol AI
-- ✅ **Added debug controls** (F5 spawn, F6 list NPCs)
+- ✅ **Added NPC Persistence** - Save/load NPC states with world
+- ✅ **Enhanced BaseEntity** with health system and damage mechanics
+- ✅ **Added debug controls** (F4=spawn, F5=list, F7=save, F8=load)
 - ✅ **Zero regression** - all player functionality preserved
 - ✅ **Network synchronization** working across all clients
 
 #### **Technical Achievements:**
 - Clean inheritance: `BaseEntity` → `PlayerEntity` / `TestNPC`
+- Complete NPC persistence system with automatic save/restore
+- Health system with damage mechanics in BaseEntity
 - Server authority maintained for all entities
 - Shared physics, managers, networking in base class
 - Easy extension for new entity types
@@ -90,11 +94,13 @@ a97a87f Create NPC_IMPLEMENTATION_GUIDE.md
 - Account system with device binding
 - Cross-session persistence
 
-### **✅ NPC System (New - January 2025)**
+### **✅ NPC System (Complete - January 2025)**
 - Server-authoritative spawning: `game_manager.spawn_npc()`
 - AI behavior system: patrol, idle, state management
+- **Complete persistence**: NPCs save/restore states automatically
+- Health system: damage, healing, death mechanics
 - Network synchronization to all clients
-- Debug controls: F5 (spawn), F6 (list)
+- Debug controls: F4 (spawn), F5 (list), F7 (save), F8 (load)
 - Extensible base class for new NPC types
 
 ### **✅ World System (Mature)**
@@ -121,7 +127,7 @@ a97a87f Create NPC_IMPLEMENTATION_GUIDE.md
 - [ ] **Guard NPC** - Patrolling with dialogue interaction
 - [ ] **Merchant NPC** - Shop interface, item trading
 - [ ] **Enemy NPC** - Hostile behavior, chase players
-- [ ] **NPC Persistence** - Save/load NPC states with world
+- ✅ **NPC Persistence** - Save/load NPC states with world *(COMPLETED)*
 - [ ] **Player-NPC Interaction** - Dialogue system foundation
 
 ### **🎯 Short-term Goals (1 week)**
@@ -172,6 +178,7 @@ a97a87f Create NPC_IMPLEMENTATION_GUIDE.md
 ## 📚 Documentation Status
 
 ### **✅ Research Documents (Comprehensive)**
+- `NPC_PERSISTENCE_VALIDATION.md` - NPC persistence system validation
 - `ENTITY_REFACTORING_SUCCESS.md` - Recent architecture success
 - `NPC_IMPLEMENTATION_GUIDE.md` - Complete NPC development guide
 - `NPC_INTEGRATION_STRATEGY.md` - Original NPC planning document
@@ -190,8 +197,10 @@ a97a87f Create NPC_IMPLEMENTATION_GUIDE.md
 ### **Current Testing Status**
 - ✅ **Player System** - Fully tested, stable
 - ✅ **NPC Spawning** - Working in multiplayer environment
+- ✅ **NPC Persistence** - Save/restore system validated
+- ✅ **Health System** - Damage and healing mechanics working
 - ✅ **Network Sync** - Position synchronization validated
-- ✅ **Debug Tools** - F5/F6 controls functional
+- ✅ **Debug Tools** - F4/F5/F7/F8 controls functional
 
 ### **Testing Procedures**
 1. **Single Player Testing** - Basic functionality verification
