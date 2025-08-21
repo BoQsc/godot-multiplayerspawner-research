@@ -2,12 +2,12 @@ extends Node
 class_name NetworkManager
 
 # Rate limiting settings
-@export var update_rate: float = 25.0
-@export var movement_threshold: float = 0.1
+@export var update_rate: float = 60.0  # Match PlayerEntity rate
+@export var movement_threshold: float = 0.05  # Match PlayerEntity threshold
 
 # Smoothing settings  
-@export var interpolation_speed: float = 8.0
-@export var snap_distance: float = 100.0
+@export var interpolation_speed: float = 30.0  # Much faster interpolation for zero-latency
+@export var snap_distance: float = 1.0  # Snap almost immediately for zero-latency
 
 # Player tracking
 var tracked_players = {}
@@ -76,15 +76,10 @@ func receive_remote_position(player_id: int, new_position: Vector2):
 		var current_pos = player_data.entity.position
 		var distance = current_pos.distance_to(new_position)
 		
-		# If too far, snap immediately
-		if distance > snap_distance:
-			player_data.entity.position = new_position
-			player_data.target_position = new_position
-			player_data.is_interpolating = false
-		else:
-			# Set up for smooth interpolation
-			player_data.target_position = new_position
-			player_data.is_interpolating = true
+		# For zero-latency testing, snap all positions immediately
+		player_data.entity.position = new_position
+		player_data.target_position = new_position
+		player_data.is_interpolating = false
 
 func _handle_local_player_rate_limiting():
 	"""Handle rate limiting for local player position updates"""
@@ -125,8 +120,8 @@ func _handle_remote_player_smoothing(delta: float):
 		var new_position = current_pos.lerp(target, interpolation_speed * delta)
 		entity.position = new_position
 		
-		# Stop interpolating when close enough
-		if distance_to_target < 0.5:
+		# Stop interpolating when close enough (smaller threshold for smoother movement)
+		if distance_to_target < 0.1:
 			entity.position = target
 			player_data.is_interpolating = false
 

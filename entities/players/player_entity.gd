@@ -15,6 +15,13 @@ var network_samples: Array = []
 var last_network_time: float = 0.0
 var connection_quality: String = "GOOD"
 
+# Network position buffering for smooth interpolation
+var network_position_buffer: Array = []
+var current_target_position: Vector2
+var interpolation_speed: float = 30.0
+var is_interpolating: bool = false
+var use_local_optimization: bool = true
+
 func _entity_ready():
 	"""Player-specific initialization"""
 	# Players always need network sync
@@ -29,6 +36,9 @@ func _entity_ready():
 	_setup_network_timer()
 	_register_with_network_manager()
 	update_player_label()
+	
+	# Initialize network position buffering
+	current_target_position = position
 
 func _setup_player_camera():
 	"""Setup camera for local player only"""
@@ -44,7 +54,7 @@ func _setup_network_timer():
 	"""Setup network update timer for local players"""
 	if is_local_player:
 		network_update_timer = Timer.new()
-		network_update_timer.wait_time = 0.016  # ~60Hz
+		network_update_timer.wait_time = 0.008  # 120Hz for buttery smooth local multiplayer
 		network_update_timer.timeout.connect(_send_network_update)
 		add_child(network_update_timer)
 		network_update_timer.start()
@@ -58,6 +68,7 @@ func _custom_physics_process(delta: float):
 	"""Player-specific physics - input handling"""
 	if is_local_player:
 		_handle_player_input()
+	# No interpolation for remote players - direct position updates only
 
 func _handle_player_input():
 	"""Handle keyboard/controller input for local player"""
@@ -71,6 +82,27 @@ func _handle_player_input():
 		velocity.x = direction * max_speed
 	else:
 		velocity.x = move_toward(velocity.x, 0, max_speed * 3 * get_physics_process_delta_time())
+
+func _handle_movement():
+	"""Only local players use physics movement - remote players get direct position updates"""
+	if is_local_player:
+		move_and_slide()
+	# Remote players don't call move_and_slide() - they get position updates via network
+
+func _handle_network_interpolation(delta: float):
+	"""Smooth interpolation for remote players' network positions"""
+	if is_interpolating:
+		var distance_to_target = position.distance_to(current_target_position)
+		
+		# Smooth interpolation towards target
+		var new_position = position.lerp(current_target_position, interpolation_speed * delta)
+		position = new_position
+		
+		# Stop interpolating when close enough
+		if distance_to_target < 1.0:
+			position = current_target_position
+			is_interpolating = false
+			# print("Player ", player_id, " finished interpolating to ", current_target_position)
 
 func update_player_label():
 	"""Update the player's display label"""
@@ -90,32 +122,44 @@ func set_persistent_id(new_persistent_id: String):
 
 func _send_network_update():
 	"""Send position updates to other players (local player only)"""
-	if not is_local_player:
+	if not is_local_player or not is_inside_tree():
 		return
 		
-	if game_manager and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		# Debug: Track sending frequency and distance
+		var current_time = Time.get_ticks_msec() / 1000.0
+		var time_since_last = current_time - last_network_time
 		var distance_moved = position.distance_to(last_sent_position)
-		if distance_moved > 0.05:  # Very small threshold for high precision
-			var current_time = Time.get_ticks_msec() / 1000.0
-			game_manager.rpc("update_player_position", player_id, position, current_time)
+		
+		# Network load testing
+		if Time.get_ticks_msec() % 5000 < 100:  # Every 5 seconds, log for 100ms
+			print("NETWORK LOAD: Player ", player_id, " RPC rate: ", 1.0/time_since_last, " Hz")
+		
+		# Direct RPC call with error handling
+		if has_method("rpc"):
+			rpc("sync_player_position", position, current_time)
 			last_sent_position = position
 			last_network_time = current_time
 
 func receive_network_position(pos: Vector2, timestamp: float = 0.0):
 	"""Called when receiving position update with latency measurement"""
 	if not is_local_player:
-		position = pos
+		# Debug: Check for position jumps that might cause glitching
+		var old_pos = position
+		var distance = old_pos.distance_to(pos)
+		if distance > 5.0:  # Log significant jumps
+			print("GLITCH DEBUG: Player ", player_id, " jumped ", distance, " pixels from ", old_pos, " to ", pos)
 		
-		# Measure network quality
+		# For local multiplayer - direct position update, no interpolation whatsoever
+		position = pos
+		is_interpolating = false
+		
+		# Still track latency for connection quality monitoring
 		var current_time = Time.get_ticks_msec() / 1000.0
 		var latency = current_time - timestamp
-		
-		# Track latency samples (keep last 10)
 		network_samples.append(latency)
 		if network_samples.size() > 10:
 			network_samples.pop_front()
-		
-		# Evaluate connection quality
 		_evaluate_connection_quality()
 
 func _evaluate_connection_quality():
@@ -149,8 +193,26 @@ func get_connection_quality() -> String:
 	"""Get current connection quality rating"""
 	return connection_quality
 
+@rpc("authority", "call_remote", "unreliable")
+func sync_player_position(pos: Vector2, timestamp: float):
+	"""Direct RPC to sync player position"""
+	# Check if node is still valid before processing
+	if not is_inside_tree():
+		return
+	receive_network_position(pos, timestamp)
+
 func _entity_cleanup():
 	"""Player-specific cleanup"""
+	# Stop network updates immediately
+	if network_update_timer and network_update_timer.is_valid():
+		network_update_timer.stop()
+		network_update_timer.queue_free()
+	
+	# Stop any interpolation
+	is_interpolating = false
+	
 	# Unregister from NetworkManager when player leaves
 	if network_manager:
 		network_manager.unregister_player(player_id)
+	
+	print("Player ", player_id, " cleanup completed")

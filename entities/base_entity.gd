@@ -46,7 +46,7 @@ func _physics_process(delta: float):
 	"""Standard physics processing - gravity + custom logic + movement"""
 	_apply_gravity(delta)
 	_custom_physics_process(delta)
-	move_and_slide()
+	_handle_movement()
 
 func _apply_gravity(delta: float):
 	"""Apply gravity to entities that aren't on the floor"""
@@ -56,6 +56,10 @@ func _apply_gravity(delta: float):
 func _custom_physics_process(delta: float):
 	"""Override in derived classes for entity-specific physics"""
 	pass
+
+func _handle_movement():
+	"""Handle physics movement - can be overridden by derived classes"""
+	move_and_slide()
 
 func receive_network_position(pos: Vector2, timestamp: float = 0.0):
 	"""Called when receiving position update from network"""

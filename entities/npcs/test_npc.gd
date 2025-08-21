@@ -30,7 +30,11 @@ func configure_npc(config_data: Dictionary):
 
 func _custom_physics_process(delta: float):
 	"""NPC-specific physics - simple AI"""
-	if multiplayer.is_server():
+	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		if multiplayer.is_server():
+			_update_ai(delta)
+	elif not multiplayer.multiplayer_peer:
+		# Single player mode - always process
 		_update_ai(delta)
 
 func _update_ai(delta: float):

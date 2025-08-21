@@ -962,6 +962,10 @@ func _spawn_player(peer_id: int, pos: Vector2, persistent_id: String):
 	player.name = str(peer_id)
 	player.position = pos
 	player.player_id = peer_id
+	
+	# Set multiplayer authority for the player
+	player.set_multiplayer_authority(peer_id)
+	
 	get_parent().get_node("SpawnContainer").add_child(player)
 	players[peer_id] = player
 	player_persistent_ids[peer_id] = persistent_id
@@ -975,7 +979,13 @@ func _spawn_player(peer_id: int, pos: Vector2, persistent_id: String):
 
 func _despawn_player(peer_id: int):
 	if peer_id in players:
-		players[peer_id].queue_free()
+		var player_node = players[peer_id]
+		# Stop any ongoing network updates first
+		if player_node.has_method("_entity_cleanup"):
+			player_node._entity_cleanup()
+		# Delay removal to allow pending RPCs to process
+		await get_tree().create_timer(0.1).timeout
+		player_node.queue_free()
 		players.erase(peer_id)
 		player_persistent_ids.erase(peer_id)
 
