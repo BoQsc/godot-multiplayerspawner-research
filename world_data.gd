@@ -24,6 +24,11 @@ class_name WorldData
 # Counter for generating unique NPC IDs
 @export var next_npc_id: int = 1
 
+# Dictionary to store pickup data: String (item_id) -> PickupData
+@export var pickup_data: Dictionary = {}
+# Counter for generating unique pickup IDs
+@export var next_pickup_id: int = 1
+
 # Nested class to represent individual tile information
 class TileInfo:
 	var source_id: int
@@ -134,6 +139,53 @@ class NPCData:
 		max_health = data.get("max_health", 100.0)
 		ai_state = data.get("ai_state", "idle")
 		ai_timer = data.get("ai_timer", 0.0)
+		config_data = data.get("config_data", {})
+		last_updated = data.get("last_updated", Time.get_datetime_string_from_system())
+
+# Nested class to represent individual pickup information
+class PickupData:
+	var item_id: String
+	var item_type: String
+	var position: Vector2
+	var pickup_value: float
+	var respawn_time: float
+	var is_collected: bool
+	var respawn_timer: float
+	var config_data: Dictionary  # Custom pickup configuration
+	var last_updated: String
+	
+	func _init(p_item_id: String = "", p_item_type: String = "", p_position: Vector2 = Vector2.ZERO):
+		item_id = p_item_id
+		item_type = p_item_type
+		position = p_position
+		pickup_value = 1.0
+		respawn_time = 0.0
+		is_collected = false
+		respawn_timer = 0.0
+		config_data = {}
+		last_updated = Time.get_datetime_string_from_system()
+	
+	func to_dict() -> Dictionary:
+		return {
+			"item_id": item_id,
+			"item_type": item_type,
+			"position": position,
+			"pickup_value": pickup_value,
+			"respawn_time": respawn_time,
+			"is_collected": is_collected,
+			"respawn_timer": respawn_timer,
+			"config_data": config_data,
+			"last_updated": last_updated
+		}
+	
+	func from_dict(data: Dictionary):
+		item_id = data.get("item_id", "")
+		item_type = data.get("item_type", "")
+		position = data.get("position", Vector2.ZERO)
+		pickup_value = data.get("pickup_value", 1.0)
+		respawn_time = data.get("respawn_time", 0.0)
+		is_collected = data.get("is_collected", false)
+		respawn_timer = data.get("respawn_timer", 0.0)
 		config_data = data.get("config_data", {})
 		last_updated = data.get("last_updated", Time.get_datetime_string_from_system())
 
@@ -395,6 +447,44 @@ func update_npc_position(npc_id: String, position: Vector2):
 		npc_data[npc_id]["last_updated"] = Time.get_datetime_string_from_system()
 		last_modified = Time.get_datetime_string_from_system()
 
+# Pickup data management functions
+func save_pickup(item_id: String, item_type: String, position: Vector2, pickup_value: float = 1.0, respawn_time: float = 0.0, is_collected: bool = false, respawn_timer: float = 0.0, config_data: Dictionary = {}):
+	var pickup_info = PickupData.new(item_id, item_type, position)
+	pickup_info.pickup_value = pickup_value
+	pickup_info.respawn_time = respawn_time
+	pickup_info.is_collected = is_collected
+	pickup_info.respawn_timer = respawn_timer
+	pickup_info.config_data = config_data
+	pickup_info.last_updated = Time.get_datetime_string_from_system()
+	
+	pickup_data[item_id] = pickup_info.to_dict()
+	last_modified = Time.get_datetime_string_from_system()
+
+func get_pickup(item_id: String) -> Dictionary:
+	if item_id in pickup_data:
+		return pickup_data[item_id]
+	else:
+		# Return empty dictionary if pickup not found
+		return {}
+
+func remove_pickup(item_id: String):
+	if item_id in pickup_data:
+		pickup_data.erase(item_id)
+		last_modified = Time.get_datetime_string_from_system()
+
+func get_all_pickups() -> Dictionary:
+	return pickup_data.duplicate()
+
+func get_pickup_count() -> int:
+	return pickup_data.size()
+
+func update_pickup_state(item_id: String, is_collected: bool, respawn_timer: float = 0.0):
+	if item_id in pickup_data:
+		pickup_data[item_id]["is_collected"] = is_collected
+		pickup_data[item_id]["respawn_timer"] = respawn_timer
+		pickup_data[item_id]["last_updated"] = Time.get_datetime_string_from_system()
+		last_modified = Time.get_datetime_string_from_system()
+
 # Debug function to print world info
 func print_world_info():
 	print("=== World Data Info ===")
@@ -404,6 +494,7 @@ func print_world_info():
 	print("Tile Count: ", get_tile_count())
 	print("Player Count: ", get_player_count())
 	print("NPC Count: ", get_npc_count())
+	print("Pickup Count: ", get_pickup_count())
 	print("Bounds: ", get_world_bounds())
 	
 	if get_player_count() > 0:
@@ -417,5 +508,12 @@ func print_world_info():
 		for npc_id in npc_data.keys():
 			var npc = npc_data[npc_id]
 			print("NPC ", npc_id, ": Type(", npc["npc_type"], ") Pos(", npc["position"], ") HP:", npc["health"], "/", npc["max_health"], " State:", npc["ai_state"])
+	
+	if get_pickup_count() > 0:
+		print("--- Pickup Data ---")
+		for item_id in pickup_data.keys():
+			var pickup = pickup_data[item_id]
+			var status = "Available" if not pickup["is_collected"] else "Collected"
+			print("Pickup ", item_id, ": Type(", pickup["item_type"], ") Pos(", pickup["position"], ") Value:", pickup["pickup_value"], " Status:", status)
 	
 	print("=======================")

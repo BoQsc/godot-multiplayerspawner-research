@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3 uid="uid://bpvkwb5f8f6hc"]
+
+[ext_resource type="Script" path="res://entities/pickups/pickup_entity.gd" id="1_5k3x8"]
+
+[node name="PickupEntity" type="CharacterBody2D"]
+script = ExtResource("1_5k3x8")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+z_index = 10
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+
+[node name="PickupArea" type="Area2D" parent="."]
+
+[node name="PickupCollision" type="CollisionShape2D" parent="PickupArea"]

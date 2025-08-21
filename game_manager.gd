@@ -7,6 +7,8 @@ var player_persistent_ids = {}  # peer_id -> persistent_player_id
 # NPC Management
 var npcs = {}  # npc_id -> npc_node
 var next_npc_id: int = 1
+var pickups = {}  # item_id -> pickup_node
+var next_pickup_id: int = 1
 var network_manager: NetworkManager
 var world_manager: WorldManager
 var user_identity: UserIdentity
@@ -161,6 +163,16 @@ func _unhandled_key_input(event):
 			debug_save_npcs()
 		elif event.keycode == KEY_F8:  # F8 to load NPCs
 			debug_load_npcs()
+		
+		# Pickup Debug Controls (Server Only)
+		elif event.keycode == KEY_F9:  # F9 to spawn health potion
+			debug_spawn_health_potion()
+		elif event.keycode == KEY_F10:  # F10 to list all pickups
+			debug_list_pickups()
+		elif event.keycode == KEY_F11:  # F11 to spawn star item
+			debug_spawn_star_item()
+		elif event.keycode == KEY_F12:  # F12 to spawn blue gem
+			debug_spawn_gem_blue()
 
 func _show_device_binding_ui():
 	# Show device binding UI for anonymous players
@@ -909,6 +921,11 @@ func _auto_save_all_player_positions():
 		if world_manager and npcs.size() > 0:
 			world_manager.save_npcs()
 			print("Auto-saved ", npcs.size(), " NPCs to file")
+		
+		# Also auto-save pickups
+		if world_manager and pickups.size() > 0:
+			world_manager.save_pickups()
+			print("Auto-saved ", pickups.size(), " pickups to file")
 
 func _emergency_save_all_positions():
 	# Force save all player positions immediately
@@ -1039,6 +1056,79 @@ func sync_npc_despawn(npc_id: String):
 	if not multiplayer.is_server():
 		_despawn_npc_locally(npc_id)
 
+# ==================== PICKUP SPAWNING SYSTEM ====================
+
+func spawn_pickup(item_type: String, spawn_pos: Vector2, config_data: Dictionary = {}) -> String:
+	"""Server-authoritative pickup spawning"""
+	if not multiplayer.is_server():
+		print("Only server can spawn pickups")
+		return ""
+	
+	var item_id = "pickup_" + str(next_pickup_id)
+	next_pickup_id += 1
+	
+	# Spawn locally first
+	_spawn_pickup_locally(item_id, item_type, spawn_pos, config_data)
+	
+	# Broadcast to all clients
+	rpc("sync_pickup_spawn", item_id, item_type, spawn_pos, config_data)
+	
+	print("Spawned pickup: ", item_id, " (", item_type, ") at ", spawn_pos)
+	return item_id
+
+func _spawn_pickup_locally(item_id: String, item_type: String, pos: Vector2, config: Dictionary):
+	"""Spawn pickup locally on this client"""
+	var pickup_scene_path = "res://entities/pickups/" + item_type + ".tscn"
+	var pickup_scene = load(pickup_scene_path)
+	
+	if not pickup_scene:
+		print("ERROR: Could not load pickup scene: ", pickup_scene_path)
+		return
+	
+	# Instantiate from scene
+	var pickup_node = pickup_scene.instantiate()
+	pickup_node.name = item_id
+	pickup_node.position = pos
+	
+	# Add to scene
+	get_tree().current_scene.add_child(pickup_node, true)
+	
+	# Configure pickup
+	pickup_node.configure_pickup(config)
+	
+	# Verify position after adding to scene
+	print("Spawned pickup locally: ", item_id, " at ", pos, " -> actual position: ", pickup_node.position)
+	
+	# Store reference
+	pickups[item_id] = pickup_node
+
+func despawn_pickup(item_id: String):
+	"""Remove pickup (server authority)"""
+	if not multiplayer.is_server():
+		return
+	
+	_despawn_pickup_locally(item_id)
+	rpc("sync_pickup_despawn", item_id)
+
+func _despawn_pickup_locally(item_id: String):
+	"""Remove pickup locally"""
+	if item_id in pickups:
+		pickups[item_id].queue_free()
+		pickups.erase(item_id)
+		print("Despawned pickup: ", item_id)
+
+@rpc("authority", "call_local", "reliable")
+func sync_pickup_spawn(item_id: String, item_type: String, pos: Vector2, config: Dictionary):
+	"""Synchronize pickup spawn to clients"""
+	if not multiplayer.is_server():
+		_spawn_pickup_locally(item_id, item_type, pos, config)
+
+@rpc("authority", "call_local", "reliable")
+func sync_pickup_despawn(item_id: String):
+	"""Synchronize pickup despawn to clients"""
+	if not multiplayer.is_server():
+		_despawn_pickup_locally(item_id)
+
 # ==================== DEBUG FUNCTIONS ====================
 
 func debug_spawn_test_npc():
@@ -1081,6 +1171,48 @@ func debug_load_npcs():
 		world_manager.load_npcs()
 	else:
 		print("WorldManager not available for loading NPCs")
+
+func debug_spawn_health_potion():
+	"""Debug: Spawn a health potion at a fixed location"""
+	if not multiplayer.is_server():
+		print("Only server can spawn pickups")
+		return
+	
+	var spawn_pos = Vector2(300, 100)  # Fixed test position
+	spawn_pickup("health_potion", spawn_pos, {"healing_amount": 25})
+	print("Debug: Spawned HealthPotion at ", spawn_pos)
+
+func debug_spawn_star_item():
+	"""Debug: Spawn a star item at a fixed location"""
+	if not multiplayer.is_server():
+		print("Only server can spawn pickups")
+		return
+	
+	var spawn_pos = Vector2(400, 100)  # Fixed test position
+	spawn_pickup("star_item", spawn_pos, {"pickup_value": 100})
+	print("Debug: Spawned StarItem at ", spawn_pos)
+
+func debug_spawn_gem_blue():
+	"""Debug: Spawn a blue gem at a fixed location"""
+	if not multiplayer.is_server():
+		print("Only server can spawn pickups")
+		return
+	
+	var spawn_pos = Vector2(500, 100)  # Fixed test position  
+	spawn_pickup("gem_blue", spawn_pos, {"pickup_value": 50})
+	print("Debug: Spawned GemBlue at ", spawn_pos)
+
+func debug_list_pickups():
+	"""Debug: List all current pickups"""
+	print("=== PICKUP DEBUG INFO ===")
+	print("Total Pickups: ", pickups.size())
+	for item_id in pickups:
+		var pickup = pickups[item_id]
+		var status = "Available"
+		if pickup.has_method("is_collected") and pickup.is_collected:
+			status = "Collected"
+		print("- ", item_id, " (", pickup.item_type, ") at ", pickup.position, " - ", status)
+	print("=========================")
 
 @rpc("authority", "call_remote", "reliable")
 func connection_rejected(reason: String):

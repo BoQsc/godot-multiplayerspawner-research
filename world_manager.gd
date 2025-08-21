@@ -95,6 +95,10 @@ func _ready():
 		await get_tree().process_frame
 		await get_tree().process_frame  # Extra delay for safety
 		load_npcs()
+		
+		# Load pickups after another delay
+		await get_tree().process_frame
+		load_pickups()
 	
 	# In editor: always apply world data to override scene's tile_map_data
 	if Engine.is_editor_hint():
@@ -1460,3 +1464,93 @@ func auto_save_npcs():
 	"""Automatically save NPCs periodically (called by timer or game events)"""
 	if multiplayer.is_server():
 		save_npcs()
+
+# ==================== PICKUP PERSISTENCE SYSTEM ====================
+
+func save_pickups():
+	"""Save all current pickups to world data (server only)"""
+	if not multiplayer.is_server():
+		return
+	
+	if not game_manager or not world_data:
+		print("WorldManager: Cannot save pickups - missing references")
+		return
+	
+	var saved_count = 0
+	
+	# Clear existing pickup data
+	world_data.pickup_data.clear()
+	
+	# Save all current pickups
+	for item_id in game_manager.pickups:
+		var pickup = game_manager.pickups[item_id]
+		if pickup and pickup.has_method("get_save_data"):
+			var pickup_save_data = pickup.get_save_data()
+			
+			# Save pickup data to WorldData
+			world_data.save_pickup(
+				item_id,
+				pickup_save_data.get("item_type", "generic"),
+				pickup.position,
+				pickup_save_data.get("pickup_value", 1.0),
+				pickup_save_data.get("respawn_time", 0.0),
+				pickup_save_data.get("is_collected", false),
+				pickup_save_data.get("respawn_timer", 0.0),
+				pickup_save_data.get("config_data", {})
+			)
+			saved_count += 1
+	
+	# Save to disk
+	save_world_data()
+	print("WorldManager: Saved ", saved_count, " pickups to persistent storage")
+
+func load_pickups():
+	"""Restore pickups from world data on server startup"""
+	if not multiplayer.is_server() or not world_data:
+		return
+	
+	if not game_manager:
+		print("WorldManager: Cannot load pickups - GameManager not available")
+		return
+	
+	var pickup_save_data = world_data.get_all_pickups()
+	if pickup_save_data.is_empty():
+		print("WorldManager: No saved pickups to restore")
+		return
+	
+	print("WorldManager: Loading ", pickup_save_data.size(), " pickups from save data...")
+	
+	var loaded_count = 0
+	for item_id in pickup_save_data:
+		var pickup_data = pickup_save_data[item_id]
+		var item_type = pickup_data.get("item_type", "generic")
+		var position = pickup_data.get("position", Vector2.ZERO)
+		var config_data = pickup_data.get("config_data", {})
+		
+		# Handle special pickup types
+		if item_type == "health_potion":
+			config_data["healing_amount"] = pickup_data.get("pickup_value", 25.0)
+		else:
+			config_data["pickup_value"] = pickup_data.get("pickup_value", 1.0)
+		
+		config_data["respawn_time"] = pickup_data.get("respawn_time", 0.0)
+		
+		# Spawn the pickup
+		var spawned_item_id = game_manager.spawn_pickup(item_type, position, config_data)
+		
+		# Restore pickup state after spawning
+		if spawned_item_id != "" and spawned_item_id in game_manager.pickups:
+			await get_tree().process_frame  # Wait for pickup to be fully initialized
+			var pickup_node = game_manager.pickups[spawned_item_id]
+			if pickup_node and pickup_node.has_method("restore_save_data"):
+				pickup_node.restore_save_data(pickup_data)
+			
+			loaded_count += 1
+			print("Restored pickup: ", item_id, " (", item_type, ") at ", position)
+	
+	print("WorldManager: Successfully loaded ", loaded_count, " pickups")
+
+func auto_save_pickups():
+	"""Automatically save pickups periodically (called by timer or game events)"""
+	if multiplayer.is_server():
+		save_pickups()
