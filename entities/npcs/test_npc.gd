@@ -21,6 +21,13 @@ func _entity_ready():
 	
 	print("TestNPC initialized: ", npc_id)
 
+func configure_npc(config_data: Dictionary):
+	"""Configure NPC with spawn data"""
+	if config_data.has("patrol_speed"):
+		patrol_speed = config_data["patrol_speed"]
+		max_speed = patrol_speed
+		print("TestNPC configured with patrol_speed: ", patrol_speed)
+
 func _custom_physics_process(delta: float):
 	"""NPC-specific physics - simple AI"""
 	if multiplayer.is_server():

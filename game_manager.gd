@@ -3,6 +3,10 @@ extends Node
 const PORT = 4443
 var players = {}  # peer_id -> player_node
 var player_persistent_ids = {}  # peer_id -> persistent_player_id
+
+# NPC Management
+var npcs = {}  # npc_id -> npc_node
+var next_npc_id: int = 1
 var network_manager: NetworkManager
 var world_manager: WorldManager
 var user_identity: UserIdentity
@@ -147,6 +151,12 @@ func _unhandled_key_input(event):
 			_toggle_custom_join_ui()
 		elif event.keycode == KEY_F4:  # F4 to toggle player list
 			_toggle_player_list_ui()
+		
+		# NPC Debug Controls (Server Only)
+		elif event.keycode == KEY_F5:  # F5 to spawn test NPC
+			debug_spawn_test_npc()
+		elif event.keycode == KEY_F6:  # F6 to list all NPCs
+			debug_list_npcs()
 
 func _show_device_binding_ui():
 	# Show device binding UI for anonymous players
@@ -950,6 +960,96 @@ func spawn_player(peer_id: int, pos: Vector2, persistent_id: String):
 func despawn_player(id: int):
 	if not multiplayer.is_server():
 		_despawn_player(id)
+
+# ==================== NPC SPAWNING SYSTEM ====================
+
+func spawn_npc(npc_type: String, spawn_pos: Vector2, config_data: Dictionary = {}) -> String:
+	"""Server-authoritative NPC spawning"""
+	if not multiplayer.is_server():
+		print("WARNING: Only server can spawn NPCs")
+		return ""
+	
+	var npc_id = "npc_" + str(next_npc_id)
+	next_npc_id += 1
+	
+	# Spawn locally first
+	_spawn_npc_locally(npc_id, npc_type, spawn_pos, config_data)
+	
+	# Broadcast to all clients
+	rpc("sync_npc_spawn", npc_id, npc_type, spawn_pos, config_data)
+	
+	print("Spawned NPC: ", npc_type, " with ID: ", npc_id, " at ", spawn_pos)
+	return npc_id
+
+func _spawn_npc_locally(npc_id: String, npc_type: String, pos: Vector2, config: Dictionary):
+	"""Spawn NPC locally on this client"""
+	var npc_scene_path = "res://entities/npcs/" + npc_type + ".tscn"
+	
+	if not ResourceLoader.exists(npc_scene_path):
+		print("ERROR: NPC scene not found: ", npc_scene_path)
+		return
+	
+	var npc = load(npc_scene_path).instantiate()
+	npc.name = npc_id
+	npc.position = pos
+	
+	# Configure NPC with spawn data
+	if npc.has_method("configure_npc"):
+		npc.configure_npc(config)
+	
+	# Add to spawn container (same as players)
+	get_parent().get_node("SpawnContainer").add_child(npc)
+	npcs[npc_id] = npc
+	
+	print("Spawned NPC locally: ", npc_id, " at ", pos)
+
+func despawn_npc(npc_id: String):
+	"""Remove NPC (server authority)"""
+	if not multiplayer.is_server():
+		return
+	
+	_despawn_npc_locally(npc_id)
+	rpc("sync_npc_despawn", npc_id)
+
+func _despawn_npc_locally(npc_id: String):
+	"""Remove NPC locally"""
+	if npc_id in npcs:
+		npcs[npc_id].queue_free()
+		npcs.erase(npc_id)
+		print("Despawned NPC: ", npc_id)
+
+@rpc("authority", "call_local", "reliable")
+func sync_npc_spawn(npc_id: String, npc_type: String, pos: Vector2, config: Dictionary):
+	"""Synchronize NPC spawn to clients"""
+	if not multiplayer.is_server():
+		_spawn_npc_locally(npc_id, npc_type, pos, config)
+
+@rpc("authority", "call_local", "reliable")
+func sync_npc_despawn(npc_id: String):
+	"""Synchronize NPC despawn to clients"""
+	if not multiplayer.is_server():
+		_despawn_npc_locally(npc_id)
+
+# ==================== DEBUG FUNCTIONS ====================
+
+func debug_spawn_test_npc():
+	"""Debug: Spawn a test NPC at a fixed location"""
+	if not multiplayer.is_server():
+		print("Only server can spawn NPCs")
+		return
+	
+	var spawn_pos = Vector2(200, 100)  # Fixed test position
+	spawn_npc("test_npc", spawn_pos, {"patrol_speed": 75})
+	print("Debug: Spawned TestNPC at ", spawn_pos)
+
+func debug_list_npcs():
+	"""Debug: List all current NPCs"""
+	print("=== NPC DEBUG INFO ===")
+	print("Total NPCs: ", npcs.size())
+	for npc_id in npcs:
+		var npc = npcs[npc_id]
+		print("  ", npc_id, ": ", npc.npc_type, " at ", npc.position)
+	print("=====================")
 
 @rpc("authority", "call_remote", "reliable")
 func connection_rejected(reason: String):
