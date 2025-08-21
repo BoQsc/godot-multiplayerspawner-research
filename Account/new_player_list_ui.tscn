@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://de2tvi33d4dl3"]
 
-[node name="Control" type="Control"]
+[node name="NewPlayerListUI" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
