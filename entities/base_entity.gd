@@ -5,6 +5,8 @@ class_name BaseEntity
 @export var max_speed: float = 300.0
 @export var gravity: float = 2000.0
 @export var entity_id: String = ""
+@export var max_health: float = 100.0
+var current_health: float = 100.0
 
 # Manager references - shared by all entities
 var game_manager: Node
@@ -16,6 +18,7 @@ var requires_network_sync: bool = false
 
 func _ready():
 	entity_id = name
+	current_health = max_health  # Initialize health
 	_setup_managers()
 	_setup_networking()
 	_entity_ready()
@@ -69,3 +72,22 @@ func _exit_tree():
 func _entity_cleanup():
 	"""Override in derived classes for custom cleanup"""
 	pass
+
+# Health management methods
+func take_damage(amount: float):
+	"""Reduce entity health by specified amount"""
+	current_health = max(0.0, current_health - amount)
+	if current_health <= 0:
+		_on_death()
+
+func heal(amount: float):
+	"""Restore entity health by specified amount"""
+	current_health = min(max_health, current_health + amount)
+
+func _on_death():
+	"""Override in derived classes for death behavior"""
+	print(entity_id, " has died!")
+
+func is_alive() -> bool:
+	"""Check if entity is alive"""
+	return current_health > 0.0

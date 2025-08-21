@@ -59,3 +59,29 @@ func _update_ai(delta: float):
 func _entity_cleanup():
 	"""NPC cleanup"""
 	print("TestNPC cleanup: ", npc_id)
+
+func get_save_data() -> Dictionary:
+	"""Return data needed to save this NPC's state"""
+	return {
+		"npc_type": npc_type,
+		"health": current_health,
+		"max_health": max_health,
+		"ai_state": ai_state,
+		"ai_timer": ai_timer,
+		"config_data": {
+			"patrol_speed": patrol_speed
+		}
+	}
+
+func restore_save_data(data: Dictionary):
+	"""Restore NPC state from saved data"""
+	if data.has("health"):
+		current_health = data["health"]
+	if data.has("max_health"):
+		max_health = data["max_health"]
+	if data.has("ai_state"):
+		ai_state = data["ai_state"]
+	if data.has("ai_timer"):
+		ai_timer = data["ai_timer"]
+	
+	print("TestNPC ", npc_id, " restored state: HP=", current_health, ", AI=", ai_state)

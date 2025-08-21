@@ -19,6 +19,11 @@ class_name WorldData
 # Counter for generating unique player IDs
 @export var next_player_id: int = 1
 
+# Dictionary to store NPC data: String (npc_id) -> NPCData
+@export var npc_data: Dictionary = {}
+# Counter for generating unique NPC IDs
+@export var next_npc_id: int = 1
+
 # Nested class to represent individual tile information
 class TileInfo:
 	var source_id: int
@@ -84,6 +89,53 @@ class PlayerData:
 		experience = data.get("experience", 0)
 		last_seen = data.get("last_seen", Time.get_datetime_string_from_system())
 		inventory = data.get("inventory", [])
+
+# Nested class to represent individual NPC information
+class NPCData:
+	var npc_id: String
+	var npc_type: String
+	var position: Vector2
+	var health: float
+	var max_health: float
+	var ai_state: String
+	var ai_timer: float
+	var config_data: Dictionary  # Custom NPC configuration
+	var last_updated: String
+	
+	func _init(p_npc_id: String = "", p_npc_type: String = "", p_position: Vector2 = Vector2.ZERO):
+		npc_id = p_npc_id
+		npc_type = p_npc_type
+		position = p_position
+		health = 100.0
+		max_health = 100.0
+		ai_state = "idle"
+		ai_timer = 0.0
+		config_data = {}
+		last_updated = Time.get_datetime_string_from_system()
+	
+	func to_dict() -> Dictionary:
+		return {
+			"npc_id": npc_id,
+			"npc_type": npc_type,
+			"position": position,
+			"health": health,
+			"max_health": max_health,
+			"ai_state": ai_state,
+			"ai_timer": ai_timer,
+			"config_data": config_data,
+			"last_updated": last_updated
+		}
+	
+	func from_dict(data: Dictionary):
+		npc_id = data.get("npc_id", "")
+		npc_type = data.get("npc_type", "")
+		position = data.get("position", Vector2.ZERO)
+		health = data.get("health", 100.0)
+		max_health = data.get("max_health", 100.0)
+		ai_state = data.get("ai_state", "idle")
+		ai_timer = data.get("ai_timer", 0.0)
+		config_data = data.get("config_data", {})
+		last_updated = data.get("last_updated", Time.get_datetime_string_from_system())
 
 func _init():
 	created_at = Time.get_datetime_string_from_system()
@@ -306,6 +358,43 @@ func get_world_bounds() -> Rect2i:
 	
 	return Rect2i(Vector2i(min_x, min_y), Vector2i(max_x - min_x + 1, max_y - min_y + 1))
 
+# NPC data management functions
+func save_npc(npc_id: String, npc_type: String, position: Vector2, health: float = 100.0, max_health: float = 100.0, ai_state: String = "idle", ai_timer: float = 0.0, config_data: Dictionary = {}):
+	var npc_info = NPCData.new(npc_id, npc_type, position)
+	npc_info.health = health
+	npc_info.max_health = max_health
+	npc_info.ai_state = ai_state
+	npc_info.ai_timer = ai_timer
+	npc_info.config_data = config_data
+	npc_info.last_updated = Time.get_datetime_string_from_system()
+	
+	npc_data[npc_id] = npc_info.to_dict()
+	last_modified = Time.get_datetime_string_from_system()
+
+func get_npc(npc_id: String) -> Dictionary:
+	if npc_id in npc_data:
+		return npc_data[npc_id]
+	else:
+		# Return empty dictionary if NPC not found
+		return {}
+
+func remove_npc(npc_id: String):
+	if npc_id in npc_data:
+		npc_data.erase(npc_id)
+		last_modified = Time.get_datetime_string_from_system()
+
+func get_all_npcs() -> Dictionary:
+	return npc_data.duplicate()
+
+func get_npc_count() -> int:
+	return npc_data.size()
+
+func update_npc_position(npc_id: String, position: Vector2):
+	if npc_id in npc_data:
+		npc_data[npc_id]["position"] = position
+		npc_data[npc_id]["last_updated"] = Time.get_datetime_string_from_system()
+		last_modified = Time.get_datetime_string_from_system()
+
 # Debug function to print world info
 func print_world_info():
 	print("=== World Data Info ===")
@@ -314,6 +403,7 @@ func print_world_info():
 	print("Last Modified: ", last_modified)
 	print("Tile Count: ", get_tile_count())
 	print("Player Count: ", get_player_count())
+	print("NPC Count: ", get_npc_count())
 	print("Bounds: ", get_world_bounds())
 	
 	if get_player_count() > 0:
@@ -321,5 +411,11 @@ func print_world_info():
 		for player_id in player_data.keys():
 			var player = player_data[player_id]
 			print("Player ", player_id, ": Pos(", player["position"], ") Lvl:", player["level"], " HP:", player["health"], "/", player["max_health"], " XP:", player["experience"])
+	
+	if get_npc_count() > 0:
+		print("--- NPC Data ---")
+		for npc_id in npc_data.keys():
+			var npc = npc_data[npc_id]
+			print("NPC ", npc_id, ": Type(", npc["npc_type"], ") Pos(", npc["position"], ") HP:", npc["health"], "/", npc["max_health"], " State:", npc["ai_state"])
 	
 	print("=======================")

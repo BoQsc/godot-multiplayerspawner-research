@@ -157,6 +157,10 @@ func _unhandled_key_input(event):
 			debug_spawn_test_npc()
 		elif event.keycode == KEY_F6:  # F6 to list all NPCs
 			debug_list_npcs()
+		elif event.keycode == KEY_F7:  # F7 to save NPCs
+			debug_save_npcs()
+		elif event.keycode == KEY_F8:  # F8 to load NPCs
+			debug_load_npcs()
 
 func _show_device_binding_ui():
 	# Show device binding UI for anonymous players
@@ -900,6 +904,11 @@ func _auto_save_all_player_positions():
 			# Save to file once after updating all positions
 			world_manager.save_world_data()
 			print("Auto-saved ", saved_count, " player positions to file")
+		
+		# Also auto-save NPCs
+		if world_manager and npcs.size() > 0:
+			world_manager.save_npcs()
+			print("Auto-saved ", npcs.size(), " NPCs to file")
 
 func _emergency_save_all_positions():
 	# Force save all player positions immediately
@@ -1050,6 +1059,28 @@ func debug_list_npcs():
 		var npc = npcs[npc_id]
 		print("  ", npc_id, ": ", npc.npc_type, " at ", npc.position)
 	print("=====================")
+
+func debug_save_npcs():
+	"""Debug: Force save all NPCs now"""
+	if not multiplayer.is_server():
+		print("Only server can save NPCs")
+		return
+	
+	if world_manager:
+		world_manager.save_npcs()
+	else:
+		print("WorldManager not available for saving NPCs")
+
+func debug_load_npcs():
+	"""Debug: Force load NPCs from saved data"""
+	if not multiplayer.is_server():
+		print("Only server can load NPCs")
+		return
+	
+	if world_manager:
+		world_manager.load_npcs()
+	else:
+		print("WorldManager not available for loading NPCs")
 
 @rpc("authority", "call_remote", "reliable")
 func connection_rejected(reason: String):

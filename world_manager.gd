@@ -89,6 +89,13 @@ func _ready():
 	# Always load from external file to ensure editor and runtime sync
 	load_world_data()
 	
+	# Load NPCs on server startup (delay to ensure all systems are ready)
+	if not Engine.is_editor_hint() and multiplayer.is_server():
+		# Delay NPC loading to ensure GameManager is fully initialized
+		await get_tree().process_frame
+		await get_tree().process_frame  # Extra delay for safety
+		load_npcs()
+	
 	# In editor: always apply world data to override scene's tile_map_data
 	if Engine.is_editor_hint():
 		if world_data and world_tile_map_layer:
@@ -1369,3 +1376,87 @@ func _on_refresh_filters(value: bool):
 		print("🔄 Refreshing display filters...")
 		sync_editor_players_from_world_data()
 		refresh_display_filters = false
+
+# ==================== NPC PERSISTENCE SYSTEM ====================
+
+func save_npcs():
+	"""Save all current NPCs to world data (server only)"""
+	if not multiplayer.is_server():
+		return
+	
+	var game_manager = get_tree().get_first_node_in_group("game_manager")
+	if not game_manager or not world_data:
+		return
+	
+	# Save each NPC's current state
+	var saved_count = 0
+	for npc_id in game_manager.npcs:
+		var npc = game_manager.npcs[npc_id]
+		if npc and npc.has_method("get_save_data"):
+			var npc_save_data = npc.get_save_data()
+			world_data.save_npc(
+				npc_id,
+				npc_save_data.get("npc_type", "unknown"),
+				npc.position,
+				npc_save_data.get("health", 100.0),
+				npc_save_data.get("max_health", 100.0),
+				npc_save_data.get("ai_state", "idle"),
+				npc_save_data.get("ai_timer", 0.0),
+				npc_save_data.get("config_data", {})
+			)
+			saved_count += 1
+	
+	# Save world data to disk
+	save_world_data()
+	print("WorldManager: Saved ", saved_count, " NPCs to persistent storage")
+
+func load_npcs():
+	"""Restore NPCs from world data on server startup"""
+	if not multiplayer.is_server() or not world_data:
+		return
+	
+	var game_manager = get_tree().get_first_node_in_group("game_manager")
+	if not game_manager:
+		print("WorldManager: Cannot load NPCs - GameManager not found")
+		return
+	
+	var npc_count = world_data.get_npc_count()
+	if npc_count == 0:
+		print("WorldManager: No NPCs to load")
+		return
+	
+	print("WorldManager: Loading ", npc_count, " NPCs from persistent storage")
+	
+	var loaded_count = 0
+	var all_npcs = world_data.get_all_npcs()
+	
+	for npc_id in all_npcs:
+		var npc_data = all_npcs[npc_id]
+		var npc_type = npc_data.get("npc_type", "")
+		var position = npc_data.get("position", Vector2.ZERO)
+		var config_data = npc_data.get("config_data", {})
+		
+		# Restore the NPC ID counter to prevent conflicts
+		var id_number = int(npc_id.replace("npc_", ""))
+		if id_number >= game_manager.next_npc_id:
+			game_manager.next_npc_id = id_number + 1
+		
+		# Spawn the NPC directly using the saved ID
+		game_manager._spawn_npc_locally(npc_id, npc_type, position, config_data)
+		# Broadcast to clients
+		game_manager.rpc("sync_npc_spawn", npc_id, npc_type, position, config_data)
+		
+		if npc_id in game_manager.npcs:
+			# Restore additional state
+			var npc = game_manager.npcs[npc_id]
+			if npc.has_method("restore_save_data"):
+				npc.restore_save_data(npc_data)
+			loaded_count += 1
+			print("Restored NPC: ", npc_id, " (", npc_type, ") at ", position)
+	
+	print("WorldManager: Successfully loaded ", loaded_count, " NPCs")
+
+func auto_save_npcs():
+	"""Automatically save NPCs periodically (called by timer or game events)"""
+	if multiplayer.is_server():
+		save_npcs()

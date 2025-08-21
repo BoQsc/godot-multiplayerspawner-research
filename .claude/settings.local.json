@@ -31,7 +31,8 @@
       "Bash(for file in \"Account/register.gd\" \"Account/login.gd\" \"Account/signin_ui.gd\" \"Account/user_identity.gd\" \"Account/device_binding.gd\" \"Account/device_binding_ui.gd\")",
       "Bash(do echo \"✅ $file\")",
       "WebFetch(domain:docs.godotengine.org)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(for:*)"
     ],
     "deny": [],
     "ask": [],
