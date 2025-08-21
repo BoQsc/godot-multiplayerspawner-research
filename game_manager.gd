@@ -173,6 +173,8 @@ func _unhandled_key_input(event):
 			debug_spawn_star_item()
 		elif event.keycode == KEY_F12:  # F12 to spawn blue gem
 			debug_spawn_gem_blue()
+		elif event.keycode == KEY_DELETE:  # Delete key to clear pickups
+			debug_clear_all_pickups()
 
 func _show_device_binding_ui():
 	# Show device binding UI for anonymous players
@@ -1213,6 +1215,17 @@ func debug_list_pickups():
 			status = "Collected"
 		print("- ", item_id, " (", pickup.item_type, ") at ", pickup.position, " - ", status)
 	print("=========================")
+
+func debug_clear_all_pickups():
+	"""Debug: Clear all pickups from the world"""
+	if not multiplayer.is_server():
+		print("Only server can clear pickups")
+		return
+	
+	print("Clearing all ", pickups.size(), " pickups...")
+	for item_id in pickups.keys():
+		despawn_pickup(item_id)
+	print("All pickups cleared")
 
 @rpc("authority", "call_remote", "reliable")
 func connection_rejected(reason: String):

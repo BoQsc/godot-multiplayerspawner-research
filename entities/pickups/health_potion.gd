@@ -3,13 +3,13 @@ class_name HealthPotion
 
 @export var healing_amount: float = 25.0
 
-func _entity_ready():
+func _ready():
 	"""HealthPotion-specific initialization"""
 	item_type = "health_potion"
 	pickup_value = healing_amount
 	
 	# Call parent initialization
-	super._entity_ready()
+	super._ready()
 
 func configure_pickup(config_data: Dictionary):
 	"""Configure health potion with spawn data"""

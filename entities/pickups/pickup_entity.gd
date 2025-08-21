@@ -1,10 +1,14 @@
-extends BaseEntity
+extends Node2D
 class_name PickupEntity
 
 @export var item_type: String = "generic"
 @export var pickup_value: float = 1.0
 @export var auto_pickup_radius: float = 30.0
 @export var respawn_time: float = 0.0  # 0 = no respawn, >0 = respawn after X seconds
+
+# Manager references (like BaseEntity)
+var game_manager: Node
+var network_manager: NetworkManager
 
 # Pickup-specific properties
 var item_id: String
@@ -13,21 +17,33 @@ var respawn_timer: float = 0.0
 var pickup_area: Area2D
 var sprite: Sprite2D
 
-func _entity_ready():
-	"""Pickup-specific initialization"""
+func _ready():
+	"""Pickup initialization"""
 	item_id = name
 	
-	# Pickups need network sync for collection state
-	requires_network_sync = true
-	
-	# Pickups don't use gravity by default
-	gravity = 0.0
+	# Setup manager references
+	_setup_managers()
 	
 	# Setup collision detection for pickups
 	_setup_pickup_area()
 	_setup_sprite()
 	
-	print("PickupEntity initialized: ", item_id, " (", item_type, ")")
+	print("PickupEntity initialized: ", item_id, " (", item_type, ") at position: ", position)
+	
+	# Monitor position changes every few seconds
+	var timer = Timer.new()
+	timer.wait_time = 2.0
+	timer.timeout.connect(_debug_position_check)
+	add_child(timer)
+	timer.start()
+
+func _setup_managers():
+	"""Get references to core managers"""
+	game_manager = get_tree().get_first_node_in_group("game_manager")
+	network_manager = get_tree().get_first_node_in_group("network_manager")
+	
+	if not game_manager:
+		game_manager = get_parent().get_parent().get_node("GameManager")
 
 func _setup_pickup_area():
 	"""Setup Area2D for pickup detection"""
@@ -79,9 +95,18 @@ func configure_pickup(config_data: Dictionary):
 	
 	print("PickupEntity configured: ", item_type, " value=", pickup_value)
 
-func _custom_physics_process(delta: float):
-	"""Pickup-specific physics - handle respawning"""
-	if multiplayer.is_server():
+func _process(delta: float):
+	"""Pickup processing - handle respawning"""
+	# Debug: Check for position changes
+	if abs(position.x) > 1000 or abs(position.y) > 1000:
+		print("WARNING: Pickup ", item_id, " has extreme position: ", position)
+	
+	# Only process respawning if multiplayer is active and we're the server
+	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		if multiplayer.is_server():
+			_update_respawn(delta)
+	elif not multiplayer.multiplayer_peer:
+		# Single player mode - always process
 		_update_respawn(delta)
 
 func _update_respawn(delta: float):
@@ -93,12 +118,23 @@ func _update_respawn(delta: float):
 
 func _on_pickup_area_entered(body):
 	"""Handle pickup area entry"""
-	if not multiplayer.is_server() or is_collected:
+	print("DEBUG: Pickup area entered by ", body.name, " - pickup position: ", position)
+	
+	# Only handle pickup if we're the server or in single player
+	if multiplayer.multiplayer_peer:
+		if multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+			if not multiplayer.is_server():
+				return
+		else:
+			return  # Multiplayer exists but not connected, skip
+	
+	if is_collected:
 		return
 	
 	# Check if it's a player
 	if body is PlayerEntity:
 		var player = body as PlayerEntity
+		print("DEBUG: Attempting pickup with player at ", player.position)
 		_attempt_pickup(player)
 
 func _attempt_pickup(player: PlayerEntity):
@@ -128,8 +164,9 @@ func _perform_pickup(player: PlayerEntity):
 	# Hide the item
 	_set_item_visibility(false)
 	
-	# Sync to clients
-	rpc("sync_pickup_collected", player.player_id)
+	# Sync to clients (only if multiplayer is active and connected)
+	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		rpc("sync_pickup_collected", player.player_id)
 	
 	# Remove from world if no respawn
 	if respawn_time <= 0.0:
@@ -154,8 +191,9 @@ func _respawn_item():
 	respawn_timer = 0.0
 	_set_item_visibility(true)
 	
-	# Sync to clients
-	rpc("sync_pickup_respawned")
+	# Sync to clients (only if multiplayer is active and connected)
+	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		rpc("sync_pickup_respawned")
 	
 	print("Item respawned: ", item_id)
 
@@ -169,14 +207,22 @@ func _remove_from_world():
 @rpc("authority", "call_local", "reliable")
 func sync_pickup_collected(player_id: int):
 	"""Synchronize pickup collection to clients"""
-	if not multiplayer.is_server():
+	var is_client = false
+	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		is_client = not multiplayer.is_server()
+	
+	if is_client:
 		is_collected = true
 		_set_item_visibility(false)
 
 @rpc("authority", "call_local", "reliable")
 func sync_pickup_respawned():
 	"""Synchronize pickup respawn to clients"""
-	if not multiplayer.is_server():
+	var is_client = false
+	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		is_client = not multiplayer.is_server()
+	
+	if is_client:
 		is_collected = false
 		_set_item_visibility(true)
 
@@ -207,6 +253,11 @@ func restore_save_data(data: Dictionary):
 	
 	print("PickupEntity ", item_id, " restored state: collected=", is_collected, ", value=", pickup_value)
 
-func _entity_cleanup():
+func _debug_position_check():
+	"""Debug: Check if position changed"""
+	if abs(position.x) > 1000 or abs(position.y) > 1000:
+		print("ALERT: Pickup ", item_id, " drifted to extreme position: ", position)
+
+func _exit_tree():
 	"""Pickup cleanup"""
 	print("PickupEntity cleanup: ", item_id)
