@@ -1382,10 +1382,10 @@ text = "Bober"
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 
+[node name="NewPlayerListUI" parent="UILayer" instance=ExtResource("14_2jcla")]
+
 [node name="NewDeviceBindingUi" parent="UILayer" instance=ExtResource("13_42l1d")]
 visible = false
-
-[node name="Control" parent="UILayer" instance=ExtResource("14_2jcla")]
 
 [node name="SpawnContainer" type="Node2D" parent="." groups=["spawn_container"]]
 position = Vector2(171, 173)
