@@ -115,6 +115,7 @@ layout_mode = 2
 text = "Details: None"
 
 [node name="VBoxContainer4" type="VBoxContainer" parent="PanelContainer/MarginContainer/VBoxContainer"]
+visible = false
 layout_mode = 2
 
 [node name="Label" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer/VBoxContainer4"]
