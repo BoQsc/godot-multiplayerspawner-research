@@ -29,6 +29,9 @@ func _ready():
 	_setup_sprite()
 	
 	print("PickupEntity initialized: ", item_id, " (", item_type, ") at position: ", position)
+	print("  - Pickup area: ", pickup_area)
+	print("  - Sprite: ", sprite)
+	print("  - Collision detection radius: ", auto_pickup_radius)
 	
 	# Monitor position changes every few seconds
 	var timer = Timer.new()
@@ -69,6 +72,7 @@ func _setup_pickup_area():
 	# Connect pickup detection
 	if not pickup_area.body_entered.is_connected(_on_pickup_area_entered):
 		pickup_area.body_entered.connect(_on_pickup_area_entered)
+		print("Connected pickup detection for ", item_id)
 
 func _setup_sprite():
 	"""Setup sprite for the pickup"""

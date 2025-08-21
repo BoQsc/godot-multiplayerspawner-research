@@ -24,7 +24,9 @@ func configure_pickup(config_data: Dictionary):
 
 func _can_be_picked_up(player: PlayerEntity) -> bool:
 	"""Only allow pickup if player is injured"""
-	return player.current_health < player.max_health
+	var can_pickup = player.current_health < player.max_health
+	print("Health check: Player HP=", player.current_health, "/", player.max_health, " Can pickup=", can_pickup)
+	return can_pickup
 
 func _apply_pickup_effect(player: PlayerEntity):
 	"""Heal the player"""

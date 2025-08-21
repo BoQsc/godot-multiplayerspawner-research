@@ -35,9 +35,8 @@ func _setup_networking():
 	"""Initialize network-related properties"""
 	last_sent_position = position
 	
-	# Register with network manager if needed (NPCs can opt-out)
-	if requires_network_sync and network_manager:
-		network_manager.register_entity(self, entity_id)
+	# Note: Only PlayerEntity registers with NetworkManager
+	# NPCs and pickups use their own RPC synchronization
 
 func _entity_ready():
 	"""Override in derived classes for custom initialization"""
@@ -64,8 +63,8 @@ func receive_network_position(pos: Vector2, timestamp: float = 0.0):
 
 func _exit_tree():
 	"""Clean up network registration when entity is removed"""
-	if network_manager and requires_network_sync:
-		network_manager.unregister_entity(entity_id)
+	# Note: Only PlayerEntity unregisters from NetworkManager
+	# NPCs and pickups handle their own cleanup
 	
 	_entity_cleanup()
 
