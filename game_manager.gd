@@ -920,7 +920,7 @@ func _on_player_disconnected(id):
 		rpc("despawn_player", id)
 
 func _spawn_player(peer_id: int, pos: Vector2, persistent_id: String):
-	var player = load("res://entity_scene.tscn").instantiate()
+	var player = load("res://entities/entity_scene.tscn").instantiate()
 	player.name = str(peer_id)
 	player.position = pos
 	player.player_id = peer_id

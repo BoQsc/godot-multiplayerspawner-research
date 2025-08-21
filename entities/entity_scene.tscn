@@ -1,6 +1,6 @@
 [gd_scene load_steps=37 format=3 uid="uid://dr6s3jr1rx25d"]
 
-[ext_resource type="Script" uid="uid://omd8hqvjxq2" path="res://entity_scene.gd" id="1_k8x9n"]
+[ext_resource type="Script" uid="uid://omd8hqvjxq2" path="res://entities/entity_scene.gd" id="1_k8x9n"]
 [ext_resource type="Texture2D" uid="uid://6qglu8s2ayqg" path="res://assets/kenney_platformer-art-deluxe/Base pack/Player/p1_stand.png" id="2_fodn5"]
 [ext_resource type="Texture2D" uid="uid://dn5eme1fxf56y" path="res://assets/kenney_platformer-art-deluxe/Base pack/Vector/characters.svg" id="3_p7nlk"]
 [ext_resource type="Texture2D" uid="uid://pt213fun7ohh" path="res://assets/kenney_voxel-pack/PNG/Items/axe_bronze.png" id="4_wutwt"]
