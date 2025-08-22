@@ -963,10 +963,12 @@ func _spawn_player(peer_id: int, pos: Vector2, persistent_id: String):
 	player.position = pos
 	player.player_id = peer_id
 	
-	# Set multiplayer authority for the player
+	# Add to scene tree FIRST, then set authority
+	get_parent().get_node("SpawnContainer").add_child(player)
+	
+	# Set multiplayer authority AFTER the player is in the scene tree
 	player.set_multiplayer_authority(peer_id)
 	
-	get_parent().get_node("SpawnContainer").add_child(player)
 	players[peer_id] = player
 	player_persistent_ids[peer_id] = persistent_id
 	
@@ -1249,6 +1251,7 @@ func update_player_position(id: int, pos: Vector2, timestamp: float = 0.0):
 	# Direct position update with latency tracking
 	if id in players:
 		players[id].receive_network_position(pos, timestamp)
+	
 	
 	# Update persistent world data (server only, periodically) 
 	if multiplayer.is_server() and world_manager and world_manager.world_data:

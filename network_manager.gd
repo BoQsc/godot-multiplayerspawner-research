@@ -1,6 +1,7 @@
 extends Node
 class_name NetworkManager
 
+
 # Rate limiting settings
 @export var update_rate: float = 60.0  # Match PlayerEntity rate
 @export var movement_threshold: float = 0.05  # Match PlayerEntity threshold
@@ -21,7 +22,8 @@ var pending_update: bool = false
 
 func _ready():
 	game_manager = get_tree().get_first_node_in_group("game_manager")
-	local_player_id = multiplayer.get_unique_id()
+	# Don't set local_player_id here - multiplayer may not be ready yet
+	# It will be set when the first player registers
 
 func _process(delta: float) -> void:
 	_handle_local_player_rate_limiting()
@@ -29,6 +31,10 @@ func _process(delta: float) -> void:
 
 func register_player(player: Node2D, player_id: int):
 	"""Register a player for network management"""
+	# Set local_player_id when first player registers (ensures multiplayer is ready)
+	if local_player_id == 0:
+		local_player_id = multiplayer.get_unique_id()
+	
 	var player_data = {
 		"entity": player,
 		"player_id": player_id,
@@ -42,14 +48,11 @@ func register_player(player: Node2D, player_id: int):
 	
 	if player_data.is_local:
 		last_sent_position = player.position
-	
-	print("NetworkManager: Registered player ", player_id, " (local: ", player_data.is_local, ")")
 
 func unregister_player(player_id: int):
 	"""Unregister a player from network management"""
 	if player_id in tracked_players:
 		tracked_players.erase(player_id)
-		print("NetworkManager: Unregistered player ", player_id)
 
 func report_local_movement(new_position: Vector2):
 	"""Called by local player when they move"""
@@ -94,8 +97,8 @@ func _handle_local_player_rate_limiting():
 			var player_data = tracked_players[local_player_id]
 			var current_pos = player_data.last_position
 			
-			# Send the position update (only if connected)
-			if game_manager and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+			# Send the position update (only if properly connected and initialized)
+			if game_manager and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED and multiplayer.get_unique_id() != 0:
 				game_manager.rpc("update_player_position", local_player_id, current_pos)
 			
 			last_update_time = current_time

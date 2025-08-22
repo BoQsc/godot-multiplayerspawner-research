@@ -33,12 +33,14 @@ func _entity_ready():
 	
 	# Setup player-specific systems
 	_setup_player_camera()
-	_setup_network_timer()
 	_register_with_network_manager()
 	update_player_label()
 	
 	# Initialize network position buffering
 	current_target_position = position
+	
+	# Setup network timer (using NetworkManager flow, no RPC conflicts)
+	_setup_network_timer()
 
 func _setup_player_camera():
 	"""Setup camera for local player only"""
@@ -124,8 +126,12 @@ func _send_network_update():
 	"""Send position updates to other players (local player only)"""
 	if not is_local_player or not is_inside_tree():
 		return
+	
+	# Safety check: ensure multiplayer system is properly initialized
+	if not multiplayer.multiplayer_peer or multiplayer.get_unique_id() == 0:
+		return
 		
-	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+	if multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		# Debug: Track sending frequency and distance
 		var current_time = Time.get_ticks_msec() / 1000.0
 		var time_since_last = current_time - last_network_time
@@ -135,11 +141,11 @@ func _send_network_update():
 		if Time.get_ticks_msec() % 5000 < 100:  # Every 5 seconds, log for 100ms
 			print("NETWORK LOAD: Player ", player_id, " RPC rate: ", 1.0/time_since_last, " Hz")
 		
-		# Direct RPC call with error handling
-		if has_method("rpc"):
-			rpc("sync_player_position", position, current_time)
-			last_sent_position = position
-			last_network_time = current_time
+		# Use NetworkManager for ALL players to avoid RPC conflicts
+		if network_manager and is_local_player:
+			network_manager.report_local_movement(position)
+		last_sent_position = position
+		last_network_time = current_time
 
 func receive_network_position(pos: Vector2, timestamp: float = 0.0):
 	"""Called when receiving position update with latency measurement"""
@@ -193,13 +199,8 @@ func get_connection_quality() -> String:
 	"""Get current connection quality rating"""
 	return connection_quality
 
-@rpc("authority", "call_remote", "unreliable")
-func sync_player_position(pos: Vector2, timestamp: float):
-	"""Direct RPC to sync player position"""
-	# Check if node is still valid before processing
-	if not is_inside_tree():
-		return
-	receive_network_position(pos, timestamp)
+# Removed sync_player_position RPC - using NetworkManager → GameManager flow instead
+# This eliminates node path resolution issues while maintaining networking
 
 func _entity_cleanup():
 	"""Player-specific cleanup"""
