@@ -66,7 +66,7 @@ func _register_with_network_manager():
 	if network_manager:
 		network_manager.register_player(self, player_id)
 
-func _custom_physics_process(delta: float):
+func _custom_physics_process(_delta: float):
 	"""Player-specific physics - input handling"""
 	if is_local_player:
 		_handle_player_input()
@@ -132,17 +132,11 @@ func _send_network_update():
 		return
 		
 	if multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
-		# Debug: Track sending frequency and distance
-		var current_time = Time.get_ticks_msec() / 1000.0
-		var time_since_last = current_time - last_network_time
-		var distance_moved = position.distance_to(last_sent_position)
-		
-		
 		# Use NetworkManager for ALL players to avoid RPC conflicts
 		if network_manager and is_local_player:
 			network_manager.report_local_movement(position)
 		last_sent_position = position
-		last_network_time = current_time
+		last_network_time = Time.get_ticks_msec() / 1000.0
 
 func receive_network_position(pos: Vector2, timestamp: float = 0.0):
 	"""Called when receiving position update with latency measurement"""

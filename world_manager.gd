@@ -1388,14 +1388,14 @@ func save_npcs():
 	if not multiplayer.is_server():
 		return
 	
-	var game_manager = get_tree().get_first_node_in_group("game_manager")
-	if not game_manager or not world_data:
+	var gm = get_tree().get_first_node_in_group("game_manager")
+	if not gm or not world_data:
 		return
 	
 	# Save each NPC's current state
 	var saved_count = 0
-	for npc_id in game_manager.npcs:
-		var npc = game_manager.npcs[npc_id]
+	for npc_id in gm.npcs:
+		var npc = gm.npcs[npc_id]
 		if npc and npc.has_method("get_save_data"):
 			var npc_save_data = npc.get_save_data()
 			world_data.save_npc(
@@ -1419,8 +1419,8 @@ func load_npcs():
 	if not multiplayer.is_server() or not world_data:
 		return
 	
-	var game_manager = get_tree().get_first_node_in_group("game_manager")
-	if not game_manager:
+	var gm = get_tree().get_first_node_in_group("game_manager")
+	if not gm:
 		print("WorldManager: Cannot load NPCs - GameManager not found")
 		return
 	
@@ -1437,26 +1437,26 @@ func load_npcs():
 	for npc_id in all_npcs:
 		var npc_data = all_npcs[npc_id]
 		var npc_type = npc_data.get("npc_type", "")
-		var position = npc_data.get("position", Vector2.ZERO)
+		var npc_position = npc_data.get("position", Vector2.ZERO)
 		var config_data = npc_data.get("config_data", {})
 		
 		# Restore the NPC ID counter to prevent conflicts
 		var id_number = int(npc_id.replace("npc_", ""))
-		if id_number >= game_manager.next_npc_id:
-			game_manager.next_npc_id = id_number + 1
+		if id_number >= gm.next_npc_id:
+			gm.next_npc_id = id_number + 1
 		
 		# Spawn the NPC directly using the saved ID
-		game_manager._spawn_npc_locally(npc_id, npc_type, position, config_data)
+		gm._spawn_npc_locally(npc_id, npc_type, npc_position, config_data)
 		# Broadcast to clients
-		game_manager.rpc("sync_npc_spawn", npc_id, npc_type, position, config_data)
+		gm.rpc("sync_npc_spawn", npc_id, npc_type, npc_position, config_data)
 		
-		if npc_id in game_manager.npcs:
+		if npc_id in gm.npcs:
 			# Restore additional state
-			var npc = game_manager.npcs[npc_id]
+			var npc = gm.npcs[npc_id]
 			if npc.has_method("restore_save_data"):
 				npc.restore_save_data(npc_data)
 			loaded_count += 1
-			print("Restored NPC: ", npc_id, " (", npc_type, ") at ", position)
+			print("Restored NPC: ", npc_id, " (", npc_type, ") at ", npc_position)
 	
 	print("WorldManager: Successfully loaded ", loaded_count, " NPCs")
 
@@ -1524,7 +1524,7 @@ func load_pickups():
 	for item_id in pickup_save_data:
 		var pickup_data = pickup_save_data[item_id]
 		var item_type = pickup_data.get("item_type", "generic")
-		var position = pickup_data.get("position", Vector2.ZERO)
+		var pickup_position = pickup_data.get("position", Vector2.ZERO)
 		var config_data = pickup_data.get("config_data", {})
 		
 		# Handle special pickup types
@@ -1536,7 +1536,7 @@ func load_pickups():
 		config_data["respawn_time"] = pickup_data.get("respawn_time", 0.0)
 		
 		# Spawn the pickup
-		var spawned_item_id = game_manager.spawn_pickup(item_type, position, config_data)
+		var spawned_item_id = game_manager.spawn_pickup(item_type, pickup_position, config_data)
 		
 		# Restore pickup state after spawning
 		if spawned_item_id != "" and spawned_item_id in game_manager.pickups:
@@ -1546,7 +1546,7 @@ func load_pickups():
 				pickup_node.restore_save_data(pickup_data)
 			
 			loaded_count += 1
-			print("Restored pickup: ", item_id, " (", item_type, ") at ", position)
+			print("Restored pickup: ", item_id, " (", item_type, ") at ", pickup_position)
 	
 	print("WorldManager: Successfully loaded ", loaded_count, " pickups")
 

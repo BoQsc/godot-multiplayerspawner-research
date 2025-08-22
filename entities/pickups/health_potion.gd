@@ -39,7 +39,7 @@ func _apply_pickup_effect(player: PlayerEntity):
 	# Could add visual/audio effects here
 	_play_healing_effect(player)
 
-func _play_healing_effect(player: PlayerEntity):
+func _play_healing_effect(_player: PlayerEntity):
 	"""Play healing effect (placeholder for future audio/visual)"""
 	# Future: particle effects, healing sound, etc.
 	print("*Healing sparkles and restoration sound*")

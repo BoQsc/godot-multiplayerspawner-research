@@ -153,7 +153,7 @@ func _attempt_pickup(player: PlayerEntity):
 	
 	return false
 
-func _can_be_picked_up(player: PlayerEntity) -> bool:
+func _can_be_picked_up(_player: PlayerEntity) -> bool:
 	"""Override in derived classes for pickup conditions"""
 	return true
 
@@ -182,12 +182,12 @@ func _apply_pickup_effect(player: PlayerEntity):
 	"""Override in derived classes for specific effects"""
 	print("Generic pickup effect applied to ", player.name)
 
-func _set_item_visibility(visible: bool):
+func _set_item_visibility(item_visible: bool):
 	"""Set item visibility and collision"""
 	if sprite:
-		sprite.visible = visible
+		sprite.visible = item_visible
 	if pickup_area:
-		pickup_area.set_deferred("monitoring", visible)
+		pickup_area.set_deferred("monitoring", item_visible)
 
 func _respawn_item():
 	"""Respawn the item"""
@@ -209,7 +209,7 @@ func _remove_from_world():
 		queue_free()
 
 @rpc("authority", "call_local", "reliable")
-func sync_pickup_collected(player_id: int):
+func sync_pickup_collected(_player_id: int):
 	"""Synchronize pickup collection to clients"""
 	var is_client = false
 	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:

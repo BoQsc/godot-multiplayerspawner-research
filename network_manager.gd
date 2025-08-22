@@ -76,9 +76,6 @@ func receive_remote_position(player_id: int, new_position: Vector2):
 		if player_id == local_player_id:
 			return
 		
-		var current_pos = player_data.entity.position
-		var distance = current_pos.distance_to(new_position)
-		
 		# For zero-latency testing, snap all positions immediately
 		player_data.entity.position = new_position
 		player_data.target_position = new_position

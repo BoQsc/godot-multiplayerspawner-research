@@ -53,7 +53,7 @@ func _apply_gravity(delta: float):
 	if not is_on_floor():
 		velocity.y += gravity * delta
 
-func _custom_physics_process(delta: float):
+func _custom_physics_process(_delta: float):
 	"""Override in derived classes for entity-specific physics"""
 	pass
 
@@ -61,7 +61,7 @@ func _handle_movement():
 	"""Handle physics movement - can be overridden by derived classes"""
 	move_and_slide()
 
-func receive_network_position(pos: Vector2, timestamp: float = 0.0):
+func receive_network_position(pos: Vector2, _timestamp: float = 0.0):
 	"""Called when receiving position update from network"""
 	position = pos
 
