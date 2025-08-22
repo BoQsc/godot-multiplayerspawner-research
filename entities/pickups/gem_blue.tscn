@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://bhp8xly2n4o5g"]
 
 [ext_resource type="PackedScene" uid="uid://bpvkwb5f8f6hc" path="res://entities/pickups/PickupEntity.tscn" id="1_vh2jr"]
-[ext_resource type="Texture2D" uid="uid://cyb5hmuvpxdtk" path="res://assets/kenney_platformer-art-deluxe/Base pack/Items/gemBlue.png" id="2_9k4jt"]
+[ext_resource type="Texture2D" uid="uid://bawkqth6rfatc" path="res://assets/kenney_platformer-art-deluxe/Base pack/Items/gemBlue.png" id="2_9k4jt"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_1h3x9"]
 size = Vector2(32, 32)
