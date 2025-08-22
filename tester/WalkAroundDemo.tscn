@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b0aw7j6m8xk2v"]
+
+[ext_resource type="Script" path="res://tester/walk_around_demo.gd" id="1_walk"]
+
+[node name="WalkAroundDemo" type="Node"]
+script = ExtResource("1_walk")

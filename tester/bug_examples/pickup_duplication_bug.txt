@@ -1,0 +1,22 @@
+# Bug Reproduction: Pickup Duplication Issue
+# Steps to reproduce the pickup duplication bug
+
+# Setup test environment
+start_server 4443
+spawn_clients 2 127.0.0.1 4443
+
+# Wait for clients to connect
+# (In real usage, add delays between steps)
+
+# Spawn a single pickup at specific location
+client server spawn_pickup health_potion 200 200
+
+# Move both clients to exact same position simultaneously
+client 0 move 200 200
+client 1 move 200 200
+
+# Check if both clients collected the same pickup (bug scenario)
+broadcast list_pickups
+
+# Expected: Pickup should be collected by only one client
+# Bug: Both clients might show they collected it

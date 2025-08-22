@@ -1,0 +1,49 @@
+# Example test commands for the multiplayer test system
+# Save this file as user://test_scenario.txt to use with "auto test_scenario"
+
+# Start a local test server (includes server player)
+start_server 4443
+
+# Spawn 3 test clients
+spawn_clients 3 127.0.0.1 4443
+
+# Wait for connections, then check status of all instances
+client server status
+client 0 status
+client 1 status  
+client 2 status
+
+# Test player movement (including server player)
+client 0 move 100 100
+client 1 move 200 200
+client 2 move 300 300
+
+# List all players to verify positions
+broadcast list_players
+
+# Server spawns some pickups (server has authority)
+client server spawn_pickup health_potion 150 150
+client server spawn_pickup star_item 250 150
+client server spawn_pickup gem_blue 350 150
+
+# Move clients to pickups to test collection
+client 0 move 150 150
+client 1 move 250 150
+client 2 move 350 150
+
+# Check pickup status from all perspectives
+broadcast list_pickups
+
+# Test server-specific commands
+client server list_players
+client server list_pickups
+
+# Test world persistence
+client 0 save_world
+client 0 move 500 500
+client 0 load_world
+client 0 status
+
+# Show final results and client list
+results
+list_clients

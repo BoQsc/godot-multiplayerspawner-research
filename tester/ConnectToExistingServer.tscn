@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cx7w8j5naxk1u"]
+
+[ext_resource type="Script" path="res://tester/connect_to_existing_server.gd" id="1_connect"]
+
+[node name="ConnectToExistingServer" type="Node"]
+script = ExtResource("1_connect")

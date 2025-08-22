@@ -1,0 +1,28 @@
+# Bug Reproduction: Movement Desynchronization
+# Steps to reproduce movement sync issues between clients
+
+# Setup test environment with multiple clients
+start_server 4443
+spawn_clients 3 127.0.0.1 4443
+
+# Test rapid movement updates that might cause desync
+client 0 move 100 100
+client 0 move 150 120
+client 0 move 200 140
+client 0 move 250 160
+client 0 move 300 180
+
+# Check if all clients see client 0 at the same position
+broadcast list_players
+
+# Move another client rapidly
+client 1 move 50 200
+client 1 move 100 220
+client 1 move 150 240
+client 1 move 200 260
+
+# Verify positions are synchronized
+broadcast list_players
+
+# Expected: All clients should show same positions for each player
+# Bug: Clients might show different positions (desync)

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dx0xaj6m8xk7v"]
+
+[ext_resource type="Script" path="res://tester/fixed_client.gd" id="1_fixed"]
+
+[node name="FixedClient" type="Node"]
+script = ExtResource("1_fixed")

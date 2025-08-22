@@ -1,0 +1,25 @@
+# Bug Reproduction: Connection Drop and Recovery
+# Steps to reproduce connection instability issues
+
+# Setup test environment
+start_server 4443
+spawn_clients 1 127.0.0.1 4443
+
+# Establish baseline state
+client 0 move 100 100
+client server spawn_pickup health_potion 150 150
+client 0 status
+
+# Simulate connection instability
+# (In real scenario, this would involve network manipulation)
+# For testing, we simulate by stopping and restarting client
+
+stop_clients
+spawn_clients 1 127.0.0.1 4443
+
+# Check if state was properly restored
+client 0 status
+broadcast list_pickups
+
+# Expected: Client should reconnect and see previous world state
+# Bug: State might be lost or corrupted after reconnection

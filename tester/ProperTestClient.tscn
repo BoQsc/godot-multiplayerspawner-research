@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dyaw8j6m8xk5v"]
+
+[ext_resource type="Script" path="res://tester/proper_test_client.gd" id="1_proper"]
+
+[node name="ProperTestClient" type="Node"]
+script = ExtResource("1_proper")

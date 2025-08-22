@@ -1,0 +1,159 @@
+# Example GitHub Actions workflow for automated multiplayer testing
+# Save as .github/workflows/multiplayer-tests.yml
+
+name: Multiplayer Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  smoke-tests:
+    runs-on: ubuntu-latest
+    name: Quick Smoke Tests
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Godot
+      uses: chickensoft-games/setup-godot@v1
+      with:
+        version: 4.2.1
+        use-dotnet: false
+    
+    - name: Run Smoke Tests
+      run: |
+        godot --headless tester/TestLauncher.tscn --test-suite smoke --export-results json
+        
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: smoke-test-results
+        path: ~/.local/share/godot/app_userdata/*/test_results_*.json
+
+  full-tests:
+    runs-on: ubuntu-latest
+    name: Full Test Suite
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Godot
+      uses: chickensoft-games/setup-godot@v1
+      with:
+        version: 4.2.1
+        use-dotnet: false
+    
+    - name: Run Full Test Suite
+      run: |
+        godot --headless tester/TestLauncher.tscn --test-suite full --export-results json
+        
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: full-test-results
+        path: ~/.local/share/godot/app_userdata/*/test_results_*.json
+
+  performance-tests:
+    runs-on: ubuntu-latest
+    name: Performance Benchmarks
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Godot
+      uses: chickensoft-games/setup-godot@v1
+      with:
+        version: 4.2.1
+        use-dotnet: false
+    
+    - name: Run Performance Tests
+      run: |
+        godot --headless tester/TestLauncher.tscn --performance-test --export-results json
+        
+    - name: Upload Performance Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-results
+        path: ~/.local/share/godot/app_userdata/*/test_results_*.json
+
+  regression-tests:
+    runs-on: ubuntu-latest
+    name: Regression Tests
+    needs: [smoke-tests]  # Only run if smoke tests pass
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Godot
+      uses: chickensoft-games/setup-godot@v1
+      with:
+        version: 4.2.1
+        use-dotnet: false
+    
+    - name: Run Regression Tests
+      run: |
+        godot --headless tester/TestLauncher.tscn --test-suite regression --export-results json
+        
+    - name: Upload Regression Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: regression-results
+        path: ~/.local/share/godot/app_userdata/*/test_results_*.json
+
+  stability-tests:
+    runs-on: ubuntu-latest
+    name: Stability Tests (30min)
+    # Only run on main branch or scheduled runs
+    if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Godot
+      uses: chickensoft-games/setup-godot@v1
+      with:
+        version: 4.2.1
+        use-dotnet: false
+    
+    - name: Run Stability Tests
+      run: |
+        godot --headless tester/TestLauncher.tscn --continuous-test 30 --export-results json
+        
+    - name: Upload Stability Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: stability-results
+        path: ~/.local/share/godot/app_userdata/*/test_results_*.json
+
+  generate-report:
+    runs-on: ubuntu-latest
+    name: Generate Test Report
+    needs: [smoke-tests, full-tests, performance-tests, regression-tests]
+    if: always()  # Run even if some tests fail
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Download All Results
+      uses: actions/download-artifact@v3
+      with:
+        path: test-results
+    
+    - name: Generate HTML Report
+      run: |
+        # This would be a script to combine all JSON results into an HTML report
+        echo "Combined test report would be generated here"
+        ls -la test-results/
+    
+    - name: Publish Test Report
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/main'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./test-results

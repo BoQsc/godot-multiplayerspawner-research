@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3 uid="uid://cyaxaj6m8xk6v"]
+
+[ext_resource type="PackedScene" uid="uid://dslh1c7rihy52" path="res://main_scene.tscn" id="1_main"]
+[ext_resource type="Script" path="res://tester/auto_client.gd" id="2_auto"]
+
+[node name="AutoClient" type="Node"]
+script = ExtResource("2_auto")
+
+[node name="Main" parent="." instance=ExtResource("1_main")]

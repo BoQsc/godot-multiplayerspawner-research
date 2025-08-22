@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://b5w8j7m2xk9n4"]
+
+[ext_resource type="Script" path="res://tester/test_launcher.gd" id="1_vh2jr"]
+
+[node name="TestLauncher" type="Node"]
+script = ExtResource("1_vh2jr")
+
+[node name="MultiClientTester" type="Node" parent="."]
+script = preload("res://tester/multi_client_tester.gd")
+
+[node name="InputTimer" type="Timer" parent="."]
+wait_time = 0.1
+autostart = true

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://byaw7j6m8xk3v"]
+
+[ext_resource type="Script" path="res://tester/simple_connector.gd" id="1_simple"]
+
+[node name="SimpleConnector" type="Node"]
+script = ExtResource("1_simple")
