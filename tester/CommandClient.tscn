@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dx2xaj6m8xlav"]
+
+[ext_resource type="Script" path="res://tester/command_client.gd" id="1_command"]
+
+[node name="CommandClient" type="Node"]
+script = ExtResource("1_command")

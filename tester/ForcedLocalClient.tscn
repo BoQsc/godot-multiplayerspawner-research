@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dx5xaj6m8xk2v"]
+
+[ext_resource type="Script" path="res://tester/forced_local_client.gd" id="1_forced"]
+
+[node name="ForcedLocalClient" type="Node"]
+script = ExtResource("1_forced")

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dx6xaj6m8xk3v"]
+
+[ext_resource type="Script" path="res://tester/rpc_movement_client.gd" id="1_rpc"]
+
+[node name="RpcMovementClient" type="Node"]
+script = ExtResource("1_rpc")

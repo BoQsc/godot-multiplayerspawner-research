@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dx3xaj6m8xk0v"]
+
+[ext_resource type="Script" path="res://tester/move_right.gd" id="1_move"]
+
+[node name="MoveRight" type="Node"]
+script = ExtResource("1_move")
