@@ -137,9 +137,6 @@ func _send_network_update():
 		var time_since_last = current_time - last_network_time
 		var distance_moved = position.distance_to(last_sent_position)
 		
-		# Network load testing
-		if Time.get_ticks_msec() % 5000 < 100:  # Every 5 seconds, log for 100ms
-			print("NETWORK LOAD: Player ", player_id, " RPC rate: ", 1.0/time_since_last, " Hz")
 		
 		# Use NetworkManager for ALL players to avoid RPC conflicts
 		if network_manager and is_local_player:
@@ -150,11 +147,6 @@ func _send_network_update():
 func receive_network_position(pos: Vector2, timestamp: float = 0.0):
 	"""Called when receiving position update with latency measurement"""
 	if not is_local_player:
-		# Debug: Check for position jumps that might cause glitching
-		var old_pos = position
-		var distance = old_pos.distance_to(pos)
-		if distance > 5.0:  # Log significant jumps
-			print("GLITCH DEBUG: Player ", player_id, " jumped ", distance, " pixels from ", old_pos, " to ", pos)
 		
 		# For local multiplayer - direct position update, no interpolation whatsoever
 		position = pos
