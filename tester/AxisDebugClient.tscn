@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cu8bxlprxwmxe"]
+
+[ext_resource type="Script" path="res://tester/axis_debug_client.gd" id="1_axis"]
+
+[node name="AxisDebugClient" type="Node"]
+script = ExtResource("1_axis")

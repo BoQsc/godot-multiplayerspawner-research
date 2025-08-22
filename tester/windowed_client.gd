@@ -25,44 +25,49 @@ func _start_movement_demo():
 	await _simulate_input_sequence()
 
 func _simulate_input_sequence():
-	"""Simulate a sequence of input commands"""
-	print("🚀 Starting input simulation sequence...")
+	"""Direct movement without input simulation"""
+	print("🚀 Starting direct movement sequence...")
 	
-	# Move right for 2 seconds
-	print("➡️ Simulating RIGHT movement...")
-	for i in range(120):  # 2 seconds at 60 FPS
-		Input.action_press("ui_right")
-		await get_tree().process_frame
-	Input.action_release("ui_right")
-	print("   Released RIGHT")
+	# Get my player
+	var game_manager = get_tree().get_first_node_in_group("game_manager")
+	if not game_manager:
+		print("❌ No GameManager found")
+		return
 	
-	await get_tree().create_timer(1.0).timeout
+	var players = game_manager.get("players")
+	var my_peer_id = multiplayer.get_unique_id()
 	
-	# Jump
-	print("🦘 Simulating JUMP...")
-	Input.action_press("ui_accept")
-	await get_tree().process_frame
-	Input.action_release("ui_accept")
-	print("   Jump executed")
+	if not players or not (my_peer_id in players):
+		print("❌ Player not found")
+		return
 	
-	await get_tree().create_timer(1.0).timeout
+	var my_player = players[my_peer_id]
+	var start_pos = my_player.position
+	print("📍 Starting position: " + str(start_pos))
 	
-	# Move left for 2 seconds  
-	print("⬅️ Simulating LEFT movement...")
-	for i in range(120):  # 2 seconds at 60 FPS
-		Input.action_press("ui_left")
-		await get_tree().process_frame
-	Input.action_release("ui_left")
-	print("   Released LEFT")
+	# Move right
+	print("➡️ Moving RIGHT...")
+	my_player.position = start_pos + Vector2(150, 0)
+	print("   Moved to: " + str(my_player.position))
+	await get_tree().create_timer(2.0).timeout
 	
-	await get_tree().create_timer(1.0).timeout
+	# Move up
+	print("⬆️ Moving UP...")
+	my_player.position = my_player.position + Vector2(0, -100)
+	print("   Moved to: " + str(my_player.position))
+	await get_tree().create_timer(2.0).timeout
 	
-	# Another jump
-	print("🦘 Simulating second JUMP...")
-	Input.action_press("ui_accept")
-	await get_tree().process_frame
-	Input.action_release("ui_accept")
-	print("   Second jump executed")
+	# Move left
+	print("⬅️ Moving LEFT...")
+	my_player.position = my_player.position + Vector2(-150, 0)
+	print("   Moved to: " + str(my_player.position))
+	await get_tree().create_timer(2.0).timeout
+	
+	# Move down
+	print("⬇️ Moving DOWN...")
+	my_player.position = my_player.position + Vector2(0, 100)
+	print("   Moved to: " + str(my_player.position))
+	await get_tree().create_timer(2.0).timeout
 	
 	print("🏁 Movement demo completed!")
 	print("You should have seen the client move right, jump, move left, and jump again.")

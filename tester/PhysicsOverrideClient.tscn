@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bf8w4mw4xk2vn"]
+
+[ext_resource type="Script" path="res://tester/physics_override_client.gd" id="1_physics"]
+
+[node name="PhysicsOverrideClient" type="Node"]
+script = ExtResource("1_physics")

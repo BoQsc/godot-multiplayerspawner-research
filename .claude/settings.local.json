@@ -56,7 +56,15 @@
       "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" --headless tester/ForcedLocalClient.tscn)",
       "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" --headless tester/RpcMovementClient.tscn)",
       "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" --headless tester/ServerMovementClient.tscn)",
-      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/WindowedClient.tscn)"
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/WindowedClient.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/WindowedClient.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/WindowedClient.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/CommandControlledClient.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/CommandControlledClient.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/PhysicsOverrideClient.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/InputEventClient.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" --headless tester/AxisDebugClient.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/ImmediateMoveClient.tscn)"
     ],
     "deny": [],
     "ask": [],

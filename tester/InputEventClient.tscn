@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://beq4p6rw8g2jy"]
+
+[ext_resource type="Script" path="res://tester/input_event_client.gd" id="1_input_event"]
+
+[node name="InputEventClient" type="Node"]
+script = ExtResource("1_input_event")
