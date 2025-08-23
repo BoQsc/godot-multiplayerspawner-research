@@ -20,7 +20,7 @@ func _start_command_loop():
 	await get_tree().create_timer(3.0).timeout
 	
 	print("📡 Ready for commands! Write commands to:", command_file_path)
-	print("Available commands: right, left, jump, stop")
+	print("Available commands: right, left, jump, stop, chase, find")
 	
 	# Start checking for commands
 	var timer = Timer.new()
@@ -63,6 +63,10 @@ func _execute_command(command: String):
 			print("⏹️ Stopped")
 		"status":
 			_report_status()
+		"chase":
+			_start_chase()
+		"find":
+			_find_and_navigate()
 		_:
 			print("❌ Unknown command: ", command)
 
@@ -89,3 +93,65 @@ func _report_status():
 			print("❌ Could not find game manager")
 	else:
 		print("❌ Could not find main scene")
+
+func _start_chase():
+	print("🎯 Starting chase mode...")
+	var chase_timer = Timer.new()
+	add_child(chase_timer)
+	chase_timer.wait_time = 0.2
+	chase_timer.timeout.connect(_chase_step)
+	chase_timer.start()
+
+func _chase_step():
+	var main_scene = get_tree().root.get_node("Node2D")
+	if main_scene:
+		var game_manager = main_scene.get_node("GameManager")
+		if game_manager:
+			var my_id = multiplayer.get_unique_id()
+			var my_pos = Vector2.ZERO
+			var target_pos = Vector2.ZERO
+			var found_target = false
+			
+			# Find my position and target
+			for peer_id in game_manager.players:
+				var player = game_manager.players[peer_id]
+				if peer_id == my_id:
+					my_pos = player.global_position
+				elif peer_id == 1: # Target player 1
+					target_pos = player.global_position
+					found_target = true
+			
+			if found_target:
+				var diff = target_pos - my_pos
+				print("🎯 Distance to target: ", diff.length())
+				
+				# Navigate towards target with obstacle handling
+				if abs(diff.x) > 50:
+					if diff.x > 0:
+						Input.action_release("ui_left")
+						Input.action_press("ui_right")
+					else:
+						Input.action_release("ui_right")
+						Input.action_press("ui_left")
+				else:
+					Input.action_release("ui_right")
+					Input.action_release("ui_left")
+				
+				# Jump if target is above or to get over obstacles
+				if diff.y < -100 or (abs(diff.x) < 100 and diff.y < -50):
+					Input.action_press("ui_accept")
+					await get_tree().process_frame
+					Input.action_release("ui_accept")
+				
+				# Stop chasing when very close
+				if diff.length() < 30:
+					print("🎯 Reached target!")
+					get_child(get_child_count()-1).queue_free() # Stop timer
+			else:
+				print("❌ Target not found")
+
+func _find_and_navigate():
+	print("🔍 Finding optimal path...")
+	_report_status()
+	await get_tree().create_timer(0.5).timeout
+	_start_chase()
