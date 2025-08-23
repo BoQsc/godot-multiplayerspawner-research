@@ -1,6 +1,7 @@
 import os
 from PIL import Image
 from collections import Counter
+import math
 
 # Configure these paths
 TILES_DIR = r"C:\Users\Windows10_new\Documents\godot-multiplayerspawner-research\assets\kenney_platformer-art-deluxe\Base pack\Tiles"
@@ -9,6 +10,9 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 ATLAS_FILENAME = "tiles_spritesheet.png"
 TRES_FILENAME = "tileset_generated.tres"
+
+# Set a standard tile size
+STANDARD_SIZE = 70  # Most common size in the tileset
 
 # Load all PNG files from the original TILES_DIR only
 tiles = []
@@ -26,44 +30,58 @@ for fname in os.listdir(TILES_DIR):
 
 print(f"Total tiles loaded: {len(tiles)}")
 
-# Find the most common tile size to use as our minimum size
-size_counter = Counter(im.size for _, im in tiles)
-most_common_size = size_counter.most_common(1)[0][0]
-min_w, min_h = most_common_size
-
-print(f"Minimum tile size: {min_w}x{min_h}")
-
-# Process tiles - resize smaller ones to minimum size, keep larger ones as-is
+# Process tiles - split larger tiles into multiple standard-sized tiles
 processed_tiles = []
 for fname, img in tiles:
-    if img.width < min_w or img.height < min_h:
-        # Resize smaller tiles to minimum size
-        new_img = Image.new("RGBA", (min_w, min_h), (0, 0, 0, 0))
-        
-        # Calculate position to center the original image
-        x_offset = (min_w - img.width) // 2
-        y_offset = (min_h - img.height) // 2
-        
-        # Paste the original image onto the new image
-        new_img.paste(img, (x_offset, y_offset))
-        processed_tiles.append((fname, new_img))
-        print(f"Resized: {fname} from {img.width}x{img.height} to {min_w}x{min_h}")
+    # Calculate how many tiles we need to split this image into
+    cols = math.ceil(img.width / STANDARD_SIZE)
+    rows = math.ceil(img.height / STANDARD_SIZE)
+    
+    if cols == 1 and rows == 1:
+        # Tile fits within standard size, just center it
+        if img.width < STANDARD_SIZE or img.height < STANDARD_SIZE:
+            new_img = Image.new("RGBA", (STANDARD_SIZE, STANDARD_SIZE), (0, 0, 0, 0))
+            x_offset = (STANDARD_SIZE - img.width) // 2
+            y_offset = (STANDARD_SIZE - img.height) // 2
+            new_img.paste(img, (x_offset, y_offset))
+            processed_tiles.append((fname, new_img))
+            print(f"Centered: {fname} in {STANDARD_SIZE}x{STANDARD_SIZE}")
+        else:
+            processed_tiles.append((fname, img))
+            print(f"Kept original: {fname} ({img.width}x{img.height})")
     else:
-        # Keep larger tiles as they are
-        processed_tiles.append((fname, img))
-        print(f"Kept original: {fname} ({img.width}x{img.height})")
+        # Split the tile into multiple standard-sized tiles
+        print(f"Splitting: {fname} into {cols}x{rows} tiles")
+        for row in range(rows):
+            for col in range(cols):
+                # Calculate the region to extract
+                left = col * STANDARD_SIZE
+                upper = row * STANDARD_SIZE
+                right = min((col + 1) * STANDARD_SIZE, img.width)
+                lower = min((row + 1) * STANDARD_SIZE, img.height)
+                
+                # Extract the region
+                region = img.crop((left, upper, right, lower))
+                
+                # If the region is smaller than standard size, center it
+                if region.width < STANDARD_SIZE or region.height < STANDARD_SIZE:
+                    new_img = Image.new("RGBA", (STANDARD_SIZE, STANDARD_SIZE), (0, 0, 0, 0))
+                    x_offset = (STANDARD_SIZE - region.width) // 2
+                    y_offset = (STANDARD_SIZE - region.height) // 2
+                    new_img.paste(region, (x_offset, y_offset))
+                    region = new_img
+                
+                # Add to processed tiles with a modified name
+                part_name = f"{os.path.splitext(fname)[0]}_{row}_{col}.png"
+                processed_tiles.append((part_name, region))
 
-# Find the maximum dimensions after processing
-max_w = max(im.width for _, im in processed_tiles)
-max_h = max(im.height for _, im in processed_tiles)
+print(f"Total tiles after processing: {len(processed_tiles)}")
 
-print(f"Maximum tile size after processing: {max_w}x{max_h}")
-
-# Create grid layout using the maximum dimensions
+# Create grid layout
 cols = 16
 rows = (len(processed_tiles) + cols - 1) // cols
-atlas_w = cols * max_w
-atlas_h = rows * max_h
+atlas_w = cols * STANDARD_SIZE
+atlas_h = rows * STANDARD_SIZE
 
 print(f"Creating atlas: {atlas_w}x{atlas_h} with {cols}x{rows} grid")
 
@@ -71,17 +89,13 @@ print(f"Creating atlas: {atlas_w}x{atlas_h} with {cols}x{rows} grid")
 atlas = Image.new("RGBA", (atlas_w, atlas_h), (0, 0, 0, 0))
 positions = {}
 
-# Place each tile in the grid, centering them in their cells
+# Place each tile in the grid
 for idx, (fname, img) in enumerate(processed_tiles):
     x = idx % cols
     y = idx // cols
     
-    # Calculate offset to center the tile in its cell
-    x_offset = (max_w - img.width) // 2
-    y_offset = (max_h - img.height) // 2
-    
     # Paste the tile at the correct position
-    atlas.paste(img, (x * max_w + x_offset, y * max_h + y_offset))
+    atlas.paste(img, (x * STANDARD_SIZE, y * STANDARD_SIZE))
     positions[fname] = (x, y)
     print(f"Placed {fname} at position ({x}, {y})")
 
@@ -102,15 +116,15 @@ with open(tres_path, "w", encoding="utf-8") as f:
     
     f.write('[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_1"]\n')
     f.write('texture = ExtResource("1")\n')
-    f.write(f'texture_region_size = Vector2i({max_w}, {max_h})\n')
+    f.write(f'texture_region_size = Vector2i({STANDARD_SIZE}, {STANDARD_SIZE})\n')
     f.write('use_texture_padding = false\n\n')
 
     for fname, (x, y) in positions.items():
         f.write(f'{x}:{y}/0 = 0\n')
-        f.write(f'{x}:{y}/0/physics_layer_0/polygon_0/points = PackedVector2Array(0, 0, {max_w}, 0, {max_w}, {max_h}, 0, {max_h})\n')
+        f.write(f'{x}:{y}/0/physics_layer_0/polygon_0/points = PackedVector2Array(0, 0, {STANDARD_SIZE}, 0, {STANDARD_SIZE}, {STANDARD_SIZE}, 0, {STANDARD_SIZE})\n')
 
     f.write('\n[resource]\n')
-    f.write(f'tile_size = Vector2i({max_w}, {max_h})\n')
+    f.write(f'tile_size = Vector2i({STANDARD_SIZE}, {STANDARD_SIZE})\n')
     f.write('sources/0 = SubResource("TileSetAtlasSource_1")\n')
 
 print(f"Saved TRES: {tres_path}")
