@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dm8yagw2n1equ"]
+
+[ext_resource type="Script" path="res://tester/file_command_client.gd" id="1_file_cmd"]
+
+[node name="FileCommandClient" type="Node"]
+script = ExtResource("1_file_cmd")

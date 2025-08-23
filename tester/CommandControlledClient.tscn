@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://dx9w9j6m8xk6v"]
+[gd_scene load_steps=2 format=3 uid="uid://dyaxaj6m8xk6v"]
 
 [ext_resource type="Script" path="res://tester/command_controlled_client.gd" id="1_command"]
 

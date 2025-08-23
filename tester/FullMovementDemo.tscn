@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://36abvqj00n54"]
+
+[ext_resource type="Script" path="res://tester/full_movement_demo.gd" id="1_full_demo"]
+
+[node name="FullMovementDemo" type="Node"]
+script = ExtResource("1_full_demo")

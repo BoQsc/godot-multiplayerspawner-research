@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bdx58gw2n1cqr"]
+
+[ext_resource type="Script" path="res://tester/immediate_showcase.gd" id="1_immediate"]
+
+[node name="ImmediateShowcase" type="Node"]
+script = ExtResource("1_immediate")

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c8q4j5xw2n1bp"]
+
+[ext_resource type="Script" path="res://tester/movement_showcase.gd" id="1_showcase"]
+
+[node name="MovementShowcase" type="Node"]
+script = ExtResource("1_showcase")
