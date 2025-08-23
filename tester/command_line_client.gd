@@ -2,7 +2,7 @@ extends Node
 
 # Command-line controlled test client
 
-var command_file_path = "user://client_commands.txt"
+var command_file_path = "res://client_commands.txt"
 var last_command = ""
 
 func _ready():
