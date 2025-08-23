@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://di8x7gw2n1iq0"]
+
+[ext_resource type="Script" path="res://tester/wait_for_camera_client.gd" id="1_camera_wait"]
+
+[node name="WaitForCameraClient" type="Node"]
+script = ExtResource("1_camera_wait")

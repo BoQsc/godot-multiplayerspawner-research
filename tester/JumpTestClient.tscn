@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dj8x7gw2n1jra"]
+
+[ext_resource type="Script" path="res://tester/jump_test_client.gd" id="1_jump_test"]
+
+[node name="JumpTestClient" type="Node"]
+script = ExtResource("1_jump_test")

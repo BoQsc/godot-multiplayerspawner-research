@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dm8x7gw2n1muc"]
+
+[ext_resource type="Script" path="res://tester/no_timer_client.gd" id="1_no_timer"]
+
+[node name="NoTimerClient" type="Node"]
+script = ExtResource("1_no_timer")

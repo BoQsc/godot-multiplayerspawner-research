@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dk8x7gw2n1ksa"]
+
+[ext_resource type="Script" path="res://tester/debug_movement_client.gd" id="1_debug_movement"]
+
+[node name="DebugMovementClient" type="Node"]
+script = ExtResource("1_debug_movement")

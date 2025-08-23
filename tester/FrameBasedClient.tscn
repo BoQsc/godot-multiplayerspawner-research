@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dl8x7gw2n1ltb"]
+
+[ext_resource type="Script" path="res://tester/frame_based_client.gd" id="1_frame_based"]
+
+[node name="FrameBasedClient" type="Node"]
+script = ExtResource("1_frame_based")
