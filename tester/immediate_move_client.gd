@@ -12,7 +12,6 @@ func _ready():
 	
 	var main_scene = load("res://main_scene.tscn").instantiate()
 	get_tree().root.add_child.call_deferred(main_scene)
-	call_deferred("queue_free")
 	
 	# Start movement commands right away
 	call_deferred("_immediate_movement")
