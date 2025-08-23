@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dn8x7gw2n1nvd"]
+
+[ext_resource type="Script" path="res://tester/repeating_movements.gd" id="1_repeating"]
+
+[node name="RepeatingMovements" type="Node"]
+script = ExtResource("1_repeating")

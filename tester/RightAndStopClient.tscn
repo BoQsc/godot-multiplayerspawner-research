@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://do8x7gw2n1owe"]
+
+[ext_resource type="Script" path="res://tester/right_and_stop_client.gd" id="1_right_stop"]
+
+[node name="RightAndStopClient" type="Node"]
+script = ExtResource("1_right_stop")

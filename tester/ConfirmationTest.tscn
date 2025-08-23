@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dp8x7gw2n1pwf"]
+
+[ext_resource type="Script" path="res://tester/confirmation_test.gd" id="1_confirmation"]
+
+[node name="ConfirmationTest" type="Node"]
+script = ExtResource("1_confirmation")

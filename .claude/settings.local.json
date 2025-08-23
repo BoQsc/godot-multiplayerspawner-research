@@ -93,7 +93,16 @@
       "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/FrameBasedClient.tscn)",
       "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/ImmediateMoveClient.tscn)",
       "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/ImmediateShowcase.tscn)",
-      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/NoTimerClient.tscn)"
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/NoTimerClient.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/RepeatingMovements.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/DebugMovementClient.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/DebugMovementClient.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/RightAndStopClient.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" --headless tester/serious_diagnostic.gd --script)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/ImmediateMoveClient.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" tester/ConfirmationTest.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" --headless tester/ComprehensiveDiagnostic.tscn)",
+      "Bash(\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe\" --headless tester/ComprehensiveDiagnostic.tscn)"
     ],
     "deny": [],
     "ask": [],

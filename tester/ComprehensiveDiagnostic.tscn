@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dq8x7gw2n1qxg"]
+
+[ext_resource type="Script" path="res://tester/comprehensive_diagnostic.gd" id="1_comprehensive"]
+
+[node name="ComprehensiveDiagnostic" type="Node"]
+script = ExtResource("1_comprehensive")
