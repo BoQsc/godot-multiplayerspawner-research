@@ -61,5 +61,31 @@ func _execute_command(command: String):
 			Input.action_release("ui_right")
 			Input.action_release("ui_left")
 			print("⏹️ Stopped")
+		"status":
+			_report_status()
 		_:
 			print("❌ Unknown command: ", command)
+
+func _report_status():
+	# Try to find our player and other players
+	var main_scene = get_tree().root.get_node("Node2D")
+	if main_scene:
+		var game_manager = main_scene.get_node("GameManager")
+		if game_manager:
+			var my_id = multiplayer.get_unique_id()
+			
+			# Print all players
+			print("👥 All players in world:")
+			for peer_id in game_manager.players:
+				var player = game_manager.players[peer_id]
+				if peer_id == my_id:
+					print("📍 Me (", peer_id, ") at position: ", player.global_position)
+				else:
+					print("  Player ", peer_id, " at position: ", player.global_position)
+			
+			if game_manager.players.size() == 0:
+				print("❌ No players found in game_manager.players")
+		else:
+			print("❌ Could not find game manager")
+	else:
+		print("❌ Could not find main scene")
