@@ -152,8 +152,24 @@ func _switch_navigation_strategy():
 			blocked_directions.clear()
 			print("🎯 STRATEGY: Resetting to direct approach")
 
+var last_distance = 999999.0
+var getting_further_counter = 0
+
 func _navigate_to_target(my_pos: Vector2, target_pos: Vector2):
 	var distance = my_pos.distance_to(target_pos)
+	
+	# Check if we're getting further away from target
+	if distance > last_distance + 10:  # Getting significantly further
+		getting_further_counter += 1
+		if getting_further_counter >= 5:  # 0.5 seconds of getting further
+			print("🔄 Getting further from target, resetting strategy!")
+			current_strategy = "direct_approach"
+			blocked_directions.clear()
+			getting_further_counter = 0
+	else:
+		getting_further_counter = 0
+	
+	last_distance = distance
 	
 	# Close range interaction - stop repetitive jumping when very close
 	if distance < 80:
