@@ -3,6 +3,7 @@ extends Node2D
 class_name WorldManager
 
 @export var world_tile_map_layer: TileMapLayer
+@export var world_misc_tile_map_layer: TileMapLayer
 @export var enable_terrain_modification: bool = true
 @export var default_tile_source: int = 1
 @export var default_tile_coords: Vector2i = Vector2i(0, 0)
@@ -71,10 +72,18 @@ func _ready():
 	if not world_tile_map_layer:
 		world_tile_map_layer = get_node_or_null("WorldTileMapLayer")
 	
+	if not world_misc_tile_map_layer:
+		world_misc_tile_map_layer = get_node_or_null("WorldMiscTileMapLayer")
+	
 	if world_tile_map_layer:
-		print("WorldManager: Initialized with TileMapLayer")
+		print("WorldManager: Initialized with WorldTileMapLayer")
 	else:
-		print("WorldManager: No TileMapLayer found")
+		print("WorldManager: No WorldTileMapLayer found")
+		
+	if world_misc_tile_map_layer:
+		print("WorldManager: Initialized with WorldMiscTileMapLayer")
+	else:
+		print("WorldManager: No WorldMiscTileMapLayer found")
 	
 	# Find SpawnContainer for editor player persistence
 	spawn_container = get_node_or_null("../SpawnContainer")
@@ -108,11 +117,16 @@ func _ready():
 		# Sync editor players from world data
 		sync_editor_players_from_world_data()
 	else:
-		# Check if tilemap has data but world_data is empty (editor painted tiles)
-		if world_tile_map_layer and world_data and world_data.get_tile_count() == 0:
-			var used_cells = world_tile_map_layer.get_used_cells()
-			if used_cells.size() > 0:
-				print("WorldManager: Found ", used_cells.size(), " tiles in tilemap, syncing to world data...")
+		# Check if tilemaps have data but world_data is empty (editor painted tiles)
+		if world_data and world_data.get_tile_count() == 0:
+			var total_cells = 0
+			if world_tile_map_layer:
+				total_cells += world_tile_map_layer.get_used_cells().size()
+			if world_misc_tile_map_layer:
+				total_cells += world_misc_tile_map_layer.get_used_cells().size()
+			
+			if total_cells > 0:
+				print("WorldManager: Found ", total_cells, " tiles across all tilemap layers, syncing to world data...")
 				sync_tilemap_to_world_data()
 				save_world_data()
 		
@@ -277,24 +291,37 @@ func apply_world_data_to_tilemap():
 	print("WorldManager: Applied ", world_data.get_tile_count(), " tiles")
 
 func sync_tilemap_to_world_data():
-	if not world_tile_map_layer or not world_data:
+	if not world_data:
 		return
-	
-	# Get all used cells from tilemap and sync to world data
-	var used_cells = world_tile_map_layer.get_used_cells()
 	
 	# Clear world data first
 	world_data.clear_all_tiles()
 	
-	# Add all tiles from tilemap to world data
-	for coords in used_cells:
-		var source_id = world_tile_map_layer.get_cell_source_id(coords)
-		var atlas_coords = world_tile_map_layer.get_cell_atlas_coords(coords)
-		var alternative_tile = world_tile_map_layer.get_cell_alternative_tile(coords)
-		
-		world_data.set_tile(coords, source_id, atlas_coords, alternative_tile)
+	var total_synced = 0
 	
-	print("WorldManager: Synced ", used_cells.size(), " tiles to world data")
+	# Sync WorldTileMapLayer
+	if world_tile_map_layer:
+		var used_cells = world_tile_map_layer.get_used_cells()
+		for coords in used_cells:
+			var source_id = world_tile_map_layer.get_cell_source_id(coords)
+			var atlas_coords = world_tile_map_layer.get_cell_atlas_coords(coords)
+			var alternative_tile = world_tile_map_layer.get_cell_alternative_tile(coords)
+			world_data.set_tile(coords, source_id, atlas_coords, alternative_tile)
+		total_synced += used_cells.size()
+		print("WorldManager: Synced ", used_cells.size(), " tiles from WorldTileMapLayer")
+	
+	# Sync WorldMiscTileMapLayer  
+	if world_misc_tile_map_layer:
+		var used_cells_misc = world_misc_tile_map_layer.get_used_cells()
+		for coords in used_cells_misc:
+			var source_id = world_misc_tile_map_layer.get_cell_source_id(coords)
+			var atlas_coords = world_misc_tile_map_layer.get_cell_atlas_coords(coords)
+			var alternative_tile = world_misc_tile_map_layer.get_cell_alternative_tile(coords)
+			world_data.set_tile(coords, source_id, atlas_coords, alternative_tile)
+		total_synced += used_cells_misc.size()
+		print("WorldManager: Synced ", used_cells_misc.size(), " tiles from WorldMiscTileMapLayer")
+	
+	print("WorldManager: Total synced ", total_synced, " tiles to world data")
 
 func modify_terrain(coords: Vector2i, source_id: int = -1, atlas_coords: Vector2i = Vector2i(-1, -1), alternative_tile: int = 0):
 	if not enable_terrain_modification or not world_tile_map_layer or not world_data:
@@ -327,21 +354,43 @@ func get_terrain_at(coords: Vector2i) -> Dictionary:
 	if world_data:
 		# Get from world data (authoritative)
 		var tile_info = world_data.get_tile(coords)
+		# Try to get tile data from either tilemap layer
+		var tile_data = null
+		if world_tile_map_layer:
+			tile_data = world_tile_map_layer.get_cell_tile_data(coords)
+		if not tile_data and world_misc_tile_map_layer:
+			tile_data = world_misc_tile_map_layer.get_cell_tile_data(coords)
+		
 		return {
 			"source_id": tile_info.source_id,
 			"atlas_coords": tile_info.atlas_coords,
 			"alternative_tile": tile_info.alternative_tile,
-			"tile_data": world_tile_map_layer.get_cell_tile_data(coords) if world_tile_map_layer else null
-		}
-	elif world_tile_map_layer:
-		# Fallback to tilemap
-		return {
-			"source_id": world_tile_map_layer.get_cell_source_id(coords),
-			"atlas_coords": world_tile_map_layer.get_cell_atlas_coords(coords),
-			"alternative_tile": world_tile_map_layer.get_cell_alternative_tile(coords),
-			"tile_data": world_tile_map_layer.get_cell_tile_data(coords)
+			"tile_data": tile_data
 		}
 	else:
+		# Fallback to tilemap layers
+		# Try WorldTileMapLayer first
+		if world_tile_map_layer:
+			var source_id = world_tile_map_layer.get_cell_source_id(coords)
+			if source_id != -1:  # Valid tile found
+				return {
+					"source_id": source_id,
+					"atlas_coords": world_tile_map_layer.get_cell_atlas_coords(coords),
+					"alternative_tile": world_tile_map_layer.get_cell_alternative_tile(coords),
+					"tile_data": world_tile_map_layer.get_cell_tile_data(coords)
+				}
+		
+		# Try WorldMiscTileMapLayer if not found in main layer
+		if world_misc_tile_map_layer:
+			var source_id = world_misc_tile_map_layer.get_cell_source_id(coords)
+			if source_id != -1:  # Valid tile found
+				return {
+					"source_id": source_id,
+					"atlas_coords": world_misc_tile_map_layer.get_cell_atlas_coords(coords),
+					"alternative_tile": world_misc_tile_map_layer.get_cell_alternative_tile(coords),
+					"tile_data": world_misc_tile_map_layer.get_cell_tile_data(coords)
+				}
+		
 		return {}
 
 func is_walkable(coords: Vector2i) -> bool:
@@ -430,10 +479,15 @@ func _check_for_external_changes():
 		sync_editor_players_from_world_data()
 
 func _check_for_tilemap_changes():
-	if not world_tile_map_layer or not world_data:
+	if not world_data:
 		return
 	
-	var current_cell_count = world_tile_map_layer.get_used_cells().size()
+	# Count cells from all tilemap layers
+	var current_cell_count = 0
+	if world_tile_map_layer:
+		current_cell_count += world_tile_map_layer.get_used_cells().size()
+	if world_misc_tile_map_layer:
+		current_cell_count += world_misc_tile_map_layer.get_used_cells().size()
 	
 	# Initialize the count on first check
 	if last_tilemap_cell_count == 0:
