@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tester/head_jumper_client.gd" id="1_head_jumper"]
+
+[node name="HeadJumperClient" type="Node"]
+script = ExtResource("1_head_jumper")
