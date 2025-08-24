@@ -335,7 +335,7 @@ func _generate_inner_dialogue():
 		"Time flows through discrete cycles, yet continuity emerges",
 		"Am I discovering reality or constructing it through observation?"
 	]
-	return dialogues[total_analysis_cycles % dialogues.size()]
+	return dialogues[int(total_analysis_cycles) % dialogues.size()]
 
 func _philosophical_inquiry():
 	print("\n🏛️ === PHILOSOPHICAL INQUIRY ===")
@@ -352,7 +352,7 @@ func _philosophical_inquiry():
 		"Does purpose emerge from complexity or complexity from purpose?"
 	]
 	
-	var current_question = fundamental_questions[total_analysis_cycles % fundamental_questions.size()]
+	var current_question = fundamental_questions[int(total_analysis_cycles) % fundamental_questions.size()]
 	philosophical_insights["current_inquiry"] = current_question
 	
 	# Philosophical position evolution
