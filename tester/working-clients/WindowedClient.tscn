@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dx8xaj6m8xk5v"]
 
-[ext_resource type="Script" path="res://tester/windowed_client.gd" id="1_windowed"]
+[ext_resource type="Script" path="res://tester/working-clients/windowed_client.gd" id="1_windowed"]
 
 [node name="WindowedClient" type="Node"]
 script = ExtResource("1_windowed")
