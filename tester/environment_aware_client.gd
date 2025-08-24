@@ -153,6 +153,13 @@ func _switch_navigation_strategy():
 			print("🎯 STRATEGY: Resetting to direct approach")
 
 func _navigate_to_target(my_pos: Vector2, target_pos: Vector2):
+	var distance = my_pos.distance_to(target_pos)
+	
+	# Close range interaction - stop repetitive jumping when very close
+	if distance < 80:
+		_strategy_close_range_interaction(my_pos, target_pos)
+		return
+	
 	match current_strategy:
 		"direct_approach":
 			_strategy_direct_approach(my_pos, target_pos)
@@ -253,6 +260,69 @@ func _strategy_retreat_and_reapproach(my_pos: Vector2, target_pos: Vector2):
 	# Jump to get to different elevation
 	if jump_cooldown <= 0 and randf() < 0.3:
 		_perform_jump("Retreat jump to change elevation")
+
+var celebration_timer = 0.0
+var interaction_phase = "approaching"
+
+func _strategy_close_range_interaction(my_pos: Vector2, target_pos: Vector2):
+	var distance = my_pos.distance_to(target_pos)
+	
+	print("🎯 CLOSE RANGE INTERACTION | Distance: ", int(distance), " | Phase: ", interaction_phase)
+	
+	# Stop all movement first
+	Input.action_release("ui_left")
+	Input.action_release("ui_right")
+	
+	# Different behaviors based on phase
+	match interaction_phase:
+		"approaching":
+			if distance < 60:
+				print("🎉 SUCCESS! I made it to your head!")
+				interaction_phase = "celebrating"
+				celebration_timer = 3.0
+			else:
+				# Fine movement toward target
+				var horizontal_distance = target_pos.x - my_pos.x
+				if abs(horizontal_distance) > 15:
+					if horizontal_distance > 0:
+						Input.action_press("ui_right")
+						print("➡️ Fine positioning right")
+					else:
+						Input.action_press("ui_left")
+						print("⬅️ Fine positioning left")
+		
+		"celebrating":
+			celebration_timer -= 0.1
+			if celebration_timer > 2.0:
+				if jump_cooldown <= 0:
+					_perform_jump("🦘 Victory jump on your head!")
+			elif celebration_timer > 1.0:
+				print("🎊 I'm on your head! Mission accomplished!")
+			elif celebration_timer <= 0:
+				interaction_phase = "playful"
+				print("😄 Now let's be playful!")
+		
+		"playful":
+			# Random playful behaviors
+			var behavior = randi() % 4
+			match behavior:
+				0:
+					if jump_cooldown <= 0 and randf() < 0.3:
+						_perform_jump("🦘 Playful bounce!")
+				1:
+					print("👋 Hello there! I'm right here with you!")
+				2:
+					print("🎪 Look at me! I'm balancing on your head!")
+				3:
+					# Occasionally move slightly to stay close
+					var horizontal_distance = target_pos.x - my_pos.x
+					if abs(horizontal_distance) > 40:
+						if horizontal_distance > 0:
+							Input.action_press("ui_right")
+							print("➡️ Following you")
+						else:
+							Input.action_press("ui_left")
+							print("⬅️ Following you")
 
 func _find_safe_direction(my_pos: Vector2, target_pos: Vector2) -> String:
 	# Analyze safe directions based on known obstacles and safe tiles
