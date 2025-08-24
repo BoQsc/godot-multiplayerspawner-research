@@ -290,6 +290,8 @@ func register_client(client_id: String, peer_id: int, chosen_player_num: int = -
 	client_to_player_mapping[client_id] = persistent_id
 	print("DEBUG: Set client mapping: ", client_id, " -> ", persistent_id)
 	print("DEBUG: Mapping now contains: ", client_to_player_mapping.has(client_id))
+	print("DEBUG: Mapping size before: ", client_to_player_mapping.size())
+	print("DEBUG: All mappings after set: ", client_to_player_mapping.keys())
 	
 	# Create player record immediately if it doesn't exist
 	if not has_player(persistent_id):

@@ -17,7 +17,7 @@ var login: Login
 
 # Automatic position saving
 var save_timer: float = 0.0
-var save_interval: float = 5.0  # Save every 5 seconds
+var save_interval: float = 8.0  # Save every 8 seconds (reduced frequency to prevent conflicts)
 
 # UI window tracking
 var device_binding_ui: Control = null
@@ -94,12 +94,20 @@ func _ready() -> void:
 				# Check if this player is already bound to a different device
 				if player_id in server_device_bindings:
 					var bound_device = server_device_bindings[player_id]
-					if bound_device != server_device_fingerprint:
+					var force_override = OS.has_feature("debug") or "--force-device-transfer" in OS.get_cmdline_args()
+					if bound_device != server_device_fingerprint and not force_override:
 						print("ERROR: Server cannot use player ", server_chosen_id, " - bound to different device")
 						print("Bound device: ", bound_device.substr(0, 16), "...")
 						print("Server device: ", server_device_fingerprint.substr(0, 16), "...")
+						print("SOLUTION: Use --force-device-transfer flag or choose different player ID")
 						get_tree().quit()
 						return
+					elif bound_device != server_device_fingerprint and force_override:
+						print("WARNING: Forcing device transfer for player ", server_chosen_id)
+						print("Old device: ", bound_device.substr(0, 16), "...")
+						print("New device: ", server_device_fingerprint.substr(0, 16), "...")
+						# Update binding to current device
+						server_device_bindings[player_id] = server_device_fingerprint
 				else:
 					# First time using this player identifier - bind to server device
 					server_device_bindings[player_id] = server_device_fingerprint
@@ -917,9 +925,20 @@ func _auto_save_all_player_positions():
 				print("Auto-saved ", persistent_id, " (peer ", peer_id, ") at ", current_pos)
 		
 		if saved_count > 0:
-			# Save to file once after updating all positions
-			world_manager.save_world_data()
-			print("Auto-saved ", saved_count, " player positions to file")
+			# Use robust save system
+			var save_success = world_manager.save_world_data()
+			if save_success:
+				print("✅ Auto-saved ", saved_count, " player positions (ROBUST)")
+			else:
+				print("❌ FAILED to auto-save ", saved_count, " player positions!")
+				# Emergency fallback - try again once
+				print("GameManager: Attempting emergency save retry...")
+				OS.delay_msec(500)
+				var retry_success = world_manager.save_world_data()
+				if retry_success:
+					print("✅ Emergency retry successful")
+				else:
+					print("❌ Emergency retry failed - DATA AT RISK!")
 		
 		# Also auto-save NPCs
 		if world_manager and npcs.size() > 0:
@@ -1338,7 +1357,14 @@ func _register_player(peer_id: int) -> String:
 		var client_id = user_identity.get_client_id()
 		var chosen_num = user_identity.get_chosen_player_number()
 		var persistent_id = world_manager.world_data.register_client(client_id, peer_id, chosen_num)
-		world_manager.save_world_data()  # Save immediately to persist client mapping
+		# CRITICAL: Immediately save client mapping with robust system
+		print("GameManager: Saving server client registration with robust system...")
+		var save_success = world_manager.save_world_data()
+		if not save_success:
+			print("GameManager: ❌ CRITICAL - Server client registration save failed!")
+			print("GameManager: This will cause position persistence to fail on restart!")
+		else:
+			print("GameManager: ✅ Server client registration saved successfully")
 		return persistent_id
 	else:
 		print("Warning: No world manager or user identity available for player registration")
@@ -1347,7 +1373,18 @@ func _register_player(peer_id: int) -> String:
 func _register_player_with_client_id(peer_id: int, client_id: String, chosen_player_num: int = -1, chosen_player_id: String = "") -> String:
 	if world_manager and world_manager.world_data:
 		var persistent_id = world_manager.world_data.register_client(client_id, peer_id, chosen_player_num, chosen_player_id)
-		world_manager.save_world_data()  # Save immediately to persist client mapping
+		# CRITICAL: Immediately save client mapping with robust system
+		print("GameManager: Saving client registration with robust system...")
+		var save_success = world_manager.save_world_data()
+		if not save_success:
+			print("GameManager: ❌ CRITICAL - Client registration save failed!")
+			print("GameManager: Attempting emergency client registration save...")
+			OS.delay_msec(1000)  # Wait longer for critical save
+			save_success = world_manager.save_world_data()
+			if not save_success:
+				print("GameManager: ❌ EMERGENCY SAVE FAILED - POSITION PERSISTENCE AT RISK!")
+		else:
+			print("GameManager: ✅ Client registration saved successfully")
 		return persistent_id
 	else:
 		print("Warning: No world manager available for player registration")

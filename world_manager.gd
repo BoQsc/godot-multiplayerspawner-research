@@ -140,12 +140,117 @@ func load_world_data():
 	is_loading = false
 
 func save_world_data():
-	if world_data:
+	if not world_data:
+		print("WorldManager: ERROR - No world data to save")
+		return false
+		
+	# Use mutex to prevent concurrent saves
+	save_mutex.lock()
+	
+	if save_in_progress:
+		print("WorldManager: Save already in progress, skipping")
+		save_mutex.unlock()
+		return false
+	
+	save_in_progress = true
+	save_mutex.unlock()
+	
+	var success = _robust_save_world_data()
+	
+	save_mutex.lock()
+	save_in_progress = false
+	save_mutex.unlock()
+	
+	return success
+
+func _robust_save_world_data() -> bool:
+	print("WorldManager: Starting robust save operation...")
+	print("WorldManager: Client mapping size: ", world_data.client_to_player_mapping.size())
+	print("WorldManager: Player data size: ", world_data.player_data.size())
+	
+	# Store critical data for verification
+	var original_client_mappings = world_data.client_to_player_mapping.duplicate()
+	var original_player_data = world_data.player_data.keys()
+	var original_mapping_size = world_data.client_to_player_mapping.size()
+	
+	for attempt in range(max_save_retries):
+		print("WorldManager: Save attempt ", attempt + 1, "/", max_save_retries)
+		
+		# Create timestamped backup before save
+		var backup_path = world_save_path + ".backup." + str(Time.get_unix_time_from_system())
+		var backup_result = ResourceSaver.save(world_data, backup_path)
+		if backup_result == OK:
+			print("WorldManager: Backup created: ", backup_path)
+		
+		# Attempt primary save
 		var result = ResourceSaver.save(world_data, world_save_path)
-		if result == OK:
-			print("WorldManager: Saved world data to ", world_save_path)
+		
+		if result != OK:
+			print("WorldManager: Save attempt failed, error: ", result, " - ", error_string(result))
+			OS.delay_msec(100)  # Wait before retry
+			continue
+		
+		print("WorldManager: Save operation completed, verifying...")
+		
+		# Verify save by reloading and checking critical data
+		if _verify_save_integrity(original_client_mappings, original_player_data, original_mapping_size):
+			print("WorldManager: ✅ ROBUST SAVE SUCCESSFUL")
+			var file_time = FileAccess.get_modified_time(world_save_path)
+			print("WorldManager: File modified at ", Time.get_datetime_string_from_unix_time(file_time))
+			return true
 		else:
-			print("WorldManager: Failed to save world data, error: ", result)
+			print("WorldManager: Save verification failed, retrying...")
+			OS.delay_msec(200)  # Wait longer before retry
+	
+	# All attempts failed
+	print("WorldManager: ❌ CRITICAL SAVE FAILURE - All ", max_save_retries, " attempts failed")
+	print("WorldManager: Data may be lost! Check backup files.")
+	return false
+
+func _verify_save_integrity(original_mappings: Dictionary, original_players: Array, original_size: int) -> bool:
+	print("WorldManager: Verifying save integrity...")
+	
+	if not FileAccess.file_exists(world_save_path):
+		print("WorldManager: Verification failed - file doesn't exist")
+		return false
+	
+	# Load the saved file
+	var loaded_data = ResourceLoader.load(world_save_path)
+	if not loaded_data:
+		print("WorldManager: Verification failed - couldn't load saved file")
+		return false
+	
+	# Check client mapping integrity
+	if loaded_data.client_to_player_mapping.size() != original_size:
+		print("WorldManager: Verification failed - client mapping size mismatch")
+		print("WorldManager: Expected: ", original_size, " Got: ", loaded_data.client_to_player_mapping.size())
+		return false
+	
+	# Check for critical server mappings
+	var server_mappings_lost = 0
+	for client_id in original_mappings.keys():
+		if client_id.begins_with("server_"):
+			if not loaded_data.client_to_player_mapping.has(client_id):
+				print("WorldManager: Verification failed - lost server mapping: ", client_id)
+				server_mappings_lost += 1
+	
+	if server_mappings_lost > 0:
+		print("WorldManager: Verification failed - ", server_mappings_lost, " server mappings lost")
+		return false
+	
+	# Check player data integrity
+	var players_lost = 0
+	for player_id in original_players:
+		if not loaded_data.player_data.has(player_id):
+			print("WorldManager: Verification failed - lost player data: ", player_id)
+			players_lost += 1
+	
+	if players_lost > 0:
+		print("WorldManager: Verification failed - ", players_lost, " players lost")
+		return false
+	
+	print("WorldManager: ✅ Save verification passed")
+	return true
 
 func apply_world_data_to_tilemap():
 	if not world_tile_map_layer or not world_data:
@@ -284,7 +389,13 @@ func export_world_to_scene():
 
 # Auto-save functionality
 var auto_save_timer: float = 0.0
-var auto_save_interval: float = 300.0  # 5 minutes
+var auto_save_interval: float = -1.0  # Disabled - GameManager handles all saving
+
+# Robust saving system
+var save_mutex: Mutex = Mutex.new()
+var save_in_progress: bool = false
+var save_retry_count: int = 0
+var max_save_retries: int = 3
 
 func _process(delta):
 	# Check if tilemap was modified in editor (direct painting) - ALWAYS run this
@@ -296,11 +407,8 @@ func _process(delta):
 		# Check if editor players were moved
 		_check_for_editor_player_movement()
 	elif multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_DISCONNECTED and multiplayer.is_server():
-		auto_save_timer += delta
-		if auto_save_timer >= auto_save_interval:
-			print("WorldManager: Auto-saving world data (", world_data.get_tile_count(), " tiles, ", world_data.get_player_count(), " players)")
-			save_world_data()
-			auto_save_timer = 0.0
+		# WorldManager auto-save is disabled - GameManager handles all saving to prevent conflicts
+		pass
 
 func _check_for_external_changes():
 	if not FileAccess.file_exists(world_save_path):
