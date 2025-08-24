@@ -104,7 +104,7 @@ func _analyze_world_around_me(main_scene, my_pos):
 	
 	# Analyze immediate surroundings (collision detection)
 	print("🎯 Immediate surroundings scan:")
-	var space_state = get_world_2d().direct_space_state
+	var space_state = get_tree().root.get_world_2d().direct_space_state
 	if space_state:
 		_scan_cardinal_directions(space_state, my_pos)
 	
