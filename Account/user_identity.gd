@@ -23,14 +23,14 @@ func _ready():
 	is_server_role = "--server" in OS.get_cmdline_args()
 	
 	# Check for manual player selection first
-	var chosen_player = get_chosen_player_from_args()
-	if chosen_player != -1:
+	var chosen_player_id = get_chosen_player_id_from_args()
+	if chosen_player_id != "":
 		# User manually chose which player to be - server will validate device binding
 		if is_server_role:
-			user_identity_file = "user://server_player_" + str(chosen_player) + ".dat"
+			user_identity_file = "user://server_player_" + chosen_player_id + ".dat"
 		else:
-			user_identity_file = "user://client_player_" + str(chosen_player) + ".dat"
-		print("UserIdentity: User chose to be player ", chosen_player)
+			user_identity_file = "user://client_player_" + chosen_player_id + ".dat"
+		print("UserIdentity: User chose to be player ", chosen_player_id)
 	else:
 		# Fallback to automatic assignment
 		if is_server_role:
@@ -43,21 +43,30 @@ func _ready():
 	load_or_create_client_id()
 	setup_device_binding_for_uuid()
 
-func get_chosen_player_from_args() -> int:
-	# Check command line for --player=X or --player X (supports any positive integer)
+func get_chosen_player_id_from_args() -> String:
+	# Check command line for --player=X or --player X (supports any string identifier)
 	var args = OS.get_cmdline_args()
 	for i in range(args.size()):
 		var arg = args[i]
 		if arg.begins_with("--player="):
-			var player_num = int(arg.split("=")[1])
-			if player_num >= 1:  # Accept any positive number
-				print("Found --player=", player_num, " argument")
-				return player_num
+			var player_id = arg.split("=")[1]
+			if player_id != "":
+				print("Found --player=", player_id, " argument")
+				return player_id
 		elif arg == "--player" and i + 1 < args.size():
-			var player_num = int(args[i + 1])
-			if player_num >= 1:  # Accept any positive number
-				print("Found --player ", player_num, " argument")
-				return player_num
+			var player_id = args[i + 1]
+			if player_id != "" and not player_id.begins_with("--"):
+				print("Found --player ", player_id, " argument")
+				return player_id
+	return ""
+
+func get_chosen_player_from_args() -> int:
+	# Legacy function for backward compatibility - converts string ID to int if numeric
+	var player_id = get_chosen_player_id_from_args()
+	if player_id != "":
+		var as_int = int(player_id)
+		if as_int >= 1 and str(as_int) == player_id:  # Only return int if it's purely numeric
+			return as_int
 	return -1
 
 func claim_next_available_client_slot() -> int:
@@ -135,8 +144,12 @@ func get_display_name() -> String:
 	return client_id
 
 func get_chosen_player_number() -> int:
-	# Return the chosen player number if one was specified
+	# Return the chosen player number if one was specified (legacy numeric only)
 	return get_chosen_player_from_args()
+
+func get_chosen_player_id() -> String:
+	# Return the chosen player ID (string or numeric) if one was specified
+	return get_chosen_player_id_from_args()
 
 func get_device_fingerprint() -> String:
 	# Get the device fingerprint for server validation

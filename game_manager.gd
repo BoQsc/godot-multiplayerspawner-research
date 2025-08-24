@@ -84,28 +84,30 @@ func _ready() -> void:
 		# Wait for user identity to be ready
 		if user_identity:
 			# SERVER DEVICE BINDING VALIDATION
-			var server_chosen_num = user_identity.get_chosen_player_number()
-			if server_chosen_num != -1:
-				var player_id = "player_" + str(server_chosen_num)
+			var server_chosen_id = user_identity.get_chosen_player_id()
+			var server_chosen_num = user_identity.get_chosen_player_number()  # For backward compatibility
+			
+			if server_chosen_id != "":
+				var player_id = "player_" + server_chosen_id
 				var server_device_fingerprint = user_identity.get_device_fingerprint()
 				
 				# Check if this player is already bound to a different device
 				if player_id in server_device_bindings:
 					var bound_device = server_device_bindings[player_id]
 					if bound_device != server_device_fingerprint:
-						print("ERROR: Server cannot use player ", server_chosen_num, " - bound to different device")
+						print("ERROR: Server cannot use player ", server_chosen_id, " - bound to different device")
 						print("Bound device: ", bound_device.substr(0, 16), "...")
 						print("Server device: ", server_device_fingerprint.substr(0, 16), "...")
 						get_tree().quit()
 						return
 				else:
-					# First time using this player number - bind to server device
+					# First time using this player identifier - bind to server device
 					server_device_bindings[player_id] = server_device_fingerprint
 					_save_server_device_bindings()
-					print("SERVER: Bound player ", server_chosen_num, " to server device ", server_device_fingerprint.substr(0, 16), "...")
+					print("SERVER: Bound player ", server_chosen_id, " to server device ", server_device_fingerprint.substr(0, 16), "...")
 			
 			var server_client_id = user_identity.get_client_id()
-			var server_persistent_id = _register_player_with_client_id(1, server_client_id, server_chosen_num)
+			var server_persistent_id = _register_player_with_client_id(1, server_client_id, server_chosen_num, server_chosen_id)
 			var server_spawn_pos = _get_player_spawn_position(server_persistent_id)
 			_spawn_player(1, server_spawn_pos, server_persistent_id)
 		else:
@@ -1340,9 +1342,9 @@ func _register_player(peer_id: int) -> String:
 		print("Warning: No world manager or user identity available for player registration")
 		return "player_" + str(peer_id)
 
-func _register_player_with_client_id(peer_id: int, client_id: String, chosen_player_num: int = -1) -> String:
+func _register_player_with_client_id(peer_id: int, client_id: String, chosen_player_num: int = -1, chosen_player_id: String = "") -> String:
 	if world_manager and world_manager.world_data:
-		return world_manager.world_data.register_client(client_id, peer_id, chosen_player_num)
+		return world_manager.world_data.register_client(client_id, peer_id, chosen_player_num, chosen_player_id)
 	else:
 		print("Warning: No world manager available for player registration")
 		return "player_" + str(peer_id)

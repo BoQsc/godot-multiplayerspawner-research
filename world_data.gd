@@ -228,7 +228,7 @@ func get_tile_count() -> int:
 	return tile_data.size()
 
 # Player ID management functions
-func register_client(client_id: String, peer_id: int, chosen_player_num: int = -1) -> String:
+func register_client(client_id: String, peer_id: int, chosen_player_num: int = -1, chosen_player_id: String = "") -> String:
 	# Validate input parameters
 	if client_id == "" or peer_id <= 0:
 		print("ERROR: Invalid client registration - client_id: '", client_id, "', peer_id: ", peer_id)
@@ -244,24 +244,36 @@ func register_client(client_id: String, peer_id: int, chosen_player_num: int = -
 	peer_to_client_mapping[peer_id] = client_id
 	
 	# Check if this client already has a persistent player ID
+	print("DEBUG: Checking if client ", client_id, " exists in mapping...")
+	print("DEBUG: Available client mappings: ", client_to_player_mapping.keys())
 	if client_id in client_to_player_mapping:
 		var existing_persistent_id = client_to_player_mapping[client_id]
+		print("DEBUG: Found client mapping: ", client_id, " -> ", existing_persistent_id)
 		
 		# Validate that the persistent player ID exists and is consistent
 		if existing_persistent_id in player_data:
+			print("DEBUG: Player data found for ", existing_persistent_id)
 			print("Registered returning client: ", client_id, " (peer ", peer_id, ") -> persistent ID ", existing_persistent_id, " (EXISTING)")
 			last_modified = Time.get_datetime_string_from_system()
 			return existing_persistent_id
 		else:
+			print("DEBUG: Player data NOT found for ", existing_persistent_id)
+			print("DEBUG: Available player data keys: ", player_data.keys())
 			print("WARNING: Client ", client_id, " was mapped to non-existent player ", existing_persistent_id, ", creating new player")
 			# Remove the broken mapping and create new
 			client_to_player_mapping.erase(client_id)
+	else:
+		print("DEBUG: Client ", client_id, " NOT found in client mappings")
 	
 	# Create new persistent player ID for this client
 	var persistent_id: String
 	
-	if chosen_player_num > 0:
-		# Use the chosen player number directly
+	if chosen_player_id != "":
+		# Use the chosen player identifier (string or numeric)
+		persistent_id = "player_" + chosen_player_id
+		print("Using chosen player identifier: ", chosen_player_id)
+	elif chosen_player_num > 0:
+		# Use the chosen player number directly (backward compatibility)
 		persistent_id = "player_" + str(chosen_player_num)
 		print("Using chosen player number: ", chosen_player_num)
 	else:
@@ -272,7 +284,19 @@ func register_client(client_id: String, peer_id: int, chosen_player_num: int = -
 		print("Using UUID-based player ID: ", persistent_id)
 	client_to_player_mapping[client_id] = persistent_id
 	
-	print("Registered new client: ", client_id, " (peer ", peer_id, ") -> persistent ID ", persistent_id, " (NEW)")
+	# Create player record immediately if it doesn't exist
+	if not has_player(persistent_id):
+		# Use default spawn position for new players
+		print("DEBUG: Creating new player record for ", persistent_id)
+		save_player(persistent_id, Vector2(100, 100))
+		print("DEBUG: Player ", persistent_id, " created, exists: ", has_player(persistent_id))
+		print("Registered new client: ", client_id, " (peer ", peer_id, ") -> persistent ID ", persistent_id, " (NEW)")
+	else:
+		print("DEBUG: Player ", persistent_id, " already exists in data")
+		var existing_data = get_player(persistent_id)
+		print("DEBUG: Existing position: ", existing_data["position"])
+		print("Registered returning client: ", client_id, " (peer ", peer_id, ") -> persistent ID ", persistent_id, " (EXISTING)")
+	
 	last_modified = Time.get_datetime_string_from_system()
 	return persistent_id
 
