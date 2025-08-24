@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://5kqe8vmbnexk"
+path="res://.godot/imported/Magic in the Garden.mp3-fb56b70b3a4cbb064af5ccc071b9328b.mp3str"
+
+[deps]
+
+source_file="res://assets/Magic in the Garden.mp3"
+dest_files=["res://.godot/imported/Magic in the Garden.mp3-fb56b70b3a4cbb064af5ccc071b9328b.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
