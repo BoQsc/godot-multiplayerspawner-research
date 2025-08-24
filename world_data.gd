@@ -229,6 +229,11 @@ func get_tile_count() -> int:
 
 # Player ID management functions
 func register_client(client_id: String, peer_id: int, chosen_player_num: int = -1, chosen_player_id: String = "") -> String:
+	print("=== REGISTER_CLIENT CALLED ===")
+	print("Client ID: ", client_id)
+	print("Peer ID: ", peer_id)
+	print("Chosen player num: ", chosen_player_num)
+	print("Chosen player id: ", chosen_player_id)
 	# Validate input parameters
 	if client_id == "" or peer_id <= 0:
 		print("ERROR: Invalid client registration - client_id: '", client_id, "', peer_id: ", peer_id)
@@ -283,6 +288,8 @@ func register_client(client_id: String, peer_id: int, chosen_player_num: int = -
 		persistent_id = "player_" + uuid_part
 		print("Using UUID-based player ID: ", persistent_id)
 	client_to_player_mapping[client_id] = persistent_id
+	print("DEBUG: Set client mapping: ", client_id, " -> ", persistent_id)
+	print("DEBUG: Mapping now contains: ", client_to_player_mapping.has(client_id))
 	
 	# Create player record immediately if it doesn't exist
 	if not has_player(persistent_id):
@@ -298,6 +305,8 @@ func register_client(client_id: String, peer_id: int, chosen_player_num: int = -
 		print("Registered returning client: ", client_id, " (peer ", peer_id, ") -> persistent ID ", persistent_id, " (EXISTING)")
 	
 	last_modified = Time.get_datetime_string_from_system()
+	print("DEBUG: Final client_to_player_mapping size: ", client_to_player_mapping.size())
+	print("DEBUG: Final mapping contains our client: ", client_to_player_mapping.has(client_id))
 	return persistent_id
 
 func get_persistent_player_id(peer_id: int) -> String:

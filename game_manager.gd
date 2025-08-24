@@ -1337,14 +1337,18 @@ func _register_player(peer_id: int) -> String:
 	if world_manager and world_manager.world_data and user_identity:
 		var client_id = user_identity.get_client_id()
 		var chosen_num = user_identity.get_chosen_player_number()
-		return world_manager.world_data.register_client(client_id, peer_id, chosen_num)
+		var persistent_id = world_manager.world_data.register_client(client_id, peer_id, chosen_num)
+		world_manager.save_world_data()  # Save immediately to persist client mapping
+		return persistent_id
 	else:
 		print("Warning: No world manager or user identity available for player registration")
 		return "player_" + str(peer_id)
 
 func _register_player_with_client_id(peer_id: int, client_id: String, chosen_player_num: int = -1, chosen_player_id: String = "") -> String:
 	if world_manager and world_manager.world_data:
-		return world_manager.world_data.register_client(client_id, peer_id, chosen_player_num, chosen_player_id)
+		var persistent_id = world_manager.world_data.register_client(client_id, peer_id, chosen_player_num, chosen_player_id)
+		world_manager.save_world_data()  # Save immediately to persist client mapping
+		return persistent_id
 	else:
 		print("Warning: No world manager available for player registration")
 		return "player_" + str(peer_id)
