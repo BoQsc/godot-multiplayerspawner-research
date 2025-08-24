@@ -88,6 +88,9 @@ func _update_exploration():
 		for target in targets:
 			print("   - ", target.name, " at distance ", int(target.distance))
 	
+	# Analyze surrounding tiles
+	_analyze_surrounding_tiles(current_pos)
+	
 	# Report current state
 	print("📍 Walker at (", int(current_pos.x), ", ", int(current_pos.y), ") - ", current_action)
 
@@ -317,3 +320,47 @@ func _exit_tree():
 		exploration_timer.queue_free()
 	if action_timer:
 		action_timer.queue_free()
+
+func _analyze_surrounding_tiles(my_pos: Vector2):
+	"""Analyze tiles around the walker for terrain awareness"""
+	var main_scene = get_tree().root.get_node("Node2D")
+	if not main_scene:
+		return
+		
+	var world_manager = main_scene.get_node("WorldManager")
+	if not world_manager:
+		return
+		
+	var tile_count = 0
+	var children = world_manager.get_children()
+	
+	for child in children:
+		if child is TileMapLayer:
+			var tiles_found = _scan_tilemap_layer(child, my_pos)
+			tile_count += tiles_found
+			if tiles_found > 0:
+				print("🔲 ", child.name, ": ", tiles_found, " tiles nearby")
+	
+	if tile_count > 0:
+		print("🗺️ Total tiles in area: ", tile_count)
+
+func _scan_tilemap_layer(tilemap: TileMapLayer, my_pos: Vector2) -> int:
+	"""Scan a tilemap layer for surrounding tiles"""
+	var tile_pos = tilemap.local_to_map(my_pos)
+	var tiles_found = 0
+	
+	# Scan 5x5 area around player
+	for x_offset in range(-2, 3):
+		for y_offset in range(-2, 3):
+			var check_pos = tile_pos + Vector2i(x_offset, y_offset)
+			var source_id = tilemap.get_cell_source_id(check_pos)
+			if source_id != -1:
+				var world_pos = tilemap.map_to_local(check_pos)
+				var distance = my_pos.distance_to(world_pos)
+				tiles_found += 1
+				
+				# Only report very close tiles to avoid spam
+				if distance < 150:
+					print("   🔸 Tile at ", world_pos, " (", int(distance), " units)")
+	
+	return tiles_found
