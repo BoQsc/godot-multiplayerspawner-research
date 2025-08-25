@@ -1,10 +1,13 @@
-[gd_scene load_steps=37 format=3 uid="uid://dr6s3jr1rx25d"]
+[gd_scene load_steps=40 format=3 uid="uid://dr6s3jr1rx25d"]
 
 [ext_resource type="Script" uid="uid://omd8hqvjxq2" path="res://entities/players/player_entity.gd" id="1_k8x9n"]
 [ext_resource type="Texture2D" uid="uid://6qglu8s2ayqg" path="res://assets/kenney_platformer-art-deluxe/Base pack/Player/p1_stand.png" id="2_fodn5"]
 [ext_resource type="Texture2D" uid="uid://dn5eme1fxf56y" path="res://assets/kenney_platformer-art-deluxe/Base pack/Vector/characters.svg" id="3_p7nlk"]
+[ext_resource type="Texture2D" uid="uid://c03tr5ui4tek0" path="res://assets/5907-steam-default-emoticons-emojigg-pack/5143-steamthumbsup.png" id="3_rllao"]
+[ext_resource type="Texture2D" uid="uid://dkn1vdunw2irr" path="res://assets/5907-steam-default-emoticons-emojigg-pack/7490-steamsad.png" id="4_la5tv"]
 [ext_resource type="Texture2D" uid="uid://pt213fun7ohh" path="res://assets/kenney_voxel-pack/PNG/Items/axe_bronze.png" id="4_wutwt"]
 [ext_resource type="Texture2D" uid="uid://cnoycf70yv7bv" path="res://addons/ChatGPT Image Aug 18, 2025, 12_06_01 PM.png" id="5_56brk"]
+[ext_resource type="VideoStream" uid="uid://p60sqkx8sum5" path="res://assets/Bobrito-Bandito-Italian-brainrot-memes-_bobrito-_bombardino-_tralala-_tralalero-_brainrot-Meow-Momen.ogv" id="5_w4mc7"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_u1i7l"]
 atlas = ExtResource("5_56brk")
@@ -260,7 +263,28 @@ label_settings = SubResource("LabelSettings_p7nlk")
 horizontal_alignment = 3
 vertical_alignment = 2
 
+[node name="Control" type="Node2D" parent="."]
+scale = Vector2(1.00774, 1.01347)
+
+[node name="5143-steamthumbsup" type="Sprite2D" parent="Control"]
+position = Vector2(-55.2438, -10.1082)
+scale = Vector2(0.575704, 0.488889)
+texture = ExtResource("3_rllao")
+
+[node name="7490-steamsad" type="Sprite2D" parent="Control"]
+position = Vector2(2.31574, -1.22823)
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("4_la5tv")
+
+[node name="VideoStreamPlayer" type="VideoStreamPlayer" parent="Control"]
+offset_left = 5550.97
+offset_top = 377.909
+offset_right = 6830.97
+offset_bottom = 1097.91
+stream = ExtResource("5_w4mc7")
+
 [node name="Node2D" type="Node2D" parent="."]
+visible = false
 
 [node name="Sprite2D" type="Sprite2D" parent="Node2D"]
 visible = false
