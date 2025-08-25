@@ -1572,8 +1572,8 @@ func save_npcs():
 			)
 			saved_count += 1
 	
-	# Save world data to disk
-	save_world_data()
+	# NOTE: Don't save here - GameManager handles the save to prevent race conditions
+	# save_world_data()  # REMOVED: Causes race condition with concurrent saves
 	print("WorldManager: Saved ", saved_count, " NPCs to persistent storage")
 
 func load_npcs():
@@ -1662,8 +1662,8 @@ func save_pickups():
 			)
 			saved_count += 1
 	
-	# Save to disk
-	save_world_data()
+	# NOTE: Don't save here - GameManager handles the save to prevent race conditions  
+	# save_world_data()  # REMOVED: Causes race condition with concurrent saves
 	print("WorldManager: Saved ", saved_count, " pickups to persistent storage")
 
 func load_pickups():

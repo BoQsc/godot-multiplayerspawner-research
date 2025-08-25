@@ -46,18 +46,28 @@ func _ready():
 func get_chosen_player_id_from_args() -> String:
 	# Check command line for --player=X or --player X (supports any string identifier)
 	var args = OS.get_cmdline_args()
+	
+	# DEBUG: Print all command line arguments
+	print("=== DEBUGGING COMMAND LINE ARGUMENTS ===")
+	print("Total arguments: ", args.size())
+	for i in range(args.size()):
+		print("Arg[", i, "]: '", args[i], "'")
+	print("=== END COMMAND LINE ARGUMENTS ===")
+	
 	for i in range(args.size()):
 		var arg = args[i]
 		if arg.begins_with("--player="):
 			var player_id = arg.split("=")[1]
 			if player_id != "":
-				print("Found --player=", player_id, " argument")
+				print("✅ Found --player=", player_id, " argument")
 				return player_id
 		elif arg == "--player" and i + 1 < args.size():
 			var player_id = args[i + 1]
 			if player_id != "" and not player_id.begins_with("--"):
-				print("Found --player ", player_id, " argument")
+				print("✅ Found --player ", player_id, " argument")
 				return player_id
+	
+	print("❌ No --player argument found in command line!")
 	return ""
 
 func get_chosen_player_from_args() -> int:
@@ -127,13 +137,32 @@ func generate_uuid_v4() -> String:
 
 func save_client_id():
 	var identity_file = user_identity_file
+	print("UserIdentity: Attempting to save client ID '", client_id, "' to file: ", identity_file)
+	
 	var file = FileAccess.open(identity_file, FileAccess.WRITE)
 	if file:
 		file.store_string(client_id)
 		file.close()
-		print("UserIdentity: Saved client ID to file")
+		
+		# Verify the save was successful
+		if FileAccess.file_exists(identity_file):
+			var verify_file = FileAccess.open(identity_file, FileAccess.READ)
+			if verify_file:
+				var saved_content = verify_file.get_as_text().strip_edges()
+				verify_file.close()
+				if saved_content == client_id:
+					print("UserIdentity: ✅ Successfully saved and verified client ID to file")
+				else:
+					print("UserIdentity: ❌ CRITICAL - Save verification failed! Expected: '", client_id, "', Got: '", saved_content, "'")
+			else:
+				print("UserIdentity: ❌ CRITICAL - Cannot verify saved file (read failed)")
+		else:
+			print("UserIdentity: ❌ CRITICAL - File does not exist after save attempt")
 	else:
-		print("UserIdentity: Failed to save client ID")
+		var error = FileAccess.get_open_error()
+		print("UserIdentity: ❌ CRITICAL - Failed to open file for writing. Error: ", error)
+		print("UserIdentity: File path: ", identity_file)
+		print("UserIdentity: This will cause position persistence failures!")
 
 func get_client_id() -> String:
 	return client_id

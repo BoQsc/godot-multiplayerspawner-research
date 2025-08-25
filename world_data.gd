@@ -264,9 +264,24 @@ func register_client(client_id: String, peer_id: int, chosen_player_num: int = -
 		else:
 			print("DEBUG: Player data NOT found for ", existing_persistent_id)
 			print("DEBUG: Available player data keys: ", player_data.keys())
-			print("WARNING: Client ", client_id, " was mapped to non-existent player ", existing_persistent_id, ", creating new player")
-			# Remove the broken mapping and create new
-			client_to_player_mapping.erase(client_id)
+			print("🚨 CRITICAL: Client mapping exists but player data missing!")
+			print("🔧 PRESERVING mapping and creating missing player data instead of deleting mapping")
+			# FIXED: Don't delete the mapping! Instead, create the missing player data
+			# This preserves the client-to-player relationship and prevents spawn bugs
+			player_data[existing_persistent_id] = {
+				"player_id": existing_persistent_id,
+				"position": Vector2(100, 100),  # Safe default position  
+				"health": 100.0,
+				"max_health": 100.0,
+				"level": 1,
+				"experience": 0,
+				"inventory": [],
+				"last_seen": Time.get_datetime_string_from_system()
+			}
+			print("✅ Created missing player data for ", existing_persistent_id, " at default position")
+			print("Registered returning client: ", client_id, " (peer ", peer_id, ") -> persistent ID ", existing_persistent_id, " (RECOVERED)")
+			last_modified = Time.get_datetime_string_from_system()
+			return existing_persistent_id
 	else:
 		print("DEBUG: Client ", client_id, " NOT found in client mappings")
 	
