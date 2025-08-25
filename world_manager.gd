@@ -686,7 +686,7 @@ func spawn_editor_player(player_id: String, spawn_pos: Vector2):
 		return
 	
 	# Check if player is lost (far from reasonable bounds)
-	var is_lost = abs(spawn_pos.x) > 5000 or abs(spawn_pos.y) > 5000
+	var is_lost = spawn_pos.y < -5000  # Only check for falling below world
 	var safe_position = spawn_pos
 	if is_lost:
 		safe_position = Vector2(100, 100)  # Default safe spawn
@@ -805,7 +805,7 @@ func rescue_all_lost_players():
 		var pos = player_info["position"]
 		
 		# Check if player is lost (far from reasonable bounds)
-		if abs(pos.x) > 5000 or abs(pos.y) > 5000:
+		if pos.y < -5000:  # Only rescue players who fell below world
 			print("WorldManager: Rescuing lost player ", player_id, " from ", pos, " to ", safe_spawn)
 			world_data.update_player_position(player_id, safe_spawn)
 			rescued_count += 1
@@ -934,7 +934,7 @@ func list_all_players_with_positions():
 	for player in players_with_distance:
 		var info = player.info
 		var status = "✅ NORMAL"
-		if player.distance > 5000:
+		if player.distance > 50000:
 			status = "🚨 LOST"
 		elif player.distance > 1000:
 			status = "⚠️ FAR"
@@ -964,7 +964,7 @@ func show_player_distances_from_spawn():
 			close_players.append({"id": player_id, "distance": distance})
 		elif distance < 1000:
 			medium_players.append({"id": player_id, "distance": distance})
-		elif distance < 5000:
+		elif distance < 50000:
 			far_players.append({"id": player_id, "distance": distance})
 		else:
 			lost_players.append({"id": player_id, "distance": distance})
@@ -977,11 +977,11 @@ func show_player_distances_from_spawn():
 	for player in medium_players:
 		print("    ", player.id, " - ", int(player.distance), " units")
 	
-	print("🔶 FAR (1000-5000 units): ", far_players.size(), " players")
+	print("🔶 FAR (1000-50000 units): ", far_players.size(), " players")
 	for player in far_players:
 		print("    ", player.id, " - ", int(player.distance), " units")
 	
-	print("🚨 LOST (> 5000 units): ", lost_players.size(), " players")
+	print("🚨 LOST (> 50000 units): ", lost_players.size(), " players")
 	for player in lost_players:
 		print("    ", player.id, " - ", int(player.distance), " units")
 
@@ -1431,7 +1431,7 @@ func spawn_editor_player_with_styling(player_id: String, spawn_pos: Vector2, pla
 		return
 	
 	# Check if player is lost (far from reasonable bounds)
-	var is_lost = abs(spawn_pos.x) > 5000 or abs(spawn_pos.y) > 5000
+	var is_lost = spawn_pos.y < -5000  # Only check for falling below world
 	var safe_position = spawn_pos
 	if is_lost:
 		safe_position = Vector2(100, 100)  # Default safe spawn

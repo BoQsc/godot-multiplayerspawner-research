@@ -83,7 +83,7 @@ func update_position_display():
 		var spawn_point = Vector2(100, 100)
 		var distance = current_position.distance_to(spawn_point)
 		
-		if distance > 5000:
+		if distance > 50000:
 			add_theme_color_override("font_color", Color.RED)  # Danger zone
 			text += " 🚨 LOST"
 		elif distance > 1000:
@@ -97,9 +97,9 @@ func update_position_display():
 		# Add distance info
 		text += "\nDistance: %.0f units" % distance
 		
-		# Add bounds check warning
-		if abs(current_position.x) > 5000 or abs(current_position.y) > 5000:
-			text += "\n🚨 EXCEEDS 5000 BOUNDS!"
+		# Add bounds check warning (only for falling below world)
+		if current_position.y < -5000:
+			text += "\n🚨 FELL BELOW WORLD!"
 			add_theme_color_override("font_color", Color.RED)
 	else:
 		text = "Position: Player Not Found"
