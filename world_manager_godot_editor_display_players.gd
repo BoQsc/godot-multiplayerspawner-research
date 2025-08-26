@@ -335,7 +335,7 @@ func test_editor_player_display():
 	print("🔧 === EDITOR DISPLAY TEST ===")
 	print("📊 Current editor players: ", editor_players.size())
 	print("👁️ Players visible: ", editor_players_visible)
-	print("📦 Spawn container: ", spawn_container.get_path() if spawn_container else "MISSING")
+	print("📦 Spawn container: ", str(spawn_container.get_path()) if spawn_container else "MISSING")
 	print("🔍 Search component: ", "Found" if player_search_component else "MISSING")
 	
 	if spawn_container:
