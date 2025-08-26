@@ -3,6 +3,7 @@
 [ext_resource type="Texture2D" uid="uid://wid24c4sxxqv" path="res://assets/kenney_platformer-art-deluxe/Base pack/Tiles/sign.png" id="1_khgq5"]
 
 [node name="InteractiveSignPost" type="StaticBody2D"]
+position = Vector2(0, -6)
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
 visible = false
