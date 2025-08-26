@@ -229,3 +229,206 @@ The deep scanning approach ensures that major structural changes can be applied 
 - Documentation stays synchronized with actual code structure
 
 **The deep scan methodology prevented 20+ potential runtime failures** that surface scanning would have missed, proving that thoroughness in structural changes saves significantly more time than it costs.
+
+## Multi-Layer Tile System Architecture
+
+### **Current Challenge: Unified World Layer Management**
+The project needs to support multiple interactive tile layers (WorldTileMapLayer, WorldMiscTileMapLayer, WorldTileMapLayerExperimentalNotUsedFuture) with consistent:
+- **Player interaction** (tile placement/removal)
+- **Networking synchronization** across clients
+- **Entity collision** and physics interaction
+- **World persistence** and data storage
+
+### **Design Requirements:**
+- **Dynamic Discovery**: Any TileMapLayer with "World" prefix should be automatically managed
+- **Consistent API**: All World layers get same modification, networking, and persistence methods
+- **Scalable Architecture**: Easy to add new World layers without code duplication
+- **Performance**: Efficient handling of multiple layers simultaneously
+
+## Complete Multi-Layer Tile System Architecture
+
+### **Phase 1: World Layer Registry & Discovery**
+```gdscript
+# WorldManager.gd - Core registry system
+var world_layers: Dictionary = {}           # layer_name -> TileMapLayer
+var world_layer_configs: Dictionary = {}    # layer_name -> LayerConfig
+var world_layer_z_index: Dictionary = {}    # layer_name -> z_index (for rendering order)
+
+class WorldLayerConfig:
+    var layer_name: String
+    var allows_player_modification: bool = true
+    var collision_enabled: bool = true  
+    var network_sync: bool = true
+    var persistence_enabled: bool = true
+    var z_index: int = 0
+
+func _ready():
+    discover_world_layers()
+    setup_world_layer_capabilities()
+```
+
+### **Phase 2: Unified Tile Modification System**
+```gdscript
+# Replace current modify_terrain() with layer-aware system
+func modify_terrain(coords: Vector2i, source_id: int = -1, atlas_coords: Vector2i = Vector2i(-1, -1), 
+                   alternative_tile: int = 0, layer_name: String = "WorldTileMapLayer"):
+    if not layer_name in world_layers:
+        push_error("Unknown world layer: " + layer_name)
+        return false
+    
+    var layer = world_layers[layer_name]
+    var config = world_layer_configs[layer_name]
+    
+    if not config.allows_player_modification and not Engine.is_editor_hint():
+        return false  # Players can't modify this layer
+    
+    # Apply modification with full networking + persistence
+    return apply_terrain_change(layer, coords, source_id, atlas_coords, alternative_tile)
+
+# Batch operations for efficiency
+func modify_terrain_batch(changes: Array[Dictionary]):
+    # Process multiple layer changes simultaneously
+    # Optimize networking by batching RPC calls
+```
+
+### **Phase 3: Multi-Layer Networking Architecture**
+```gdscript
+# Enhanced RPC system for multiple layers
+@rpc("any_peer", "call_remote", "reliable")
+func sync_terrain_change_multi_layer(layer_name: String, coords: Vector2i, source_id: int, 
+                                    atlas_coords: Vector2i, alternative_tile: int):
+    if layer_name in world_layers:
+        var layer = world_layers[layer_name]
+        layer.set_cell(coords, source_id, atlas_coords, alternative_tile)
+        world_data.set_tile_for_layer(layer_name, coords, source_id, atlas_coords, alternative_tile)
+
+# Optimized batch synchronization
+@rpc("any_peer", "call_remote", "reliable") 
+func sync_terrain_batch(layer_changes: Dictionary):
+    # layer_name -> Array of changes
+    for layer_name in layer_changes:
+        if layer_name in world_layers:
+            apply_changes_to_layer(layer_name, layer_changes[layer_name])
+```
+
+### **Phase 4: Enhanced World Data Persistence**
+```gdscript
+# WorldData.gd - Multi-layer storage
+var layer_tiles: Dictionary = {}  # layer_name -> Dictionary[Vector2i, tile_data]
+
+func set_tile_for_layer(layer_name: String, coords: Vector2i, source_id: int, 
+                       atlas_coords: Vector2i, alternative_tile: int):
+    if not layer_name in layer_tiles:
+        layer_tiles[layer_name] = {}
+    
+    if source_id == -1:
+        layer_tiles[layer_name].erase(coords)  # Remove tile
+    else:
+        layer_tiles[layer_name][coords] = {
+            "source_id": source_id,
+            "atlas_coords": atlas_coords, 
+            "alternative_tile": alternative_tile
+        }
+
+func get_tiles_for_layer(layer_name: String) -> Dictionary:
+    return layer_tiles.get(layer_name, {})
+
+func apply_world_data_to_layers(world_manager: WorldManager):
+    for layer_name in layer_tiles:
+        if layer_name in world_manager.world_layers:
+            var layer = world_manager.world_layers[layer_name]
+            var tiles = layer_tiles[layer_name]
+            for coords in tiles:
+                var tile_data = tiles[coords]
+                layer.set_cell(coords, tile_data.source_id, tile_data.atlas_coords, tile_data.alternative_tile)
+```
+
+### **Phase 5: Entity Collision & Physics Integration**
+```gdscript
+# Enhanced collision system for multiple layers
+func get_collision_layers_for_entity(entity_position: Vector2) -> Array[String]:
+    var colliding_layers = []
+    for layer_name in world_layers:
+        var config = world_layer_configs[layer_name]
+        if config.collision_enabled:
+            var layer = world_layers[layer_name]
+            var tile_coords = layer.local_to_map(entity_position)
+            if layer.get_cell_source_id(tile_coords) != -1:
+                colliding_layers.append(layer_name)
+    return colliding_layers
+
+# Layer-specific entity queries
+func can_entity_move_to(entity_position: Vector2, target_layers: Array[String] = []) -> bool:
+    if target_layers.is_empty():
+        target_layers = world_layers.keys()  # Check all layers
+    
+    for layer_name in target_layers:
+        if not can_move_through_layer(layer_name, entity_position):
+            return false
+    return true
+```
+
+### **Phase 6: Player Interaction Enhancement**
+```gdscript
+# Enhanced player input handling
+func _input(event):
+    if event is InputEventMouseButton and event.pressed:
+        var clicked_pos = get_global_mouse_position()
+        var clicked_coords = world_tile_map_layer.local_to_map(clicked_pos)
+        
+        # Determine target layer based on context
+        var target_layer = determine_target_layer(clicked_coords, event.button_index)
+        
+        if event.button_index == MOUSE_BUTTON_LEFT:
+            modify_terrain(clicked_coords, default_tile_source, default_tile_coords, 0, target_layer)
+        elif event.button_index == MOUSE_BUTTON_RIGHT:
+            modify_terrain(clicked_coords, -1, Vector2i(-1, -1), 0, target_layer)
+
+func determine_target_layer(coords: Vector2i, button: MouseButton) -> String:
+    # Logic to select which World layer to modify
+    # Could be based on keyboard modifiers, UI selection, or layer priority
+    if Input.is_key_pressed(KEY_SHIFT):
+        return "WorldMiscTileMapLayer"
+    elif Input.is_key_pressed(KEY_ALT):
+        return "WorldTileMapLayerExperimentalNotUsedFuture" 
+    return "WorldTileMapLayer"  # Default
+```
+
+### **Phase 7: Performance & Optimization**
+```gdscript
+# Optimized rendering and updates
+func _process(_delta):
+    # Only check layers that have been modified
+    for layer_name in modified_layers:
+        update_layer_optimizations(layer_name)
+    modified_layers.clear()
+
+# Layer culling for large worlds
+func cull_layers_for_viewport(viewport_rect: Rect2) -> Array[String]:
+    var visible_layers = []
+    for layer_name in world_layers:
+        if layer_intersects_viewport(layer_name, viewport_rect):
+            visible_layers.append(layer_name)
+    return visible_layers
+
+# Memory optimization
+func unload_distant_layer_chunks(player_position: Vector2, max_distance: float):
+    # Unload tile data for layers far from players to save memory
+```
+
+### **Implementation Benefits:**
+- ✅ **Automatic Discovery**: New World layers work immediately without code changes
+- ✅ **Unified API**: Same functions work across all World layers  
+- ✅ **Selective Control**: Per-layer configuration for modification, collision, networking
+- ✅ **Performance Scaling**: Optimized for many layers without performance loss
+- ✅ **Backward Compatibility**: Existing code continues to work unchanged
+- ✅ **Network Efficiency**: Batch operations reduce RPC overhead
+- ✅ **Extensible Design**: Easy to add new layer types and capabilities
+
+### **Migration Strategy:**
+1. **Phase 1-2**: Core registry system (no breaking changes)
+2. **Phase 3-4**: Enhanced networking and persistence (gradual transition)  
+3. **Phase 5-6**: Advanced features (entity interaction, player controls)
+4. **Phase 7**: Performance optimizations (optional enhancements)
+
+This architecture makes **WorldTileMapLayerExperimentalNotUsedFuture** a first-class citizen with full interactivity, networking, and persistence automatically.
