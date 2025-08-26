@@ -354,7 +354,7 @@ func find_player_position_by_term(term: String) -> Vector2:
 	
 	return Vector2.ZERO
 
-func create_focus_marker_at_position(target_pos: Vector2, search_term: String):
+func create_focus_marker_at_position(target_pos: Vector2, marker_search_term: String):
 	if not spawn_container:
 		_refresh_spawn_container_reference()
 	
@@ -382,7 +382,7 @@ func create_focus_marker_at_position(target_pos: Vector2, search_term: String):
 	
 	# Clear label
 	var label = Label.new()
-	label.text = "🎯 " + search_term
+	label.text = "🎯 " + marker_search_term
 	label.position = Vector2(-50, -120)
 	label.add_theme_font_size_override("font_size", 16)
 	label.add_theme_color_override("font_color", Color.BLACK)
@@ -674,7 +674,7 @@ func try_manipulate_canvas_editor(editor: Node, target_pos: Vector2) -> bool:
 	
 	return false
 
-func create_large_focus_indicator(target_pos: Vector2, search_term: String):
+func create_large_focus_indicator(target_pos: Vector2, indicator_search_term: String):
 	if not spawn_container:
 		return
 	
@@ -705,7 +705,7 @@ func create_large_focus_indicator(target_pos: Vector2, search_term: String):
 	
 	# Add a very visible label
 	var label = Label.new()
-	label.text = "🎯 CAMERA TARGET 🎯\n" + search_term + "\nSELECT ME!"
+	label.text = "🎯 CAMERA TARGET 🎯\n" + indicator_search_term + "\nSELECT ME!"
 	label.position = Vector2(-100, -200)
 	label.add_theme_font_size_override("font_size", 24)
 	label.add_theme_color_override("font_color", Color.WHITE)
@@ -973,8 +973,8 @@ func cleanup_focus_helpers():
 	
 	# Remove focus helpers from camera focus system
 	var focus_names = ["FOCUS_HERE", "CAMERA_FOCUS_HELPER", "CAMERA_TARGET", "FOCUS_MARKER"]
-	for name in focus_names:
-		var helper = spawn_container.get_node_or_null(name)
+	for helper_name in focus_names:
+		var helper = spawn_container.get_node_or_null(helper_name)
 		if helper:
 			helper.queue_free()
 	

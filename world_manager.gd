@@ -425,7 +425,7 @@ var save_in_progress: bool = false
 var save_retry_count: int = 0
 var max_save_retries: int = 3
 
-func _process(delta):
+func _process(_delta):
 	# Check if tilemap was modified in editor (direct painting) - ALWAYS run this
 	_check_for_tilemap_changes()
 	
