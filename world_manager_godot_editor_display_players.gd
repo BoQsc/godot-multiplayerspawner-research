@@ -32,6 +32,14 @@ func _ready():
 	# Get references from world manager
 	_refresh_component_references()
 	
+	# Debug component status
+	print("🔧 DisplayPlayersComponent: References initialized")
+	print("   - spawn_container: ", spawn_container != null)
+	print("   - player_search_component: ", player_search_component != null)
+	if player_search_component:
+		print("   - search component class: ", player_search_component.get_class())
+		print("   - search component has get_filtered_players: ", player_search_component.has_method("get_filtered_players"))
+	
 	# Component initialized successfully
 
 # Refresh component references (call this after WorldManager is fully initialized)
@@ -100,7 +108,18 @@ func sync_editor_players_from_world_data():
 	
 	# Get and filter player data
 	var all_player_data = world_manager.world_data.get_all_players()
-	var filtered_players = player_search_component.get_filtered_players(all_player_data) if player_search_component else []
+	var filtered_players = []
+	
+	if player_search_component and player_search_component.has_method("get_filtered_players"):
+		filtered_players = player_search_component.get_filtered_players(all_player_data)
+	else:
+		print("⚠️ Player search component not available or not ready, showing all players")
+		# Fallback: convert all players to array format
+		for player_id in all_player_data.keys():
+			var player_info = all_player_data[player_id]
+			var enhanced_info = player_info.duplicate()
+			enhanced_info["player_id"] = player_id
+			filtered_players.append(enhanced_info)
 	
 	print("WorldManager: Found ", all_player_data.size(), " total players, showing ", filtered_players.size(), " after filtering")
 	

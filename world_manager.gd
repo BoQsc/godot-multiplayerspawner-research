@@ -565,9 +565,9 @@ func _input(event):
 	# Editor keyboard shortcuts (only in editor)
 	if Engine.is_editor_hint() and event is InputEventKey and event.pressed:
 		if event.keycode == KEY_H and event.ctrl_pressed:
-			display_players_component.editor_players_visible = !display_players_component.editor_players_visible
-			print("⌨️ Keyboard shortcut: Toggling editor players to ", "VISIBLE" if display_players_component.editor_players_visible else "HIDDEN")
 			if display_players_component:
+				display_players_component.editor_players_visible = !display_players_component.editor_players_visible
+				print("⌨️ Keyboard shortcut: Toggling editor players to ", "VISIBLE" if display_players_component.editor_players_visible else "HIDDEN")
 				display_players_component.toggle_editor_players_visibility()
 			return
 	
@@ -630,6 +630,9 @@ func receive_world_state(tile_data: Dictionary):
 
 func _check_for_editor_player_movement():
 	if not Engine.is_editor_hint() or not world_data:
+		return
+	
+	if not display_players_component:
 		return
 	
 	# Check each editor player for position changes
@@ -722,8 +725,7 @@ func _on_test_editor_display(value: bool):
 		print("🔧 WorldManager: Testing editor display system...")
 		if display_players_component:
 			display_players_component.test_editor_player_display()
-		# Reset the button (delegated to component)
-		if display_players_component:
+			# Reset the button
 			display_players_component.test_editor_display = false
 
 # test_editor_player_display moved to DisplayPlayersComponent
@@ -733,8 +735,7 @@ func _on_cleanup_duplicates(value: bool):
 		print("🧹 WorldManager: Cleaning up duplicate players...")
 		if display_players_component:
 			display_players_component.cleanup_duplicate_players_from_identity_bug()
-		# Reset the button (delegated to component)
-		if display_players_component:
+			# Reset the button
 			display_players_component.cleanup_duplicate_players = false
 
 func _on_reset_all_players(value: bool):
@@ -742,8 +743,7 @@ func _on_reset_all_players(value: bool):
 		print("🔥 WorldManager: Resetting all players...")
 		if display_players_component:
 			display_players_component.reset_all_players_data()
-		# Reset the button (delegated to component)
-		if display_players_component:
+			# Reset the button
 			display_players_component.reset_all_players = false
 
 # cleanup_duplicate_players_from_identity_bug() - Transferred to DisplayPlayersComponent
