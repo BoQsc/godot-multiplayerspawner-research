@@ -21,25 +21,17 @@ class_name WorldManager
 @export var player_to_move: String = ""
 @export var new_position: Vector2 = Vector2.ZERO
 @export var move_player_now: bool = false : set = _on_move_player_now
-@export_group("Editor Diagnostics")
-@export var test_editor_display: bool = false : set = _on_test_editor_display
-@export var cleanup_duplicate_players: bool = false : set = _on_cleanup_duplicates
-@export var reset_all_players: bool = false : set = _on_reset_all_players
-@export_group("Editor Player Visibility")
-@export var toggle_players_visible: bool = false : set = _on_toggle_players_visible
-@export var editor_players_visible: bool = true
 
 var game_manager: Node
 var is_loading: bool = false
 var last_file_modified_time: int = 0
 var last_tilemap_cell_count: int = 0
 
-# Editor player persistence
-var editor_players: Dictionary = {}  # player_id -> player_node
 var spawn_container: Node2D
 
 # Component references
 var player_search_component: WorldManagerGodotEditorPlayerSearch
+var display_players_component: WorldManagerGodotEditorDisplayPlayers
 
 
 signal terrain_modified(coords: Vector2i, source_id: int, atlas_coords: Vector2i)
@@ -78,6 +70,9 @@ func _ready():
 	# Get reference to player search component
 	player_search_component = get_node_or_null("PlayerSearchComponent")
 	
+	# Get reference to display players component
+	display_players_component = get_node_or_null("DisplayPlayersComponent")
+	
 	# Always load from external file to ensure editor and runtime sync
 	load_world_data()
 	
@@ -98,7 +93,8 @@ func _ready():
 			apply_world_data_to_tilemap()
 			print("WorldManager: Editor refreshed with ", world_data.get_tile_count(), " tiles from persistent data")
 		# Sync editor players from world data
-		sync_editor_players_from_world_data()
+		if display_players_component:
+			display_players_component.sync_editor_players_from_world_data()
 	else:
 		# Check if tilemaps have data but world_data is empty (editor painted tiles)
 		if world_data and world_data.get_tile_count() == 0:
@@ -459,7 +455,8 @@ func _check_for_external_changes():
 			apply_world_data_to_tilemap()
 			print("WorldManager: Editor auto-refreshed with ", world_data.get_tile_count(), " tiles")
 		# Also sync editor players
-		sync_editor_players_from_world_data()
+		if display_players_component:
+			display_players_component.sync_editor_players_from_world_data()
 
 func _check_for_tilemap_changes():
 	if not world_data:
@@ -568,9 +565,10 @@ func _input(event):
 	# Editor keyboard shortcuts (only in editor)
 	if Engine.is_editor_hint() and event is InputEventKey and event.pressed:
 		if event.keycode == KEY_H and event.ctrl_pressed:
-			editor_players_visible = !editor_players_visible
-			print("⌨️ Keyboard shortcut: Toggling editor players to ", "VISIBLE" if editor_players_visible else "HIDDEN")
-			toggle_editor_players_visibility()
+			display_players_component.editor_players_visible = !display_players_component.editor_players_visible
+			print("⌨️ Keyboard shortcut: Toggling editor players to ", "VISIBLE" if display_players_component.editor_players_visible else "HIDDEN")
+			if display_players_component:
+				display_players_component.toggle_editor_players_visibility()
 			return
 	
 	# Terrain modification (only when enabled)
@@ -624,124 +622,19 @@ func receive_world_state(tile_data: Dictionary):
 		
 		print("WorldManager: Applied ", tile_data.size(), " tiles from server")
 
-# Editor Player Persistence Functions
-func sync_editor_players_from_world_data():
-	if not Engine.is_editor_hint():
-		print("WorldManager: Not in editor, skipping player sync")
-		return
-	if not world_data:
-		print("WorldManager: No world data, skipping player sync")
-		return
-	if not spawn_container:
-		print("WorldManager: No spawn container found, skipping player sync")
-		return
-	
-	print("WorldManager: Syncing editor players from world data...")
-	
-	# Clear existing editor players
-	clear_editor_players()
-	
-	# Get and filter player data
-	var all_player_data = world_data.get_all_players()
-	var filtered_players = player_search_component.get_filtered_players(all_player_data) if player_search_component else []
-	
-	print("WorldManager: Found ", all_player_data.size(), " total players, showing ", filtered_players.size(), " after filtering")
-	
-	# Spawn filtered players with appropriate styling
-	for i in range(filtered_players.size()):
-		var player_info = filtered_players[i]
-		var player_id = player_info["player_id"]
-		var player_position = player_info["position"]
-		var rank = i  # 0 = most recent, higher = older
-		
-		spawn_editor_player_with_styling(player_id, player_position, player_info, rank, filtered_players.size())
-	
-	print("WorldManager: Spawned ", editor_players.size(), " editor players")
-	if editor_players.size() > 0:
-		print("💡 TIP: Look in Scene tab under SpawnContainer for EditorPlayer nodes. Select them to drag around!")
-		if all_player_data.size() > filtered_players.size():
-			var hidden_count = all_player_data.size() - filtered_players.size()
-			print("📊 Filtered out ", hidden_count, " players (insignificant or too old). Use focus mode to find specific players.")
+# Editor Player Persistence Functions (moved to DisplayPlayersComponent)
 
-func spawn_editor_player(player_id: String, spawn_pos: Vector2):
-	if not Engine.is_editor_hint() or not spawn_container:
-		print("WorldManager: Cannot spawn editor player - missing requirements")
-		return
-	
-	# Check if player is lost (far from reasonable bounds)
-	var is_lost = spawn_pos.y < -5000  # Only check for falling below world
-	var safe_position = spawn_pos
-	if is_lost:
-		safe_position = Vector2(100, 100)  # Default safe spawn
-		print("WorldManager: Player ", player_id, " is lost at ", spawn_pos, ", spawning at safe position ", safe_position)
-	
-	# Create a simple Node2D for editor representation
-	var player = Node2D.new()
-	player.name = "EditorPlayer_" + player_id
-	player.position = safe_position
-	
-	# Add visual representation (sprite)
-	var sprite = Sprite2D.new()
-	var texture = PlaceholderTexture2D.new()
-	texture.size = Vector2(50, 50)
-	sprite.texture = texture
-	
-	# Color based on status
-	if is_lost:
-		sprite.modulate = Color.RED  # Lost players are red
-	else:
-		sprite.modulate = Color.CYAN  # Normal players are cyan
-	
-	player.add_child(sprite)
-	
-	# Add label with player ID and status
-	var label = Label.new()
-	if is_lost:
-		label.text = player_id + " (LOST)"
-	else:
-		label.text = player_id
-	
-	label.position = Vector2(-30, -40)
-	label.add_theme_color_override("font_color", Color.WHITE)
-	label.add_theme_color_override("font_shadow_color", Color.BLACK)
-	label.add_theme_constant_override("shadow_offset_x", 1)
-	label.add_theme_constant_override("shadow_offset_y", 1)
-	player.add_child(label)
-	
-	# Store metadata for later retrieval
-	player.set_meta("persistent_player_id", player_id)
-	player.set_meta("original_position", position)
-	player.set_meta("is_lost", is_lost)
-	
-	# Add to spawn container and track
-	spawn_container.add_child(player)
-	editor_players[player_id] = player
-	
-	if is_lost:
-		print("WorldManager: Spawned LOST player ", player_id, " (originally at ", position, ") at safe position ", safe_position)
-	else:
-		print("WorldManager: Successfully spawned editor player ", player_id, " at ", position)
-	print("WorldManager: Editor players count now: ", editor_players.size())
+# spawn_editor_player moved to DisplayPlayersComponent
 
-func clear_editor_players():
-	if not Engine.is_editor_hint():
-		return
-	
-	# Remove all existing editor players
-	for player_id in editor_players.keys():
-		var player = editor_players[player_id]
-		if is_instance_valid(player):
-			player.queue_free()
-	
-	editor_players.clear()
+# clear_editor_players moved to DisplayPlayersComponent
 
 func _check_for_editor_player_movement():
 	if not Engine.is_editor_hint() or not world_data:
 		return
 	
 	# Check each editor player for position changes
-	for player_id in editor_players.keys():
-		var player = editor_players[player_id]
+	for player_id in display_players_component.editor_players.keys():
+		var player = display_players_component.editor_players[player_id]
 		if not is_instance_valid(player):
 			continue
 		
@@ -763,7 +656,8 @@ func _check_for_editor_player_movement():
 func _on_sync_editor_players(value: bool):
 	if Engine.is_editor_hint() and value:
 		print("🎭 WorldManager: Syncing editor players...")
-		sync_editor_players_from_world_data()
+		if display_players_component:
+			display_players_component.sync_editor_players_from_world_data()
 		# Reset the button
 		sync_editor_players = false
 
@@ -795,7 +689,8 @@ func rescue_all_lost_players():
 	
 	if rescued_count > 0:
 		save_world_data()
-		sync_editor_players_from_world_data()  # Refresh editor display
+		if display_players_component:
+			display_players_component.sync_editor_players_from_world_data()  # Refresh editor display
 		print("✅ WorldManager: Rescued ", rescued_count, " lost players to safe spawn at ", safe_spawn)
 	else:
 		print("WorldManager: No lost players found to rescue")
@@ -806,7 +701,8 @@ func _on_move_player_now(value: bool):
 			print("🎯 WorldManager: Moving player ", player_to_move, " to ", new_position)
 			world_data.update_player_position(player_to_move, new_position)
 			save_world_data()
-			sync_editor_players_from_world_data()  # Refresh editor display
+			if display_players_component:
+				display_players_component.sync_editor_players_from_world_data()  # Refresh editor display
 			print("✅ Player ", player_to_move, " moved to ", new_position)
 		else:
 			print("❌ Please specify player_to_move (e.g., 'player_1') and new_position")
@@ -824,260 +720,46 @@ func _on_move_player_now(value: bool):
 func _on_test_editor_display(value: bool):
 	if Engine.is_editor_hint() and value:
 		print("🔧 WorldManager: Testing editor display system...")
-		test_editor_player_display()
-		# Reset the button
-		test_editor_display = false
+		if display_players_component:
+			display_players_component.test_editor_player_display()
+		# Reset the button (delegated to component)
+		if display_players_component:
+			display_players_component.test_editor_display = false
 
-func test_editor_player_display():
-	if not Engine.is_editor_hint():
-		print("❌ Not in editor mode")
-		return
-	
-	print("🔧 === EDITOR DISPLAY DIAGNOSTICS ===")
-	
-	# Test spawn container
-	if spawn_container:
-		print("✅ SpawnContainer found at: ", spawn_container.get_path())
-		print("   Children count: ", spawn_container.get_child_count())
-	else:
-		print("❌ SpawnContainer not found")
-		return
-	
-	# Test world data
-	if world_data:
-		var player_count = world_data.get_player_count()
-		print("✅ WorldData loaded with ", player_count, " players")
-		
-		if player_count > 0:
-			print("   Player list:")
-			var players = world_data.get_all_players()
-			for player_id in players.keys():
-				var info = players[player_id]
-				print("     • ", player_id, " at ", info["position"])
-		else:
-			print("   No players in world data")
-	else:
-		print("❌ WorldData not found")
-		return
-	
-	# Test editor players
-	print("📊 Editor players status:")
-	print("   Tracked count: ", editor_players.size())
-	
-	for player_id in editor_players.keys():
-		var player_node = editor_players[player_id]
-		if is_instance_valid(player_node):
-			print("   ✅ ", player_id, " - Node valid at ", player_node.position)
-			print("      Node name: ", player_node.name)
-			print("      Parent: ", player_node.get_parent().name if player_node.get_parent() else "None")
-			print("      Children: ", player_node.get_child_count())
-		else:
-			print("   ❌ ", player_id, " - Node invalid")
-	
-	# Test if nodes are visible in scene tree
-	print("📋 SpawnContainer children:")
-	for child in spawn_container.get_children():
-		if child.name.begins_with("EditorPlayer_"):
-			print("   ✅ Found: ", child.name, " at ", child.position)
-		else:
-			print("   ℹ️ Other child: ", child.name)
-	
-	print("🔧 === DIAGNOSTICS COMPLETE ===")
-	
-	if editor_players.size() == 0:
-		print("💡 TIP: Try clicking 'Sync Editor Players' to refresh the display")
+# test_editor_player_display moved to DisplayPlayersComponent
 
 func _on_cleanup_duplicates(value: bool):
 	if Engine.is_editor_hint() and value:
 		print("🧹 WorldManager: Cleaning up duplicate players...")
-		cleanup_duplicate_players_from_identity_bug()
-		# Reset the button
-		cleanup_duplicate_players = false
+		if display_players_component:
+			display_players_component.cleanup_duplicate_players_from_identity_bug()
+		# Reset the button (delegated to component)
+		if display_players_component:
+			display_players_component.cleanup_duplicate_players = false
 
 func _on_reset_all_players(value: bool):
 	if Engine.is_editor_hint() and value:
 		print("🔥 WorldManager: Resetting all players...")
-		reset_all_players_data()
-		# Reset the button
-		reset_all_players = false
+		if display_players_component:
+			display_players_component.reset_all_players_data()
+		# Reset the button (delegated to component)
+		if display_players_component:
+			display_players_component.reset_all_players = false
 
-func cleanup_duplicate_players_from_identity_bug():
-	if not world_data:
-		print("❌ No world data available")
-		return
-	
-	print("🧹 === DUPLICATE PLAYER CLEANUP ===")
-	
-	# Get current mappings
-	var client_mappings = world_data.client_to_player_mapping
-	var players = world_data.get_all_players()
-	
-	print("Before cleanup:")
-	print("  Client mappings: ", client_mappings.size())
-	for client_id in client_mappings.keys():
-		var player_id = client_mappings[client_id]
-		print("    ", client_id, " -> ", player_id)
-	
-	# Strategy: Merge newer identity format players back into older ones
-	# Look for pairs: old short IDs + new long IDs for same role
-	
-	var merges_to_perform = []
-	
-	# Find client duplicates - look for different length IDs (old vs new format)
-	var old_client_id = ""
-	var new_client_id = ""
-	for client_id in client_mappings.keys():
-		if client_id.begins_with("client_"):
-			print("🔍 Checking client ID: ", client_id, " (length: ", client_id.length(), ")")
-			if client_id.length() <= 14:  # Old/shorter format like "client_4e8eud3a" (12 chars)
-				old_client_id = client_id
-				print("  → Marked as OLD client: ", old_client_id)
-			elif client_id.length() > 14:  # New/longer format like "client_a70ds7hrkpyz" (16 chars)
-				new_client_id = client_id
-				print("  → Marked as NEW client: ", new_client_id)
-	
-	if old_client_id != "" and new_client_id != "":
-		merges_to_perform.append({
-			"old_client": old_client_id,
-			"new_client": new_client_id,
-			"type": "client"
-		})
-		print("🔗 Found client duplicate: ", old_client_id, " vs ", new_client_id)
-	
-	# Find server duplicates - look for different length IDs (old vs new format)
-	var old_server_id = ""
-	var new_server_id = ""
-	for client_id in client_mappings.keys():
-		if client_id.begins_with("server_"):
-			print("🔍 Checking server ID: ", client_id, " (length: ", client_id.length(), ")")
-			if client_id.length() <= 14:  # Old/shorter format like "server_sref1044" (12 chars)
-				old_server_id = client_id
-				print("  → Marked as OLD server: ", old_server_id)
-			elif client_id.length() > 14:  # New/longer format like "server_e5c4zwkibvaq" (16 chars)
-				new_server_id = client_id
-				print("  → Marked as NEW server: ", new_server_id)
-	
-	if old_server_id != "" and new_server_id != "":
-		merges_to_perform.append({
-			"old_client": old_server_id,
-			"new_client": new_server_id,
-			"type": "server"
-		})
-		print("🔗 Found server duplicate: ", old_server_id, " vs ", new_server_id)
-	
-	# Perform merges
-	var cleaned_count = 0
-	for merge in merges_to_perform:
-		var merge_old_client_id = merge["old_client"]
-		var merge_new_client_id = merge["new_client"]
-		var old_player_id = client_mappings[merge_old_client_id]
-		var new_player_id = client_mappings[merge_new_client_id]
-		
-		print("🧹 Merging ", merge["type"], ": ", merge_new_client_id, " (", new_player_id, ") into ", merge_old_client_id, " (", old_player_id, ")")
-		
-		# Get player data
-		var old_player_data = players[old_player_id]
-		var new_player_data = players[new_player_id]
-		
-		# Use the newer player data (more recent position/activity)
-		if new_player_data["last_seen"] >= old_player_data["last_seen"]:
-			print("  → Using newer player data from ", new_player_id)
-			# Copy new data to old player ID
-			world_data.player_data[old_player_id] = new_player_data.duplicate()
-			world_data.player_data[old_player_id]["player_id"] = old_player_id  # Fix the ID reference
-		else:
-			print("  → Keeping older player data from ", old_player_id)
-		
-		# Update client mapping to point new client ID to old player ID
-		world_data.client_to_player_mapping[merge_new_client_id] = old_player_id
-		
-		# Remove the duplicate player data
-		world_data.player_data.erase(new_player_id)
-		
-		cleaned_count += 1
-	
-	if cleaned_count > 0:
-		save_world_data()
-		sync_editor_players_from_world_data()  # Refresh display
-		print("✅ Cleanup complete: Merged ", cleaned_count, " duplicate players")
-		print("🔄 You should now see 2 players in the editor instead of 4")
-		
-		# Show final mapping
-		print("After cleanup:")
-		for client_id in world_data.client_to_player_mapping.keys():
-			var player_id = world_data.client_to_player_mapping[client_id]
-			print("    ", client_id, " -> ", player_id)
-	else:
-		print("ℹ️ No duplicate players found to clean up")
+# cleanup_duplicate_players_from_identity_bug() - Transferred to DisplayPlayersComponent
 
-func reset_all_players_data():
-	if not world_data:
-		print("❌ No world data available")
-		return
-	
-	print("🔥 === RESET ALL PLAYERS ===")
-	print("Before reset:")
-	print("  Players: ", world_data.player_data.size())
-	print("  Client mappings: ", world_data.client_to_player_mapping.size())
-	print("  Peer mappings: ", world_data.peer_to_client_mapping.size())
-	
-	# Clear all player data
-	world_data.player_data.clear()
-	world_data.client_to_player_mapping.clear()
-	world_data.peer_to_client_mapping.clear()
-	
-	# Reset the player ID counter
-	world_data.next_player_id = 1
-	
-	# Clear editor players display
-	for player_node in editor_players.values():
-		if player_node and is_instance_valid(player_node):
-			player_node.queue_free()
-	editor_players.clear()
-	
-	# Save the changes
-	save_world_data()
-	
-	print("✅ Reset complete!")
-	print("After reset:")
-	print("  Players: ", world_data.player_data.size())
-	print("  Client mappings: ", world_data.client_to_player_mapping.size())
-	print("  Peer mappings: ", world_data.peer_to_client_mapping.size())
-	print("🔄 All player data has been cleared. Next run will create fresh players starting from player_1")
+# reset_all_players_data() - Transferred to DisplayPlayersComponent
 
 func _on_toggle_players_visible(value: bool):
 	if Engine.is_editor_hint() and value:
-		editor_players_visible = !editor_players_visible
-		print("👁️ WorldManager: Toggling editor players visibility to ", "VISIBLE" if editor_players_visible else "HIDDEN")
-		toggle_editor_players_visibility()
-		# Reset the button
-		toggle_players_visible = false
+		if display_players_component:
+			display_players_component.editor_players_visible = !display_players_component.editor_players_visible
+			print("👁️ WorldManager: Toggling editor players visibility to ", "VISIBLE" if display_players_component.editor_players_visible else "HIDDEN")
+			display_players_component.toggle_editor_players_visibility()
+			# Reset the button (delegated to component)
+			display_players_component.toggle_players_visible = false
 
-func toggle_editor_players_visibility():
-	if not Engine.is_editor_hint() or not spawn_container:
-		return
-	
-	var affected_count = 0
-	
-	# Toggle visibility for all EditorPlayer nodes
-	for child in spawn_container.get_children():
-		if child.name.begins_with("EditorPlayer_"):
-			child.visible = editor_players_visible
-			affected_count += 1
-	
-	# Also update the tracked editor players
-	for player_id in editor_players.keys():
-		var player_node = editor_players[player_id]
-		if is_instance_valid(player_node):
-			player_node.visible = editor_players_visible
-	
-	if affected_count > 0:
-		var status = "VISIBLE" if editor_players_visible else "HIDDEN"
-		print("✅ Updated visibility for ", affected_count, " editor players - now ", status)
-		if not editor_players_visible:
-			print("💡 TIP: Click 'Toggle Players Visible' again to show them")
-	else:
-		print("ℹ️ No editor players found to toggle")
+# toggle_editor_players_visibility() - Transferred to DisplayPlayersComponent
 
 # Keyboard shortcut: Ctrl+H to toggle player visibility
 
@@ -1089,110 +771,7 @@ func toggle_editor_players_visibility():
 
 
 
-func spawn_editor_player_with_styling(player_id: String, spawn_pos: Vector2, player_info: Dictionary, rank: int, total_filtered: int):
-	if not Engine.is_editor_hint() or not spawn_container:
-		return
-	
-	# Check if player is lost (far from reasonable bounds)
-	var is_lost = spawn_pos.y < -5000  # Only check for falling below world
-	var safe_position = spawn_pos
-	if is_lost:
-		safe_position = Vector2(100, 100)  # Default safe spawn
-	
-	# Create a simple Node2D for editor representation
-	var player = Node2D.new()
-	player.name = "EditorPlayer_" + player_id
-	player.position = safe_position
-	
-	# Add visual representation (sprite)
-	var sprite = Sprite2D.new()
-	var texture = PlaceholderTexture2D.new()
-	texture.size = Vector2(50, 50)
-	sprite.texture = texture
-	
-	# Calculate transparency based on rank (age)
-	var alpha = 1.0
-	if player_search_component and player_search_component.use_transparency_gradient and total_filtered > 1:
-		# Most recent = 1.0 alpha, oldest = oldest_player_alpha
-		var age_ratio = float(rank) / float(total_filtered - 1)
-		alpha = lerp(1.0, player_search_component.oldest_player_alpha, age_ratio)
-	
-	# Color and transparency based on player status
-	var base_color = Color.CYAN
-	if is_lost:
-		base_color = Color.RED
-	elif player_search_component and player_search_component.is_player_insignificant(player_info):
-		base_color = Color.GRAY
-	
-	# Apply calculated alpha
-	base_color.a = alpha
-	sprite.modulate = base_color
-	
-	# Scale based on significance
-	var scale_factor = 1.0
-	if player_search_component and player_info.get("level", 1) >= player_search_component.significance_threshold * 2:
-		scale_factor = 1.2  # Important players are slightly larger
-	elif player_search_component and player_search_component.is_player_insignificant(player_info):
-		scale_factor = 0.8  # Insignificant players are smaller
-	
-	sprite.scale = Vector2(scale_factor, scale_factor)
-	player.add_child(sprite)
-	
-	# Add detailed label
-	var label = Label.new()
-	var level = player_info.get("level", 1)
-	var last_seen_raw = player_info.get("last_seen", 0)
-	
-	# Convert last_seen to float if it's a string
-	var last_seen: float = 0.0
-	if last_seen_raw is String:
-		last_seen = float(last_seen_raw)
-	else:
-		last_seen = float(last_seen_raw)
-	
-	var current_time = Time.get_unix_time_from_system()
-	var hours_ago = int((current_time - last_seen) / 3600.0)
-	
-	var status_text = ""
-	if is_lost:
-		status_text += " (LOST)"
-	elif hours_ago < 1:
-		status_text += " (RECENT)"
-	elif hours_ago < 24:
-		status_text += " (" + str(hours_ago) + "h ago)"
-	else:
-		var days_ago = int(hours_ago / 24.0)
-		status_text += " (" + str(days_ago) + "d ago)"
-	
-	label.text = player_id + " L" + str(level) + status_text
-	label.position = Vector2(-40, -50)
-	
-	# Label styling based on significance
-	var label_color = Color.WHITE
-	if player_search_component and player_search_component.is_player_insignificant(player_info):
-		label_color = Color.GRAY
-	elif player_search_component and level >= player_search_component.significance_threshold * 2:
-		label_color = Color.YELLOW
-	
-	label_color.a = alpha  # Apply same transparency
-	label.add_theme_color_override("font_color", label_color)
-	label.add_theme_color_override("font_shadow_color", Color.BLACK)
-	label.add_theme_constant_override("shadow_offset_x", 1)
-	label.add_theme_constant_override("shadow_offset_y", 1)
-	player.add_child(label)
-	
-	# Store enhanced metadata
-	player.set_meta("persistent_player_id", player_id)
-	player.set_meta("original_position", spawn_pos)
-	player.set_meta("is_lost", is_lost)
-	player.set_meta("player_level", level)
-	player.set_meta("last_seen", last_seen)
-	player.set_meta("is_significant", not (player_search_component and player_search_component.is_player_insignificant(player_info)))
-	player.set_meta("rank", rank)
-	
-	# Add to spawn container and track
-	spawn_container.add_child(player)
-	editor_players[player_id] = player
+# spawn_editor_player_with_styling() - Transferred to DisplayPlayersComponent
 
 # Filter control callbacks
 

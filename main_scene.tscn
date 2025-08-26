@@ -1,4 +1,4 @@
-[gd_scene load_steps=40 format=4 uid="uid://dslh1c7rihy52"]
+[gd_scene load_steps=41 format=4 uid="uid://dslh1c7rihy52"]
 
 [ext_resource type="Texture2D" uid="uid://bxoyje2pq7nna" path="res://releases/icon.svg" id="1_0f027"]
 [ext_resource type="Script" uid="uid://dyanuw3ckhq8o" path="res://network_manager.gd" id="1_2c62f"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://dnf2q8muyuek3" path="res://Account/register.gd" id="2_register"]
 [ext_resource type="Texture2D" uid="uid://bbkxfau70a8fc" path="res://assets/kenney_voxel-pack/Spritesheets/spritesheet_tiles.png" id="3_d5x1h"]
 [ext_resource type="Script" uid="uid://plwytekgsub" path="res://world_manager.gd" id="3_world"]
+[ext_resource type="Script" uid="uid://d0tr444nhssfn" path="res://world_manager_godot_editor_display_players.gd" id="3_world_display"]
 [ext_resource type="Script" uid="uid://cawmjvne034fb" path="res://world_manager_godot_editor_player_search.gd" id="3_world_search"]
 [ext_resource type="Script" uid="uid://cpl17ylpgg0qb" path="res://game_manager.gd" id="4_game"]
 [ext_resource type="Resource" path="user://world_data.tres" id="7_42l1d"]
@@ -2226,9 +2227,10 @@ text = "Bober"
 
 [node name="PlayerSearchComponent" type="Node" parent="WorldManager"]
 script = ExtResource("3_world_search")
-show_recent_players_only = true
 max_recent_players = 20
-hide_insignificant_players = true
+
+[node name="DisplayPlayersComponent" type="Node" parent="WorldManager"]
+script = ExtResource("3_world_display")
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 
