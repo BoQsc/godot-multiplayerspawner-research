@@ -5,6 +5,7 @@
 [node name="InteractiveSignPost" type="StaticBody2D"]
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
+visible = false
 polygon = PackedVector2Array(-30, 6, 27, 6, 34, 10, 35, 39, 29, 46, 8, 46, 6, 70, -6, 70, -6, 46, -30, 46, -35, 38, -35, 8)
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
