@@ -1,0 +1,29 @@
+[gd_scene load_steps=2 format=3 uid="uid://dpe0nwsqh0ntr"]
+
+[ext_resource type="Texture2D" uid="uid://wid24c4sxxqv" path="res://assets/kenney_platformer-art-deluxe/Base pack/Tiles/sign.png" id="1_khgq5"]
+
+[node name="InteractiveSignPost" type="StaticBody2D"]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
+polygon = PackedVector2Array(-30, 6, 27, 6, 34, 10, 35, 39, 29, 46, 8, 46, 6, 70, -6, 70, -6, 46, -30, 46, -35, 38, -35, 8)
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(0, 35)
+texture = ExtResource("1_khgq5")
+
+[node name="Label" type="Label" parent="."]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -26.0
+offset_top = 12.0
+offset_right = 26.0
+offset_bottom = 35.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "Text"
+horizontal_alignment = 1
+autowrap_mode = 1
+clip_text = true
