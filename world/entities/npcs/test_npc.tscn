@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3 uid="uid://bq7x8h2n1k5f4"]
 
-[ext_resource type="Script" uid="uid://c7fmwm8dbpvwq" path="res://entities/npcs/test_npc.gd" id="1_test_npc"]
+[ext_resource type="Script" uid="uid://c7fmwm8dbpvwq" path="res://world/entities/npcs/test_npc.gd" id="1_test_npc"]
 [ext_resource type="Texture2D" uid="uid://c1ws8kyxl3v38" path="res://assets/kenney_platformer-art-deluxe/Base pack/Enemies/slimeWalk1.png" id="2_slime"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_npc"]
