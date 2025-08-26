@@ -57,8 +57,7 @@ def create_world_manager_components():
             'description': 'Visual player display and editor representation',
             'exports': [
                 '@export_group("Editor Player Visibility")',
-                '@export var toggle_players_visible: bool = false : set = _on_toggle_players_visible',
-                '@export var editor_players_visible: bool = true',
+                '@export var editor_players_visible: bool = true : set = _on_editor_players_visible_changed',
                 '@export var use_transparency_gradient: bool = true',
                 '@export var oldest_player_alpha: float = 0.3',
                 '',

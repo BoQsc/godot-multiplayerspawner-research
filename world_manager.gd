@@ -567,8 +567,7 @@ func _input(event):
 		if event.keycode == KEY_H and event.ctrl_pressed:
 			if display_players_component:
 				display_players_component.editor_players_visible = !display_players_component.editor_players_visible
-				print("⌨️ Keyboard shortcut: Toggling editor players to ", "VISIBLE" if display_players_component.editor_players_visible else "HIDDEN")
-				display_players_component.toggle_editor_players_visibility()
+				print("⌨️ Keyboard shortcut: Toggled editor players to ", "VISIBLE" if display_players_component.editor_players_visible else "HIDDEN")
 			return
 	
 	# Terrain modification (only when enabled)
@@ -750,14 +749,6 @@ func _on_reset_all_players(value: bool):
 
 # reset_all_players_data() - Transferred to DisplayPlayersComponent
 
-func _on_toggle_players_visible(value: bool):
-	if Engine.is_editor_hint() and value:
-		if display_players_component:
-			display_players_component.editor_players_visible = !display_players_component.editor_players_visible
-			print("👁️ WorldManager: Toggling editor players visibility to ", "VISIBLE" if display_players_component.editor_players_visible else "HIDDEN")
-			display_players_component.toggle_editor_players_visibility()
-			# Reset the button (delegated to component)
-			display_players_component.toggle_players_visible = false
 
 # toggle_editor_players_visibility() - Transferred to DisplayPlayersComponent
 

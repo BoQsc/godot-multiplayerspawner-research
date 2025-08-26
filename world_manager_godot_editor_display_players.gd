@@ -8,8 +8,7 @@ class_name WorldManagerGodotEditorDisplayPlayers
 @export var reset_all_players: bool = false : set = _on_reset_all_players
 
 @export_group("Editor Player Visibility")
-@export var toggle_players_visible: bool = false : set = _on_toggle_players_visible
-@export var editor_players_visible: bool = true
+@export var editor_players_visible: bool = true : set = _on_editor_players_visible_changed
 
 # Editor player persistence
 var editor_players: Dictionary = {}  # player_id -> player_node
@@ -74,17 +73,16 @@ func _on_reset_all_players(value: bool):
 		# Reset the button
 		reset_all_players = false
 
-func _on_toggle_players_visible(value: bool):
-	if Engine.is_editor_hint() and value:
+func _on_editor_players_visible_changed(value: bool):
+	editor_players_visible = value  # ACTUALLY SET THE VARIABLE!
+	
+	if Engine.is_editor_hint():
 		# Try to refresh references if spawn_container is null
 		if not spawn_container:
 			_refresh_component_references()
 		
-		editor_players_visible = !editor_players_visible
-		print("👁️ WorldManager: Toggling editor players visibility to ", "VISIBLE" if editor_players_visible else "HIDDEN")
+		print("👁️ WorldManager: Setting editor players visibility to ", "VISIBLE" if value else "HIDDEN")
 		toggle_editor_players_visibility()
-		# Reset the button
-		toggle_players_visible = false
 
 # Main editor player display function
 func sync_editor_players_from_world_data():
