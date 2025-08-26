@@ -3,7 +3,7 @@ extends Node
 class_name WorldManagerGodotEditorPlayerSearch
 
 @export_group("Player Search & Management")
-@export var search_term: String = ""
+@export var search_term: String = "player_"
 @export var search_players: bool = false : set = _on_search_players
 @export var focus_on_player: String = ""
 @export var focus_camera: bool = false : set = _on_focus_camera
@@ -39,9 +39,20 @@ func _ready():
 		
 	# Find references to main components
 	world_manager = get_parent() as WorldManager
+	
+	# If parent isn't WorldManager, try to find it in the scene
 	if not world_manager:
-		print("❌ WorldManagerGodotEditorPlayerSearch: Could not find WorldManager parent")
+		world_manager = get_node_or_null("../") as WorldManager  # Try parent of parent
+		if not world_manager:
+			world_manager = get_tree().get_first_node_in_group("world_manager") as WorldManager
+	
+	if not world_manager:
+		print("❌ WorldManagerGodotEditorPlayerSearch: Could not find WorldManager anywhere")
+		print("🔧 DEBUG: My parent is: ", get_parent())
+		print("🔧 DEBUG: My path is: ", get_path())
 		return
+	else:
+		print("✅ WorldManagerGodotEditorPlayerSearch: Found WorldManager at: ", world_manager.get_path())
 		
 	# Get spawn container reference from world manager
 	spawn_container = world_manager.spawn_container
@@ -112,13 +123,31 @@ func _on_refresh_filters(value: bool):
 
 # Core search functionality
 func search_for_players(term: String):
-	if not world_manager or not world_manager.world_data:
-		print("❌ No world data available")
+	if not world_manager:
+		print("❌ No world_manager available")
+		return
+	if not world_manager.world_data:
+		print("❌ No world_data available in world_manager")
 		return
 	
-	var matches = []
 	var player_data = world_manager.world_data.get_all_players()
+	if player_data.is_empty():
+		print("❌ World data exists but contains no players")
+		return
 	
+	print("🔍 Searching in ", player_data.size(), " total players for term '", term, "'")
+	
+	# Show first few player IDs as examples
+	var example_ids = []
+	var count = 0
+	for player_id in player_data.keys():
+		example_ids.append(player_id)
+		count += 1
+		if count >= 3:
+			break
+	print("📋 Example player IDs: ", example_ids)
+	
+	var matches = []
 	for player_id in player_data.keys():
 		if term == "" or player_id.to_lower().contains(term.to_lower()):
 			var player_info = player_data[player_id]
