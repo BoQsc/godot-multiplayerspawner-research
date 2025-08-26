@@ -180,3 +180,28 @@ The project successfully underwent a major directory restructure with comprehens
 - ✅ **Runtime Stability**: Full system startup with 180+ world tiles, device binding, user identity systems operational
 
 The deep scanning approach ensures that major structural changes can be applied confidently with comprehensive reference tracking and validation.
+
+## Development Best Practices
+
+### **Always Validate Assumptions**
+- **Never assume code works without testing** - even simple changes can have unexpected effects
+- **Test immediately after implementation** - don't batch multiple changes before testing
+- **Use debug output liberally** - print statements reveal what's actually happening vs what you think is happening
+
+### **Logic Error Prevention**
+- **Question contradictory output** - if logs say one thing but behavior shows another, investigate deeper
+- **Add comparison logging** - when debugging, compare input parameters vs actual variable values
+- **Test the simplest explanation first** - often the bug is in basic logic, not complex systems
+- **Verify each step works** - don't assume intermediate steps are correct
+
+### **Systematic Problem Solving**
+1. **Reproduce the issue consistently** - understand exactly when it happens
+2. **Add targeted debug output** - focus logging on the suspected problem area  
+3. **Test one change at a time** - don't fix multiple things simultaneously
+4. **Validate the fix thoroughly** - ensure the solution actually works as expected
+
+### **Code Review Mindset**
+- **Read your own code critically** - assume there are bugs to find
+- **Check for missing assignments** - setters, property updates, state changes
+- **Look for competing logic paths** - multiple systems trying to control the same thing
+- **Verify user experience matches intent** - test from the user's perspective, not just the code's perspective
