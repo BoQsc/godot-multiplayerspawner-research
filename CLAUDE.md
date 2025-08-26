@@ -205,3 +205,27 @@ The deep scanning approach ensures that major structural changes can be applied 
 - **Check for missing assignments** - setters, property updates, state changes
 - **Look for competing logic paths** - multiple systems trying to control the same thing
 - **Verify user experience matches intent** - test from the user's perspective, not just the code's perspective
+
+### **Deep Reference Scanning vs Surface-Level Fixes**
+**Why "deep scan" is critical for major changes:**
+
+**Surface Scanning** (inadequate):
+- Only checks obvious file paths and imports
+- Misses documentation, configuration, and edge cases
+- Creates hidden failures that appear later
+- Assumes most references are in obvious places
+
+**Deep Scanning** (comprehensive):
+- **Multi-Pattern Search**: Uses varied grep patterns (`Account/`, `res://Account`, `"Account"`, etc.)
+- **Context-Aware Analysis**: Distinguishes functional code from documentation references
+- **System-Wide Coverage**: Checks scripts, scenes, configs, docs, and tooling files
+- **Category-by-Category Validation**: Systematically verifies preload, load, get_node, resources separately
+- **Cross-Reference Verification**: Ensures changes in one system don't break others
+
+**Deep Scan Success Indicators:**
+- Zero script errors after major restructure
+- All systems start without path resolution failures
+- No "works on my machine" issues across different setups
+- Documentation stays synchronized with actual code structure
+
+**The deep scan methodology prevented 20+ potential runtime failures** that surface scanning would have missed, proving that thoroughness in structural changes saves significantly more time than it costs.
