@@ -1,7 +1,7 @@
 extends Node
 
 # Simple test script for device binding functionality
-# Run with: godot --headless --script Account/test_device_binding.gd
+# Run with: godot --headless --script world/account/test_device_binding.gd
 
 func _ready():
 	print("=== Device Binding Test Suite ===")

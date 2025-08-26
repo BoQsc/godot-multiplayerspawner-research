@@ -28,7 +28,7 @@ func spawn_pickup(item_type: String, spawn_pos: Vector2, config_data: Dictionary
 
 func _spawn_pickup_locally(item_id: String, item_type: String, pos: Vector2, config: Dictionary):
 	"""Spawn pickup locally on this client"""
-	var pickup_scene_path = "res://entities/pickups/" + item_type + ".tscn"
+	var pickup_scene_path = "res://world/entities/pickups/" + item_type + ".tscn"
 	var pickup_scene = load(pickup_scene_path)
 	
 	if not pickup_scene:

@@ -524,8 +524,8 @@ func _setup_system_references():
 \tnetwork_manager = get_node("../NetworkManager")
 \tworld_manager = get_node("../WorldManager") 
 \tuser_identity = get_node("../UserIdentity")
-\tregister = get_node("../Account/Register")
-\tlogin = get_node("../Account/Login")
+\tregister = get_node("../world/account/Register")
+\tlogin = get_node("../world/account/Login")
 
 func _process(delta):
 \t# Delegate to auto-save system

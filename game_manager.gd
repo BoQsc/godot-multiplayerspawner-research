@@ -189,7 +189,7 @@ func _unhandled_key_input(event):
 func _show_device_binding_ui():
 	# Show device binding UI for anonymous players
 	if user_identity and user_identity.can_access_current_uuid():
-		var ui_scene = preload("res://Account/device_binding_ui.gd")
+		var ui_scene = preload("res://world/account/device_binding_ui.gd")
 		device_binding_ui = ui_scene.show_device_binding_ui(get_parent(), user_identity)
 		device_binding_ui.ui_closed.connect(_on_device_binding_ui_closed)
 		print("GameManager: Showing device binding UI (F1)")
@@ -203,7 +203,7 @@ func _on_device_binding_ui_closed():
 func _show_register_ui():
 	# Show registration/login UI
 	if register and login and user_identity:
-		var ui_scene = preload("res://Account/signin_ui.gd")
+		var ui_scene = preload("res://world/account/signin_ui.gd")
 		register_ui = ui_scene.show_signin_ui(get_parent(), register, login, user_identity)
 		register_ui.ui_closed.connect(_on_register_ui_closed)
 		print("GameManager: Showing signin UI (F2)")
@@ -979,7 +979,7 @@ func _on_player_disconnected(id):
 		rpc("despawn_player", id)
 
 func _spawn_player(peer_id: int, pos: Vector2, persistent_id: String):
-	var player = load("res://entities/players/player_entity.tscn").instantiate()
+	var player = load("res://world/entities/players/player_entity.tscn").instantiate()
 	player.name = str(peer_id)
 	player.position = pos
 	player.player_id = peer_id
@@ -1044,7 +1044,7 @@ func spawn_npc(npc_type: String, spawn_pos: Vector2, config_data: Dictionary = {
 
 func _spawn_npc_locally(npc_id: String, npc_type: String, pos: Vector2, config: Dictionary):
 	"""Spawn NPC locally on this client"""
-	var npc_scene_path = "res://entities/npcs/" + npc_type + ".tscn"
+	var npc_scene_path = "res://world/entities/npcs/" + npc_type + ".tscn"
 	
 	if not ResourceLoader.exists(npc_scene_path):
 		print("ERROR: NPC scene not found: ", npc_scene_path)
@@ -1113,7 +1113,7 @@ func spawn_pickup(item_type: String, spawn_pos: Vector2, config_data: Dictionary
 
 func _spawn_pickup_locally(item_id: String, item_type: String, pos: Vector2, config: Dictionary):
 	"""Spawn pickup locally on this client"""
-	var pickup_scene_path = "res://entities/pickups/" + item_type + ".tscn"
+	var pickup_scene_path = "res://world/entities/pickups/" + item_type + ".tscn"
 	var pickup_scene = load(pickup_scene_path)
 	
 	if not pickup_scene:

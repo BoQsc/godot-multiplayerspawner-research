@@ -139,9 +139,9 @@ The project uses a hybrid approach:
 - `entities/players/player_entity.gd` - Player behavior and movement
 
 **Account System:**
-- `Account/user_identity.gd` - Player identity management
-- `Account/register.gd` & `Account/login.gd` - Authentication systems
-- `Account/*_ui.gd` - User interface components
+- `world/account/user_identity.gd` - Player identity management
+- `world/account/register.gd` & `world/account/login.gd` - Authentication systems
+- `world/account/*_ui.gd` - User interface components
 
 **Research Documentation:**
 - `research/` - Extensive analysis of multiplayer architecture

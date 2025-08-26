@@ -11,7 +11,7 @@
 [ext_resource type="Script" uid="uid://d0tr444nhssfn" path="res://world_manager_godot_editor_display_players.gd" id="3_world_display"]
 [ext_resource type="Script" uid="uid://cawmjvne034fb" path="res://world_manager_godot_editor_player_search.gd" id="3_world_search"]
 [ext_resource type="Script" uid="uid://cpl17ylpgg0qb" path="res://game_manager.gd" id="4_game"]
-[ext_resource type="Resource" path="../user:/world_data.tres" id="7_42l1d"]
+[ext_resource type="Resource" path="user://world_data.tres" id="7_42l1d"]
 [ext_resource type="Texture2D" uid="uid://n736h8vhk7cc" path="res://assets/kenney_platformer-art-deluxe/Base pack/bg.png" id="8_wr18j"]
 [ext_resource type="Texture2D" uid="uid://cgyc22os8u3ba" path="res://assets/kenney_platformer-art-deluxe/Base pack/Items/cloud1.png" id="9_qwutr"]
 [ext_resource type="Texture2D" uid="uid://gp8gf3dgoy8h" path="res://assets/kenney_platformer-art-deluxe/Base pack/Vector/tiles.svg" id="10_671wp"]

@@ -19,7 +19,7 @@ This document analyzes how players and non-player entities are introduced in thi
 | **World Manager** | `world_manager.gd` | Persistent world state, terrain management |
 | **World Data** | `world_data.gd` | Player data storage, world persistence |
 | **Entity Scene** | `entity_scene.gd` | Player entity behavior and network sync |
-| **User Identity** | `Account/user_identity.gd` | Player identity and device binding |
+| **User Identity** | `world/account/user_identity.gd` | Player identity and device binding |
 
 ### 2. Player Identity System
 
@@ -198,7 +198,7 @@ else:
 
 ## Security and Access Control
 
-### Device Binding System (`Account/device_binding.gd`)
+### Device Binding System (`world/account/device_binding.gd`)
 ```gdscript
 # Anonymous player protection
 var anonymous_bindings: Dictionary = {}  # uuid_player -> device_fingerprint

@@ -150,7 +150,7 @@ PlayerEntity (120Hz local) → NetworkManager (rate limit) → GameManager (60Hz
 
 ## 👤 4. UserIdentity - Player Identity (273 lines)
 
-### **Location:** `Account/user_identity.gd`  
+### **Location:** `world/account/user_identity.gd`  
 ### **Class:** `UserIdentity`  
 ### **Group:** `user_identity`
 
@@ -353,7 +353,7 @@ get_parent().get_node("SpawnContainer").add_child(player)
 ├── game_manager.gd (1,452 lines) - Main multiplayer logic
 ├── network_manager.gd (144 lines) - Network optimization  
 ├── world_manager.gd (1,718 lines) - World state & persistence
-└── Account/user_identity.gd (273 lines) - Player identity
+└── world/account/user_identity.gd (273 lines) - Player identity
 ```
 
 ### **Entity Management:**
@@ -366,8 +366,8 @@ get_parent().get_node("SpawnContainer").add_child(player)
 ### **UI Components:**
 ```
 ├── position_display.gd - Real-time coordinate display
-├── Account/new_device_binding_ui.tscn - Device management
-├── Account/new_player_list_ui.tscn - Player list
+├── world/account/new_device_binding_ui.tscn - Device management
+├── world/account/new_player_list_ui.tscn - Player list
 └── UILayer in main_scene.tscn - UI container
 ```
 

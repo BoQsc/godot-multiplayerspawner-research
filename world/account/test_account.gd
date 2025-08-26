@@ -1,7 +1,7 @@
 extends Node
 
 # Simple test script for Phase 2 registration system
-# Run with: godot --headless --script Account/test_account.gd
+# Run with: godot --headless --script world/account/test_account.gd
 
 var register: Register
 var login: Login

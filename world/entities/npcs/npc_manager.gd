@@ -28,7 +28,7 @@ func spawn_npc(spawn_pos: Vector2, npc_type: String = "test_npc", config_data: D
 
 func _spawn_npc_locally(npc_id: String, npc_type: String, pos: Vector2, config: Dictionary):
 	"""Spawn NPC locally on this client"""
-	var npc_scene_path = "res://entities/npcs/" + npc_type + ".tscn"
+	var npc_scene_path = "res://world/entities/npcs/" + npc_type + ".tscn"
 	var npc_scene = load(npc_scene_path)
 	
 	if not npc_scene:
