@@ -2226,10 +2226,9 @@ text = "Bober"
 
 [node name="PlayerSearchComponent" type="Node" parent="WorldManager"]
 script = ExtResource("3_world_search")
-show_recent_players_only = false
-max_recent_players = 50
-hide_insignificant_players = false
-significance_threshold = 1
+show_recent_players_only = true
+max_recent_players = 20
+hide_insignificant_players = true
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 
