@@ -2233,7 +2233,9 @@ text = "Bober"
 
 [node name="PlayerSearchComponent" type="Node" parent="WorldManager"]
 script = ExtResource("3_world_search")
+show_recent_players_only = true
 max_recent_players = 20
+hide_insignificant_players = true
 
 [node name="DisplayPlayersComponent" type="Node" parent="WorldManager"]
 script = ExtResource("3_world_display")

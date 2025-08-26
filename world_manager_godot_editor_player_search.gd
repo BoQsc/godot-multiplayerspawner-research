@@ -103,8 +103,11 @@ func _on_max_recent_changed(value: int):
 func _on_refresh_filters(value: bool):
 	if Engine.is_editor_hint() and value:
 		print("🔄 Refreshing display filters...")
-		if world_manager and world_manager.has_method("sync_editor_players_from_world_data"):
-			world_manager.sync_editor_players_from_world_data()
+		var display_component = world_manager.get_node_or_null("DisplayPlayersComponent") if world_manager else null
+		if display_component and display_component.has_method("sync_editor_players_from_world_data"):
+			display_component.sync_editor_players_from_world_data()
+		else:
+			print("❌ Could not find DisplayPlayersComponent to refresh")
 		refresh_display_filters = false
 
 # Core search functionality
@@ -334,8 +337,9 @@ func get_filtered_players(all_players: Dictionary) -> Array:
 		if should_show:
 			filtered_players.append(player_info)
 		
-		# Limit to recent players
-		if show_recent_players_only and filtered_players.size() >= max_recent_players:
+		# Limit to recent players (either when show_recent_players_only is true, or when max_recent_players is set to a low number)
+		var should_limit = show_recent_players_only or max_recent_players < 50  # Auto-enable limiting for small numbers
+		if should_limit and filtered_players.size() >= max_recent_players:
 			break
 	
 	return filtered_players

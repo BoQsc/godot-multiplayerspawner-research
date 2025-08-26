@@ -87,8 +87,11 @@ func sync_editor_players_from_world_data():
 		print("WorldManager: No world data, skipping player sync")
 		return
 	if not spawn_container:
-		print("WorldManager: No spawn container found, skipping player sync")
-		return
+		print("WorldManager: No spawn container found, trying to refresh references...")
+		_refresh_component_references()
+		if not spawn_container:
+			print("WorldManager: Still no spawn container found, skipping player sync")
+			return
 	
 	print("WorldManager: Syncing editor players from world data...")
 	
