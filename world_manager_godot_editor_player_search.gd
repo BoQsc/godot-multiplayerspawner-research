@@ -5,10 +5,11 @@ class_name WorldManagerGodotEditorPlayerSearch
 @export_group("Player Search & Management")
 @export var search_term: String = "player_"
 @export var search_players: bool = false : set = _on_search_players
-@export var focus_on_player: String = ""
+@export var mark_player_visually: bool = false : set = _on_mark_player
 @export var focus_camera: bool = false : set = _on_focus_camera
 @export var list_all_players: bool = false : set = _on_list_all_players
 @export var show_player_distances: bool = false : set = _on_show_distances
+@export var cleanup_focus_markers: bool = false : set = _on_cleanup_markers
 
 @export_group("Player Focus Mode")
 @export var focus_player_list: String = "" # Comma-separated list of player IDs
@@ -28,6 +29,9 @@ class_name WorldManagerGodotEditorPlayerSearch
 # Focus mode state
 var focused_players: Array[String] = []
 var is_focus_mode_active: bool = false
+
+# Camera focus state
+var is_camera_focused: bool = false
 
 # Component references
 var world_manager: WorldManager
@@ -56,6 +60,9 @@ func _ready():
 		
 	# Get spawn container reference from world manager
 	spawn_container = world_manager.spawn_container
+	
+	# Clean up any leftover focus markers from previous sessions
+	cleanup_old_focus_markers()
 
 # Export button handlers
 func _on_search_players(value: bool):
@@ -65,13 +72,35 @@ func _on_search_players(value: bool):
 		# Reset the button
 		search_players = false
 
+func _on_mark_player(value: bool):
+	if Engine.is_editor_hint() and value:
+		# Check if we should unmark instead (toggle functionality)
+		if is_camera_focused and world_manager and world_manager.spawn_container:
+			var markers_removed = remove_all_visual_markers()
+			if markers_removed > 0:
+				is_camera_focused = false
+				print("🔄 Removed ", markers_removed, " visual markers")
+				print("💡 TIP: Click 'Mark Player Visually' again to mark players")
+				mark_player_visually = false
+				return
+		
+		print("🔧 DEBUG: search_term field contains: '", search_term, "'")
+		
+		if search_term != "" and search_term.strip_edges() != "":
+			var player_to_mark = search_term.strip_edges()
+			print("🎯 Marking player visually based on search term: ", player_to_mark)
+			mark_player_visually_by_term(player_to_mark)
+		else:
+			print("❌ Please enter a search term to mark a player")
+			print("💡 TIP: Enter partial player ID (e.g., '997') or full ID")
+		# Reset the button
+		mark_player_visually = false
+
 func _on_focus_camera(value: bool):
 	if Engine.is_editor_hint() and value:
-		if focus_on_player != "":
-			print("🎯 WorldManager: Focusing camera on player ", focus_on_player)
-			focus_camera_on_player(focus_on_player)
-		else:
-			print("❌ Please specify focus_on_player (e.g., 'player_1')")
+		print("📷 Focus Camera: This will move the Godot editor viewport")
+		print("💡 TODO: Implement actual editor camera focusing")
+		print("⚠️ Currently not implemented - use 'Mark Player Visually' to create visual markers")
 		# Reset the button
 		focus_camera = false
 
@@ -88,6 +117,13 @@ func _on_show_distances(value: bool):
 		show_player_distances_from_spawn()
 		# Reset the button
 		show_player_distances = false
+
+func _on_cleanup_markers(value: bool):
+	if Engine.is_editor_hint() and value:
+		print("🧹 Manually cleaning up focus markers...")
+		cleanup_old_focus_markers()
+		# Reset the button
+		cleanup_focus_markers = false
 
 func _on_apply_focus(value: bool):
 	if Engine.is_editor_hint() and value:
@@ -164,28 +200,199 @@ func search_for_players(term: String):
 		var distance = pos.distance_to(Vector2(100, 100))  # Distance from default spawn
 		print("  • ", match["id"], " at ", pos, " (", int(distance), " units from spawn) - Level ", match["level"], " - Last seen: ", match["last_seen"])
 
-func focus_camera_on_player(player_id: String):
+func mark_player_visually_by_term(term: String):
 	if not world_manager or not world_manager.world_data:
 		print("❌ No world data available")
 		return
 	
+	var all_players = world_manager.world_data.get_all_players()
+	var matches = []
+	
+	# Find players matching the search term
+	for player_id in all_players.keys():
+		if term == "" or player_id.to_lower().contains(term.to_lower()):
+			var player_info = all_players[player_id]
+			matches.append({
+				"id": player_id,
+				"position": player_info["position"],
+				"level": player_info.get("level", 1)
+			})
+	
+	print("🔍 Found ", matches.size(), " players matching '", term, "'")
+	
+	if matches.size() == 0:
+		print("❌ No players found matching '", term, "'")
+		return
+	elif matches.size() == 1:
+		# Single match - mark this player
+		var player = matches[0]
+		print("🎯 Marking single match: ", player.id)
+		create_visual_marker(player.id, player.position)
+	else:
+		# Multiple matches - mark the first few
+		print("🎯 Multiple matches found - marking first 3:")
+		for i in range(min(3, matches.size())):
+			var player = matches[i]
+			print("  • Marking: ", player.id)
+			create_visual_marker(player.id, player.position, i)
+
+func create_visual_marker(player_id: String, pos: Vector2, index: int = 0):
+	if not Engine.is_editor_hint() or not world_manager or not world_manager.spawn_container:
+		return
+	
+	# Create a unique marker name
+	var marker_name = "VISUAL_MARK_" + str(index) if index > 0 else "VISUAL_MARK"
+	
+	# Remove existing marker with same name
+	var existing_marker = world_manager.spawn_container.get_node_or_null(marker_name)
+	if existing_marker:
+		existing_marker.queue_free()
+	
+	# Create visual marker
+	var marker = Node2D.new()
+	marker.name = marker_name
+	marker.position = pos
+	
+	# Add visible sprite
+	var sprite = Sprite2D.new()
+	var texture = PlaceholderTexture2D.new()
+	texture.size = Vector2(120, 120)
+	sprite.texture = texture
+	sprite.modulate = Color.ORANGE if index == 0 else Color.YELLOW
+	marker.add_child(sprite)
+	
+	# Add label
+	var label = Label.new()
+	label.text = "MARK: " + player_id.substr(-12) + "\nPos: " + str(pos)
+	label.position = Vector2(-60, -90)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	marker.add_child(label)
+	
+	world_manager.spawn_container.add_child(marker)
+	is_camera_focused = true  # Reuse this flag for "has visual markers"
+	
+	print("✅ Created visual marker '", marker_name, "' for player ", player_id.substr(-12))
+
+func remove_all_visual_markers() -> int:
+	if not world_manager or not world_manager.spawn_container:
+		return 0
+	
+	var removed_count = 0
+	for child in world_manager.spawn_container.get_children():
+		if child.name.begins_with("VISUAL_MARK"):
+			child.queue_free()
+			removed_count += 1
+	
+	return removed_count
+
+func focus_camera_on_player(player_id: String):
+	if not world_manager:
+		print("❌ No world_manager available")
+		return
+	
+	# Check if we should unfocus instead
+	if is_camera_focused and world_manager.spawn_container:
+		var existing_helper = world_manager.spawn_container.get_node_or_null("FOCUS_HERE")
+		if existing_helper:
+			existing_helper.queue_free()
+			is_camera_focused = false
+			print("🔄 Removed camera focus")
+			print("💡 TIP: Click 'Focus Camera' again to focus on a player")
+			return
+	
+	if not world_manager.world_data:
+		print("❌ No world data available")
+		return
+	
 	var player_info = world_manager.world_data.get_player(player_id)
-	if player_info.has("position"):
+	if player_info.has("position") and not player_info.is_empty():
 		var pos = player_info["position"]
 		print("📍 Player ", player_id, " is at position ", pos)
-		print("💡 TIP: Navigate to coordinates X:", pos.x, " Y:", pos.y, " in the editor viewport")
 		
-		# Try to move the editor camera (this might not work in all contexts)
-		var editor_viewport = get_viewport()
-		if editor_viewport and editor_viewport.has_method("get_camera_2d"):
-			var camera = editor_viewport.get_camera_2d()
-			if camera:
-				camera.global_position = pos
-				print("🎯 Editor camera moved to player position")
+		# Create a focus helper node that you can easily select in the editor
+		if Engine.is_editor_hint() and world_manager.spawn_container:
+			# Remove any existing focus helper first
+			var existing_helper = world_manager.spawn_container.get_node_or_null("FOCUS_HERE")
+			if existing_helper:
+				existing_helper.queue_free()
+			
+			# Create a new focus helper node
+			var focus_helper = Node2D.new()
+			focus_helper.name = "FOCUS_HERE"
+			focus_helper.position = pos
+			
+			# Add a visible sprite to make it easy to spot
+			var sprite = Sprite2D.new()
+			var texture = PlaceholderTexture2D.new()
+			texture.size = Vector2(100, 100)
+			sprite.texture = texture
+			sprite.modulate = Color.YELLOW
+			focus_helper.add_child(sprite)
+			
+			# Add a label with player info
+			var label = Label.new()
+			label.text = "FOCUS: " + player_id.substr(-8) + "\nAt: " + str(pos)
+			label.position = Vector2(-50, -80)
+			label.add_theme_color_override("font_color", Color.YELLOW)
+			focus_helper.add_child(label)
+			
+			world_manager.spawn_container.add_child(focus_helper)
+			is_camera_focused = true
+			
+			print("🎯 Created FOCUS_HERE node at player position")
+			print("📍 INSTRUCTIONS:")
+			print("   1. Go to Scene tab")
+			print("   2. Find 'FOCUS_HERE' under SpawnContainer")
+			print("   3. Double-click it to center the editor view")
+			print("   4. The yellow square shows the exact player location")
+			print("💡 TIP: Click 'Focus Camera' again to remove focus")
+			
 		else:
-			print("💡 Manually navigate to position ", pos, " in the editor")
+			print("💡 Manually navigate to position ", pos, " in the editor viewport")
 	else:
-		print("❌ Player ", player_id, " not found")
+		print("❌ Player '", player_id, "' not found")
+		print("💡 TIP: Player IDs must be complete and exact (e.g., 'player_997013ce-1619-421e-b83d-b98557443a42')")
+		print("🔍 Use 'Search Players' with partial ID like '997' to find the complete ID first")
+		
+		# Try to find similar players
+		if world_manager.world_data:
+			var all_players = world_manager.world_data.get_all_players()
+			var similar_players = []
+			for existing_id in all_players.keys():
+				if existing_id.contains(player_id) or player_id.contains(existing_id.substr(0, 20)):
+					similar_players.append(existing_id)
+			
+			if similar_players.size() > 0:
+				print("🔍 Did you mean one of these?")
+				for similar_id in similar_players:
+					print("   • ", similar_id)
+			else:
+				print("🔍 No similar player IDs found")
+
+# Clean up any leftover focus markers from previous versions
+func cleanup_old_focus_markers():
+	if not world_manager or not world_manager.spawn_container:
+		return
+	
+	var cleanup_count = 0
+	# Look for various possible marker names from different versions
+	var marker_names = ["FOCUS_HERE", "VISUAL_MARK", "VISUAL_MARK_0", "VISUAL_MARK_1", "VISUAL_MARK_2"]
+	
+	for marker_name in marker_names:
+		var marker = world_manager.spawn_container.get_node_or_null(marker_name)
+		if marker:
+			marker.queue_free()
+			cleanup_count += 1
+	
+	# Also check for any nodes that start with marker prefixes
+	for child in world_manager.spawn_container.get_children():
+		if child.name.begins_with("FocusMarker_") or child.name.begins_with("VISUAL_MARK"):
+			child.queue_free()
+			cleanup_count += 1
+	
+	if cleanup_count > 0:
+		print("🧹 Cleaned up ", cleanup_count, " old focus markers")
+		is_camera_focused = false
 
 func list_all_players_with_positions():
 	if not world_manager or not world_manager.world_data:

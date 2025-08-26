@@ -2236,7 +2236,8 @@ script = ExtResource("3_world_display")
 
 [node name="PlayerSearchComponent" type="Node" parent="WorldManager"]
 script = ExtResource("3_world_search")
-search_term = "player_cb"
+search_term = "player_cb6b"
+max_recent_players = 20
 metadata/_custom_type_script = "uid://cawmjvne034fb"
 
 [node name="UILayer" type="CanvasLayer" parent="."]
